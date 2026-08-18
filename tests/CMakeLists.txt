@@ -1,10 +1,10 @@
 qt_add_executable(tst_mediaprobe tst_mediaprobe.cpp)
-target_link_libraries(tst_mediaprobe PRIVATE Qt6::Test driftengine)
+target_link_libraries(tst_mediaprobe PRIVATE Qt6::Test TonDronengine)
 add_test(NAME MediaProbe COMMAND tst_mediaprobe)
 
 qt_add_executable(tst_core tst_core.cpp)
 target_include_directories(tst_core PRIVATE ../src)
-target_link_libraries(tst_core PRIVATE Qt6::Test driftcore)
+target_link_libraries(tst_core PRIVATE Qt6::Test TonDroncore)
 add_test(NAME Core COMMAND tst_core)
 
 qt_add_executable(tst_editorstate
@@ -29,25 +29,25 @@ qt_add_executable(tst_editorstate
     ../src/mcp/McpStdio.cpp
 )
 target_include_directories(tst_editorstate PRIVATE ../src)
-target_link_libraries(tst_editorstate PRIVATE Qt6::Test Qt6::Gui Qt6::Multimedia Qt6::Concurrent Qt6::Network driftcore driftengine)
+target_link_libraries(tst_editorstate PRIVATE Qt6::Test Qt6::Gui Qt6::Multimedia Qt6::Concurrent Qt6::Network TonDroncore TonDronengine)
 target_compile_definitions(tst_editorstate PRIVATE
     DRIFT_TEST_DENOISE_MODEL_DIR="${CMAKE_SOURCE_DIR}/models/deepfilternet3"
-    DRIFT_VERSION="${PROJECT_VERSION}")
+    TonDron_VERSION="${PROJECT_VERSION}")
 add_test(NAME EditorState COMMAND tst_editorstate)
-drift_copy_effects(tst_editorstate)
-drift_copy_transitions(tst_editorstate)
+TonDron_copy_effects(tst_editorstate)
+TonDron_copy_transitions(tst_editorstate)
 
 qt_add_executable(tst_playback
     tst_playback.cpp
     ../src/playback/PlaybackClock.cpp
 )
 target_include_directories(tst_playback PRIVATE ../src)
-target_link_libraries(tst_playback PRIVATE Qt6::Test driftcore)
+target_link_libraries(tst_playback PRIVATE Qt6::Test TonDroncore)
 add_test(NAME Playback COMMAND tst_playback)
 
 qt_add_executable(tst_addonpackage tst_addonpackage.cpp)
 target_include_directories(tst_addonpackage PRIVATE ../src)
-target_link_libraries(tst_addonpackage PRIVATE Qt6::Test driftengine)
+target_link_libraries(tst_addonpackage PRIVATE Qt6::Test TonDronengine)
 target_compile_definitions(tst_addonpackage PRIVATE
     DRIFT_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 add_test(NAME AddonPackage COMMAND tst_addonpackage)
@@ -55,12 +55,12 @@ add_test(NAME AddonPackage COMMAND tst_addonpackage)
 qt_add_executable(tst_projectbundle tst_projectbundle.cpp)
 target_include_directories(tst_projectbundle PRIVATE ../src)
 # zstd directly: the test forges a manifest to exercise the format version gate.
-target_link_libraries(tst_projectbundle PRIVATE Qt6::Test driftengine ${DRIFT_ZSTD_TARGET})
+target_link_libraries(tst_projectbundle PRIVATE Qt6::Test TonDronengine ${DRIFT_ZSTD_TARGET})
 add_test(NAME ProjectBundle COMMAND tst_projectbundle)
 
 qt_add_executable(tst_engine tst_engine.cpp)
 target_include_directories(tst_engine PRIVATE ../src)
-target_link_libraries(tst_engine PRIVATE Qt6::Test Qt6::Gui Qt6::OpenGL driftengine driftcore)
+target_link_libraries(tst_engine PRIVATE Qt6::Test Qt6::Gui Qt6::OpenGL TonDronengine TonDroncore)
 target_compile_definitions(tst_engine PRIVATE
     DRIFT_TEST_EFFECTS_DIR="${CMAKE_SOURCE_DIR}/effects"
     # Beauty / makeup packages live in the effects.core addon (drift-addons staging), not the
@@ -75,8 +75,8 @@ target_compile_definitions(tst_engine PRIVATE
     DRIFT_TEST_DENOISE_MODEL_DIR="${CMAKE_SOURCE_DIR}/models/deepfilternet3"
 )
 add_test(NAME Engine COMMAND tst_engine)
-drift_copy_effects(tst_engine)
-drift_copy_transitions(tst_engine)
+TonDron_copy_effects(tst_engine)
+TonDron_copy_transitions(tst_engine)
 
 qt_add_executable(tst_mcp
     tst_mcp.cpp
@@ -100,11 +100,11 @@ qt_add_executable(tst_mcp
     ../src/mcp/McpStdio.cpp
 )
 target_include_directories(tst_mcp PRIVATE ../src)
-target_link_libraries(tst_mcp PRIVATE Qt6::Test Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::Concurrent driftcore driftengine)
-target_compile_definitions(tst_mcp PRIVATE DRIFT_VERSION="${PROJECT_VERSION}")
+target_link_libraries(tst_mcp PRIVATE Qt6::Test Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::Concurrent TonDroncore TonDronengine)
+target_compile_definitions(tst_mcp PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
 add_test(NAME Mcp COMMAND tst_mcp)
-drift_copy_effects(tst_mcp)
-drift_copy_transitions(tst_mcp)
+TonDron_copy_effects(tst_mcp)
+TonDron_copy_transitions(tst_mcp)
 
 # Runs lupdate and fails if i18n/*.ts would change — i.e. someone added qsTr/tr and
 # did not run `cmake --build build --target update_translations`.
