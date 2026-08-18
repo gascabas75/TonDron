@@ -395,7 +395,6 @@ endif()
 
 qt_add_resources(tondron-videoedit "TonDron_app_icon"
   PREFIX "/app"
-  BASE resources
   FILES TonDron.png
 )
 
