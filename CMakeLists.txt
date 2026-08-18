@@ -369,8 +369,8 @@ target_include_directories(tondron-videoedit PUBLIC src)
 target_link_libraries(tondron-videoedit PRIVATE TonDronengine)
 
 if(WIN32)
-    set_target_properties(TonDron PROPERTIES WIN32_EXECUTABLE TRUE)
-    target_sources(TonDron PRIVATE resources/windows/TonDron.rc)
+    set_target_properties(tondron-videoedit PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_sources(tondron-videoedit PRIVATE resources/windows/TonDron.rc)
     set_source_files_properties(resources/windows/TonDron.rc PROPERTIES
         OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/resources/windows/TonDron.ico")
 endif()
@@ -384,10 +384,10 @@ if(APPLE)
         "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
         @ONLY)
     set(TonDron_MACOS_ICNS "${CMAKE_SOURCE_DIR}/resources/macos/${TonDron_MACOS_ICON_FILE}")
-    target_sources(TonDron PRIVATE "${TonDron_MACOS_ICNS}")
+    target_sources(tondron-videoedit PRIVATE "${TonDron_MACOS_ICNS}")
     set_source_files_properties("${TonDron_MACOS_ICNS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources")
-    set_target_properties(TonDron PROPERTIES
+    set_target_properties(tondron-videoedit PROPERTIES
         MACOSX_BUNDLE TRUE
         OUTPUT_NAME "${TonDron_MACOS_EXECUTABLE}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
@@ -395,7 +395,8 @@ endif()
 
 qt_add_resources(tondron-videoedit "TonDron_app_icon"
   PREFIX "/app"
-  FILES TonDron.png
+  FILES
+    ${CMAKE_SOURCE_DIR}/resources/TonDron.png
 )
 
 set_source_files_properties(src/qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
@@ -407,9 +408,7 @@ qt_add_qml_module(tondron-videoedit
   URI TonDron
   VERSION 1.0
   OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TonDron
-    URI TonDron
-    VERSION 1.0
-    QML_FILES
+  QML_FILES
         src/qml/Main.qml
         src/qml/Theme.qml
         src/qml/Toasts.qml
@@ -655,7 +654,7 @@ else()
             DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT tondron-videoedit)
     foreach(_size 64 128 256 512)
         install(FILES
-            flatpak/share/icons/hicolor/${_size}x${_size}/apps/com.tondron.TonDron.png
+            Flatpak/share/icons/hicolor/${_size}x${_size}/apps/com.tondron.TonDron.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT tondron-videoedit)
     endforeach()
 endif()
