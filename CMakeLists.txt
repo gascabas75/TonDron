@@ -191,8 +191,8 @@ add_library(TonDroncore STATIC
     src/core/commands/ProjectCommands.h
     src/core/commands/ProjectCommands.cpp
 )
-target_include_directories(TonDroncore PUBLIC src)
-target_link_libraries(TonDroncore PUBLIC Qt6::Core Qt6::Gui)
+target_include_directories(tondron-videoeditcore PUBLIC src)
+target_link_libraries(tondron-videoeditcore PUBLIC Qt6::Core Qt6::Gui)
 
 add_library(TonDronaudiodsp STATIC
     src/engine/audio/AudioEffectProcessor.h
@@ -213,11 +213,11 @@ add_library(TonDronaudiodsp STATIC
     src/engine/audio/ClipAudioRetimer.cpp
 )
 set_target_properties(TonDronaudiodsp PROPERTIES AUTOMOC OFF)
-target_include_directories(TonDronaudiodsp PUBLIC src)
-target_link_libraries(TonDronaudiodsp PUBLIC TonDroncore)
-target_link_libraries(TonDronaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
+target_include_directories(tondron-videoeditaudiodsp PUBLIC src)
+target_link_libraries(tondron-videoeditaudiodsp PUBLIC TonDroncore)
+target_link_libraries(tondron-videoeditaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
     ${TonDron_SOUNDTOUCH_TARGET})
-target_compile_definitions(TonDronaudiodsp PRIVATE
+target_compile_definitions(tondron-videoeditaudiodsp PRIVATE
     JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
@@ -323,15 +323,15 @@ add_library(TonDronengine STATIC
     src/engine/ProjectDependencies.cpp
 )
 
-target_include_directories(TonDronengine PUBLIC src)
-target_link_libraries(TonDronengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore TonDronaudiodsp onnxruntime::headers)
-target_link_libraries(TonDronengine PRIVATE ${TonDron_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
-target_compile_definitions(TonDronengine PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
+target_include_directories(tondron-videoeditengine PUBLIC src)
+target_link_libraries(tondron-videoeditengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore TonDronaudiodsp onnxruntime::headers)
+target_link_libraries(tondron-videoeditengine PRIVATE ${TonDron_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
+target_compile_definitions(tondron-videoeditengine PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
 
 if(WITH_BGREMOVAL)
-    target_include_directories(TonDronengine PRIVATE ${OpenCV_INCLUDE_DIRS})
-    target_link_libraries(TonDronengine PRIVATE ${OpenCV_LIBS})
-    target_compile_definitions(TonDronengine PUBLIC TonDron_WITH_BGREMOVAL)
+    target_include_directories(tondron-videoeditengine PRIVATE ${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(tondron-videoeditengine PRIVATE ${OpenCV_LIBS})
+    target_compile_definitions(tondron-videoeditengine PUBLIC TonDron_WITH_BGREMOVAL)
 endif()
 
 # --- application - UNICO y DEFINITIVO ---
@@ -365,7 +365,7 @@ qt_add_executable(tondron-videoedit
     src/preview/PreviewItem.cpp
 )
 
-target_include_directories(TonDron PUBLIC src)
+target_include_directories(tondron-videoedit PUBLIC src)
 target_link_libraries(tondron-videoedit PRIVATE TonDronengine)
 
 if(WIN32)
@@ -377,7 +377,7 @@ endif()
 
 if(APPLE)
     set(TonDron_MACOS_EXECUTABLE "TonDron")
-    set(TonDron_MACOS_BUNDLE_ID "org.cutwire.TonDron")
+    set(TonDron_MACOS_BUNDLE_ID "com.tondron.TonDron")
     set(TonDron_MACOS_ICON_FILE "TonDron.icns")
     configure_file(
         "${CMAKE_SOURCE_DIR}/resources/macos/Info.plist.in"
@@ -528,7 +528,7 @@ target_link_libraries(tondron-videoedit PRIVATE
     TonDroncore
     TonDronengine
 )
-target_include_directories(TonDron PRIVATE src src/preview)
+target_include_directories(tondron-videoedit PRIVATE src src/preview)
 
 file(GLOB TonDron_MCP_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/mcp/*.cpp"
@@ -562,7 +562,7 @@ if(NOT TARGET update_translations AND TARGET TonDron_lupdate)
     add_custom_target(update_translations DEPENDS TonDron_lupdate)
 endif()
 
-target_compile_definitions(TonDron PRIVATE
+target_compile_definitions(tondron-videoedit PRIVATE
     TonDron_ADDON_INDEX_URL="${TonDron_ADDON_INDEX_URL}"
     TonDron_ADDON_CLIENT_TOKEN="${TonDron_ADDON_CLIENT_TOKEN}"
     TonDron_UPDATE_FEED_URL="${TonDron_UPDATE_FEED_URL}"
@@ -634,30 +634,30 @@ function(TonDron_copy_effect_templates target)
     TonDron_stage_packages(${target} effect-templates)
 endfunction()
 
-TonDron_copy_effects(TonDron)
-TonDron_copy_effect_templates(TonDron)
-TonDron_copy_transitions(TonDron)
-TonDron_copy_audio_effects(TonDron)
-TonDron_bundle_onnxruntime(TonDron)
+TonDron_copy_effects(tondron-videoedit)
+TonDron_copy_effect_templates(tondron-videoedit)
+TonDron_copy_transitions(tondron-videoedit)
+TonDron_copy_audio_effects(tondron-videoedit)
+TonDron_bundle_onnxruntime(tondron-videoedit)
 
 include(GNUInstallDirs)
 
 if(APPLE)
-    install(TARGETS tondron-videoedit BUNDLE DESTINATION . COMPONENT TonDron)
+    install(TARGETS tondron-videoedit BUNDLE DESTINATION . COMPONENT tondron-videoedit)
 else()
-    install(TARGETS tondron-videoedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
+    install(TARGETS tondron-videoedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT tondron-videoedit)
     foreach(_assetdir effects transitions effect-templates audio-effects)
         install(DIRECTORY ${CMAKE_SOURCE_DIR}/${_assetdir}
-                DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
+                DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT tondron-videoedit)
     endforeach()
-    install(FILES flatpak/org.cutwire.TonDron.desktop
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT TonDron)
-    install(FILES flatpak/org.cutwire.TonDron.metainfo.xml
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT TonDron)
+    install(FILES Flatpak/com.tondron.TonDron.desktop
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT tondron-videoedit)
+    install(FILES Flatpak/com.tondron.TonDron.metainfo.xml
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT tondron-videoedit)
     foreach(_size 64 128 256 512)
         install(FILES
-            flatpak/share/icons/hicolor/${_size}x${_size}/apps/org.cutwire.TonDron.png
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT TonDron)
+            flatpak/share/icons/hicolor/${_size}x${_size}/apps/com.tondron.TonDron.png
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT tondron-videoedit)
     endforeach()
 endif()
 
