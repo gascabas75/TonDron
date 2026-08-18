@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Templates as T
-import Drift
+import TonDron
 
 // Grip for the editor's SplitViews.
 //

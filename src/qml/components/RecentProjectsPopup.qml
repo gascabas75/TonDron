@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Project switcher dropdown: current project, recent projects to switch to, and
 // actions to start or open another. Saved status uses green/red dots on the

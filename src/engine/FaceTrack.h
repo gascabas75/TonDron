@@ -10,7 +10,7 @@
 
 #include <memory>
 
-namespace drift {
+namespace TonDron {
 
 // One baked frame: a slot per tracked face, holding a gap where that face was not found.
 struct FaceTrackFrame
@@ -39,7 +39,7 @@ struct FaceTrack
     FaceAnchors sample(TimeUs relativeUs, int faceIndex) const;
 
     // Every slot at one instant. Compositing samples once per clip per frame and hands the result
-    // to whichever effect path runs, so the CPU and GPU compositors cannot drift apart.
+    // to whichever effect path runs, so the CPU and GPU compositors cannot TonDron apart.
     QList<FaceAnchors> sampleAll(TimeUs relativeUs) const;
 };
 
@@ -82,4 +82,4 @@ bool readFaceTrack(const QString &path, FaceTrack *out, QString *errorOut);
 // malformed. Thread-safe.
 std::shared_ptr<const FaceTrack> loadFaceTrackCached(const QString &path);
 
-} // namespace drift
+} // namespace TonDron

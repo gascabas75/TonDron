@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 // Decode-only GPT-2 byte-level BPE tokenizer for Whisper. Loads vocab.json (piece->id),
 // stores the raw bytes each text token maps to, and reassembles UTF-8 text from a token
@@ -27,4 +27,4 @@ private:
     QHash<int, QByteArray> m_idToBytes;
 };
 
-} // namespace drift
+} // namespace TonDron

@@ -55,10 +55,10 @@ QImage frameToImage(const AVFrame *frame)
     return image;
 }
 
-QString buildFilterGraph(const QList<drift::Effect> &effects)
+QString buildFilterGraph(const QList<TonDron::Effect> &effects)
 {
     QStringList parts;
-    for (const drift::Effect &effect : effects) {
+    for (const TonDron::Effect &effect : effects) {
         const QString graph = buildFilterGraphForEffect(effect);
         if (!graph.isEmpty())
             parts.append(graph);
@@ -146,14 +146,14 @@ QImage applyLibavFilterGraph(const QImage &input, const QString &filters)
 
 } // namespace
 
-QImage EffectProcessor::applyEffects(const QImage &input, const QList<drift::Effect> &effects,
-                                     drift::TimeUs timeUs, const QList<drift::FaceAnchors> &faceSlots)
+QImage EffectProcessor::applyEffects(const QImage &input, const QList<TonDron::Effect> &effects,
+                                     TonDron::TimeUs timeUs, const QList<TonDron::FaceAnchors> &faceSlots)
 {
     if (input.isNull() || effects.isEmpty())
         return input;
 
     QImage result = input;
-    QList<drift::Effect> legacyLibavBatch;
+    QList<TonDron::Effect> legacyLibavBatch;
     QList<GpuEffectExecutor::ChainStep> gpuChain;
 
     auto flushLegacy = [&]() {
@@ -174,7 +174,7 @@ QImage EffectProcessor::applyEffects(const QImage &input, const QList<drift::Eff
         gpuChain.clear();
     };
 
-    for (const drift::Effect &effect : effects) {
+    for (const TonDron::Effect &effect : effects) {
         const EffectPresetEntry *def =
             effect.catalogId.isEmpty() ? nullptr : effectDefForId(effect.catalogId);
 
@@ -186,7 +186,7 @@ QImage EffectProcessor::applyEffects(const QImage &input, const QList<drift::Eff
             flushLegacy();
             QMap<QString, QVariant> params = resolvedEffectParameters(effect, *def);
             if (def->needsFace)
-                drift::applyFaceUniforms(&params, faceSlots);
+                TonDron::applyFaceUniforms(&params, faceSlots);
             gpuChain.append(GpuEffectExecutor::ChainStep{def->meta.id, &def->gpu, params});
             continue;
         }

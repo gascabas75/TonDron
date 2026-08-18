@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // One animatable-property control for the clip inspector: keyframe diamond +
 // label on top, value field / slider below. Tracks playhead and project edits

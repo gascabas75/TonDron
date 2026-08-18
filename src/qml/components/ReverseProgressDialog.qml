@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Confirm-then-progress for reversing a video clip. Reversing works without a render, but only by
 // asking the decoder for an ever-earlier frame — a keyframe seek and a GOP re-decode per frame.
@@ -89,7 +89,7 @@ ThemedDialog {
                   ? (EditorState.reverseRenderStatus.length > 0
                      ? EditorState.reverseRenderStatus
                      : qsTr("Working…"))
-                  : qsTr("Drift will render a reversed copy of this clip so it plays back "
+                  : qsTr("TonDron will render a reversed copy of this clip so it plays back "
                          + "smoothly. You can keep editing while it runs.")
         }
 

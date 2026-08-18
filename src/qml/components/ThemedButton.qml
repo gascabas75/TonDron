@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
-// Text button with standard Drift variants. Prefer this over inline Button chrome.
+// Text button with standard TonDron variants. Prefer this over inline Button chrome.
 // Variants: "primary" | "secondary" | "ghost" | "destructive"
 Button {
     id: root

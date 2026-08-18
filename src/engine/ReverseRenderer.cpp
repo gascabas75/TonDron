@@ -17,7 +17,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -513,4 +513,4 @@ bool renderReversed(const QString &sourcePath, TimeUs coverInUs, TimeUs coverOut
     return true;
 }
 
-} // namespace drift
+} // namespace TonDron

@@ -14,7 +14,7 @@
 #include <openssl/evp.h>
 #include <zstd.h>
 
-namespace drift::addon {
+namespace TonDron::addon {
 namespace {
 
 constexpr char kMagic[8] = {'D', 'R', 'I', 'F', 'T', 'P', 'K', 'G'};
@@ -136,14 +136,14 @@ bool readHeader(QFile &file, PackageInfo *info, QCryptographicHash *digest, QStr
 {
     QByteArray header = file.read(kHeaderSize);
     if (header.size() != kHeaderSize)
-        return fail(error, QStringLiteral("file is too short to be a .driftpkg"));
+        return fail(error, QStringLiteral("file is too short to be a .TonDronpkg"));
     if (memcmp(header.constData(), kMagic, sizeof(kMagic)) != 0)
-        return fail(error, QStringLiteral("not a .driftpkg (bad magic)"));
+        return fail(error, QStringLiteral("not a .TonDronpkg (bad magic)"));
 
     const quint32 version = readU32(header.constData() + 8);
     if (version != kFormatVersion) {
         return fail(error, QStringLiteral("package format version %1 is newer than this build "
-                                          "understands — update Drift")
+                                          "understands — update TonDron")
                                .arg(version));
     }
 
@@ -411,7 +411,7 @@ bool install(const QString &packagePath, const QString &destDir, const ProgressF
     if (actualDigest != expectedDigest)
         return fail(error, QStringLiteral("package contents do not match its digest"));
     if (!verifySignature(actualDigest, signature))
-        return fail(error, QStringLiteral("package signature is not valid for this build of Drift"));
+        return fail(error, QStringLiteral("package signature is not valid for this build of TonDron"));
 
     QDir existing(destDir);
     if (existing.exists() && !existing.removeRecursively())
@@ -427,4 +427,4 @@ bool install(const QString &packagePath, const QString &destDir, const ProgressF
     return true;
 }
 
-} // namespace drift::addon
+} // namespace TonDron::addon

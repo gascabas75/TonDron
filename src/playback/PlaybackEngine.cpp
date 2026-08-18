@@ -16,7 +16,7 @@ constexpr int kPlayheadUpdateMs = 16; // ~60 Hz UI updates, independent of video
 // of them. It is deliberately seconds and not minutes: the frames are held in
 // RAM per clip — 2 s of 720p NV12 is ~83 MB — and every edit or seek discards
 // the part of the buffer past the change.
-constexpr drift::TimeUs kReadAheadUs = 2 * drift::kUsPerSecond;
+constexpr TonDron::TimeUs kReadAheadUs = 2 * TonDron::kUsPerSecond;
 
 // The rates the preview transport offers. All sit inside the stretcher's own clamp
 // (kMinCurveSpeed..kMaxCurveSpeed), and nothing outside this list is accepted.
@@ -145,7 +145,7 @@ void PlaybackEngine::ensureAudioSink()
         Qt::QueuedConnection);
 }
 
-void PlaybackEngine::setProject(drift::Project *project)
+void PlaybackEngine::setProject(TonDron::Project *project)
 {
     m_project = project;
     m_mixer.setProject(project);
@@ -153,9 +153,9 @@ void PlaybackEngine::setProject(drift::Project *project)
     refreshFrame();
 }
 
-void PlaybackEngine::setPlayheadUs(drift::TimeUs us)
+void PlaybackEngine::setPlayheadUs(TonDron::TimeUs us)
 {
-    m_playheadUs = qMax<drift::TimeUs>(0, us);
+    m_playheadUs = qMax<TonDron::TimeUs>(0, us);
     // Only real seeks reach here — the playhead tick emits its position directly rather than
     // routing back through this setter. That matters: the mixer's per-clip DSP is streaming, and a
     // reset on every tick would leave a retimed clip permanently re-priming instead of playing.
@@ -264,9 +264,9 @@ void PlaybackEngine::setPlaybackRate(double rate)
         play();
 }
 
-drift::TimeUs PlaybackEngine::frameStepUs() const
+TonDron::TimeUs PlaybackEngine::frameStepUs() const
 {
-    return drift::frameDurationUs(m_project ? qMax(1, m_project->fps()) : 30);
+    return TonDron::frameDurationUs(m_project ? qMax(1, m_project->fps()) : 30);
 }
 
 void PlaybackEngine::setPreviewRenderSize(int width, int height)
@@ -338,7 +338,7 @@ void PlaybackEngine::play()
     // whatever the rate, and above 1x that simply means covering more timeline per frame. Below 1x
     // the same interval would re-request the frame already on screen several times over, so the
     // tick stretches with the rate instead.
-    const double frameMs = drift::usToSeconds(drift::frameDurationUs(fps)) * 1000.0;
+    const double frameMs = TonDron::usToSeconds(TonDron::frameDurationUs(fps)) * 1000.0;
     const int tickMs = qMax(1, static_cast<int>(frameMs * qMax(1.0, 1.0 / m_playbackRate)));
     m_compositeTimer.start(tickMs);
     // Auto quality reacts to composites that overrun two display ticks. Deriving
@@ -387,13 +387,13 @@ void PlaybackEngine::refreshFrame()
     m_compositor.requestComposite(m_playheadUs, playbackRenderOptions());
 }
 
-void PlaybackEngine::checkEndOfTimeline(drift::TimeUs timeUs)
+void PlaybackEngine::checkEndOfTimeline(TonDron::TimeUs timeUs)
 {
     if (!m_project)
         return;
 
-    drift::TimeUs loopIn = 0;
-    drift::TimeUs loopOut = 0;
+    TonDron::TimeUs loopIn = 0;
+    TonDron::TimeUs loopOut = 0;
     if (shouldLoopWorkArea(&loopIn, &loopOut)) {
         if (timeUs >= loopOut) {
             setPlayheadUs(loopIn);
@@ -402,7 +402,7 @@ void PlaybackEngine::checkEndOfTimeline(drift::TimeUs timeUs)
         return;
     }
 
-    const drift::TimeUs durationUs = m_project->durationUs();
+    const TonDron::TimeUs durationUs = m_project->durationUs();
     if (timeUs >= durationUs) {
         m_playheadUs = durationUs;
         emit playheadUsChanged(static_cast<quint64>(m_playheadUs));
@@ -410,13 +410,13 @@ void PlaybackEngine::checkEndOfTimeline(drift::TimeUs timeUs)
     }
 }
 
-bool PlaybackEngine::shouldLoopWorkArea(drift::TimeUs *loopInOut, drift::TimeUs *loopOutOut) const
+bool PlaybackEngine::shouldLoopWorkArea(TonDron::TimeUs *loopInOut, TonDron::TimeUs *loopOutOut) const
 {
     if (!m_loopWorkArea || !m_project || !m_project->hasWorkArea())
         return false;
 
-    const drift::TimeUs loopIn = m_project->workAreaInUs();
-    const drift::TimeUs loopOut = m_project->workAreaOutUs();
+    const TonDron::TimeUs loopIn = m_project->workAreaInUs();
+    const TonDron::TimeUs loopOut = m_project->workAreaOutUs();
     if (loopOut <= loopIn)
         return false;
 
@@ -432,7 +432,7 @@ void PlaybackEngine::onPlayheadTick()
     if (!m_playing || !m_project)
         return;
 
-    const drift::TimeUs timeUs = m_clock.currentTimeUs();
+    const TonDron::TimeUs timeUs = m_clock.currentTimeUs();
     if (timeUs == m_playheadUs)
         return;
 
@@ -552,7 +552,7 @@ int PlaybackEngine::fillAudio(float *buffer, int sampleCount)
         // and threading a global rate through it would touch every clip overlap test in there.
         // The retimer's "timeline" here is the sink's own output, and its "source" is the project
         // timeline; it owns the read cursor, so the mixer is pulled at whatever position it wants.
-        drift::ClipAudioBlock block;
+        TonDron::ClipAudioBlock block;
         block.identity = m_audioStreamGeneration.load(std::memory_order_acquire);
         block.sampleRate = m_sampleRate;
         block.timelineStartUs = m_clock.renderedFramesUs();
@@ -561,7 +561,7 @@ int PlaybackEngine::fillAudio(float *buffer, int sampleCount)
 
         m_rateRetimer.process(
             block,
-            [this](drift::TimeUs sourceStartUs, int frames, float *dst) {
+            [this](TonDron::TimeUs sourceStartUs, int frames, float *dst) {
                 m_mixer.mix(sourceStartUs, frames, m_sampleRate, dst);
                 // The mixer is silent rather than exhausted past the end of the timeline; playback
                 // stops on the playhead reaching the duration, not on the source running out.
@@ -571,6 +571,6 @@ int PlaybackEngine::fillAudio(float *buffer, int sampleCount)
     }
     m_clock.onAudioSamplesRendered(sampleCount);
     if (m_sink)
-        m_clock.syncPlaybackUs(static_cast<drift::TimeUs>(m_sink->processedUSecs()));
+        m_clock.syncPlaybackUs(static_cast<TonDron::TimeUs>(m_sink->processedUSecs()));
     return sampleCount;
 }

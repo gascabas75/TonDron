@@ -12,7 +12,7 @@
 #include <QSet>
 #include <QStandardPaths>
 
-namespace drift::bundle {
+namespace TonDron::bundle {
 namespace {
 
 // Emoji clips point at a raster under <AppData>/emoji that EmojiCatalog re-renders from the glyph
@@ -157,4 +157,4 @@ QList<AddonRef> collectAddons(const Project &project)
     return addons;
 }
 
-} // namespace drift::bundle
+} // namespace TonDron::bundle

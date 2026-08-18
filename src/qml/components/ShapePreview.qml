@@ -1,10 +1,10 @@
 import QtQuick
 import QtQuick.Shapes
-import Drift
+import TonDron
 
 // Thumbnail for the built-in shape clips.
 //
-// The path comes from the same drift::shapePath() the compositor rasterizes, serialized onto a
+// The path comes from the same TonDron::shapePath() the compositor rasterizes, serialized onto a
 // fixed 0..100 grid, so a card can never show something the timeline does not render. The Shape is
 // scaled to fit the item: drawn at raw coordinates it only rendered correctly at exactly 100×100.
 Item {

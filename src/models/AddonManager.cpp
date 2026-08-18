@@ -30,7 +30,7 @@
 #include <atomic>
 #include <utility>
 
-using namespace drift::addon;
+using namespace TonDron::addon;
 
 namespace {
 
@@ -164,7 +164,7 @@ QVariantList AddonManager::catalog() const
         else if (m_failures.contains(id))
             state = QStringLiteral("failed");
         else if (installed)
-            state = drift::compareVersions(installed->version, version) < 0
+            state = TonDron::compareVersions(installed->version, version) < 0
                         ? QStringLiteral("update-available")
                         : QStringLiteral("installed");
 
@@ -255,14 +255,14 @@ QVariantList AddonManager::updatableAddons() const
 
 bool AddonManager::runtimeAvailable() const
 {
-    return drift::ort::available();
+    return TonDron::ort::available();
 }
 
 QVariantList AddonManager::accelerationOptions() const
 {
     // "auto" and "cpu" are always offered: auto is the default, and CPU is what every runtime can
     // do, so being able to pick it is how a user rules the GPU out when chasing a bad result.
-    const QStringList installed = drift::ort::selectableVariants();
+    const QStringList installed = TonDron::ort::selectableVariants();
     const auto row = [&](const QString &value, const QString &label) {
         return QVariantMap{{QStringLiteral("value"), value},
                            {QStringLiteral("label"), label},
@@ -287,28 +287,28 @@ QVariantList AddonManager::accelerationOptions() const
 
 QString AddonManager::acceleration() const
 {
-    return drift::ort::preferredVariant();
+    return TonDron::ort::preferredVariant();
 }
 
 void AddonManager::setAcceleration(const QString &variant)
 {
-    if (variant == drift::ort::preferredVariant())
+    if (variant == TonDron::ort::preferredVariant())
         return;
-    drift::ort::setPreferredVariant(variant);
+    TonDron::ort::setPreferredVariant(variant);
 
     // Sessions are built per use and read the preference then, so switching to a plugin EP takes
     // effect immediately — it layers onto the core already loaded. Switching to a *different core*
     // does not: that library is loaded once per process.
-    const QString active = drift::ort::activeVariant();
+    const QString active = TonDron::ort::activeVariant();
     if (!active.isEmpty() && variant != active && variant != QLatin1String("auto")) {
-        for (const drift::ort::RuntimeInfo &runtime : drift::ort::installedRuntimes()) {
+        for (const TonDron::ort::RuntimeInfo &runtime : TonDron::ort::installedRuntimes()) {
             if (runtime.variant == variant) {
                 m_runtimeRestartRequired = true;
                 break;
             }
         }
     }
-    emit kindChanged(QString::fromLatin1(drift::ort::kRuntimeKind));
+    emit kindChanged(QString::fromLatin1(TonDron::ort::kRuntimeKind));
 }
 
 bool AddonManager::runtimeRestartRequired() const
@@ -334,7 +334,7 @@ void AddonManager::refresh(bool force)
 
     setRefreshing(true);
     QNetworkRequest request{QUrl(kIndexUrl)};
-    request.setRawHeader("X-Drift-Client", kClientToken.toUtf8());
+    request.setRawHeader("X-TonDron-Client", kClientToken.toUtf8());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
 
@@ -420,7 +420,7 @@ void AddonManager::startDownload(const QString &id)
     transfer->id = id;
     transfer->version = addon.value(QStringLiteral("version")).toString();
     transfer->packagePath = QDir(addonDownloadCacheDir())
-                                .filePath(QStringLiteral("%1-%2.driftpkg").arg(id, transfer->version));
+                                .filePath(QStringLiteral("%1-%2.TonDronpkg").arg(id, transfer->version));
 
     // Resume where a previous attempt stopped rather than re-fetching hundreds of megabytes.
     const QString partial = transfer->packagePath + QStringLiteral(".part");
@@ -560,7 +560,7 @@ void AddonManager::beginExtract(const QString &id, const QString &packagePath)
     watcher->setFuture(QtConcurrent::run([transfer, packagePath, destination]() -> QPair<bool, QString> {
         PackageInfo info;
         QString error;
-        const bool ok = drift::addon::install(
+        const bool ok = TonDron::addon::install(
             packagePath, destination,
             [transfer](qint64, qint64) { return !transfer->cancelled; }, &info, &error);
         if (!ok)
@@ -629,12 +629,12 @@ void AddonManager::reloadForKinds(const QStringList &kinds)
             reloadAudioEffectCatalog();
         else if (kind == QLatin1String("effect-templates"))
             reloadEffectTemplateCatalog();
-        else if (kind == QLatin1String(drift::ort::kRuntimeKind)
-                 || kind == QLatin1String(drift::ort::kPluginEpKind)) {
+        else if (kind == QLatin1String(TonDron::ort::kRuntimeKind)
+                 || kind == QLatin1String(TonDron::ort::kPluginEpKind)) {
             // Nothing to reload. But a runtime that has already been loaded stays loaded for the
             // life of the process, so an install or removal only lands on the next launch —
             // whereas installing the first one, before anything has loaded, works immediately.
-            if (!drift::ort::activeVariant().isEmpty())
+            if (!TonDron::ort::activeVariant().isEmpty())
                 m_runtimeRestartRequired = true;
         }
         // whisper-model, sam2-model and face-model need nothing: sessions are created lazily on
@@ -645,10 +645,10 @@ void AddonManager::reloadForKinds(const QStringList &kinds)
 
 void AddonManager::sweepDownloadCache()
 {
-    // Completed .driftpkg files are removed after a successful install, so anything left here is
+    // Completed .TonDronpkg files are removed after a successful install, so anything left here is
     // from a crash. Half-finished .part files are kept — the next install resumes them.
     QDir cache(addonDownloadCacheDir());
-    const QStringList stale = cache.entryList({QStringLiteral("*.driftpkg")}, QDir::Files);
+    const QStringList stale = cache.entryList({QStringLiteral("*.TonDronpkg")}, QDir::Files);
     for (const QString &name : stale)
         QFile::remove(cache.filePath(name));
 }

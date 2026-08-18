@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Themed checkbox. Replaces the raw `CheckBox` used in the settings tab, which
 // ignored the theme entirely.

@@ -34,7 +34,7 @@ extern "C" {
 #include <unordered_map>
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -138,7 +138,7 @@ QString languageDisplayName(const QString &code)
 QString resolveWhisperModelDir()
 {
     const QStringList roots =
-        GpuPackageParse::defaultSearchPaths(QStringLiteral("DRIFT_WHISPER_MODEL_DIR"),
+        GpuPackageParse::defaultSearchPaths(QStringLiteral("TonDron_WHISPER_MODEL_DIR"),
                                             QStringLiteral("models/whisper-small"),
                                             QStringLiteral("whisper-model"));
     for (const QString &root : roots) {
@@ -606,7 +606,7 @@ bool WhisperTranscriber::Impl::ensureLoaded()
     modelDir = resolveWhisperModelDir();
     if (modelDir.isEmpty()) {
         error = QStringLiteral("Whisper model not found. Place it in models/whisper-small "
-                               "or set DRIFT_WHISPER_MODEL_DIR.");
+                               "or set TonDron_WHISPER_MODEL_DIR.");
         return false;
     }
     if (!ort::ensureLoaded(&error))
@@ -942,4 +942,4 @@ WhisperResult WhisperTranscriber::transcribe(
     return result;
 }
 
-} // namespace drift
+} // namespace TonDron

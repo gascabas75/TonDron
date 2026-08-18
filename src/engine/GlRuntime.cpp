@@ -12,7 +12,7 @@
 #include <cmath>
 #include <mutex>
 
-namespace drift::gl {
+namespace TonDron::gl {
 
 namespace {
 
@@ -184,7 +184,7 @@ bool GlRuntime::ensureReady()
     }
 
     m_glThread = new QThread;
-    m_glThread->setObjectName(QStringLiteral("DriftGL"));
+    m_glThread->setObjectName(QStringLiteral("TonDronGL"));
     m_glThread->start();
 
     m_glOwner = new QObject;
@@ -440,10 +440,10 @@ QOpenGLShaderProgram *GlRuntime::builtinProgram(const QString &id, const char *v
     return cached.passes[0].program.get();
 }
 
-CompiledEffect *GlRuntime::compile(const QString &cacheKey, const drift::GpuEffectDefinition &gpu)
+CompiledEffect *GlRuntime::compile(const QString &cacheKey, const TonDron::GpuEffectDefinition &gpu)
 {
     QString sourceSig;
-    for (const drift::GpuEffectPass &pass : gpu.passes)
+    for (const TonDron::GpuEffectPass &pass : gpu.passes)
         sourceSig += pass.fragmentShaderSource;
     sourceSig += QLatin1Char('#');
     sourceSig += QString::number(gpu.passes.size());
@@ -457,7 +457,7 @@ CompiledEffect *GlRuntime::compile(const QString &cacheKey, const drift::GpuEffe
     cached.sourceSig = sourceSig;
     cached.passes.reserve(static_cast<size_t>(gpu.passes.size()));
 
-    for (const drift::GpuEffectPass &pass : gpu.passes) {
+    for (const TonDron::GpuEffectPass &pass : gpu.passes) {
         CompiledPass cp;
         cp.program = std::make_unique<QOpenGLShaderProgram>();
         if (!cp.program->addShaderFromSourceCode(QOpenGLShader::Vertex, kQuadVertexShader)) {
@@ -689,7 +689,7 @@ GlTarget promoteNv12ToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QBy
 }
 
 void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVariant> &parameters,
-                        const QSize &resolution, drift::TimeUs timeUs, double progress)
+                        const QSize &resolution, TonDron::TimeUs timeUs, double progress)
 {
     program->setUniformValue("u_currentTexture", 0);
     program->setUniformValue("u_resolution",
@@ -702,7 +702,7 @@ void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVari
     program->setUniformValue("u_progress", float(qBound(0.0, progress, 1.0)));
 
     for (auto it = parameters.constBegin(); it != parameters.constEnd(); ++it) {
-        if (drift::isEngineBoundGpuUniform(it.key()))
+        if (TonDron::isEngineBoundGpuUniform(it.key()))
             continue;
         const int loc = program->uniformLocation(it.key());
         if (loc < 0)
@@ -710,8 +710,8 @@ void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVari
         const QVariant &value = it.value();
         if (value.typeId() == QMetaType::Bool) {
             program->setUniformValue(loc, value.toBool() ? 1.f : 0.f);
-        } else if (value.userType() == qMetaTypeId<drift::GpuFloatArray>()) {
-            const auto array = value.value<drift::GpuFloatArray>();
+        } else if (value.userType() == qMetaTypeId<TonDron::GpuFloatArray>()) {
+            const auto array = value.value<TonDron::GpuFloatArray>();
             if (array.tupleSize > 0 && !array.values.isEmpty()) {
                 program->setUniformValueArray(loc, array.values.constData(),
                                               array.values.size() / array.tupleSize,
@@ -744,8 +744,8 @@ void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVari
 }
 
 GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &cacheKey,
-                     const drift::GpuEffectDefinition &gpu, const std::vector<const GlTarget *> &sources,
-                     const QMap<QString, QVariant> &parameters, drift::TimeUs timeUs, double progress,
+                     const TonDron::GpuEffectDefinition &gpu, const std::vector<const GlTarget *> &sources,
+                     const QMap<QString, QVariant> &parameters, TonDron::TimeUs timeUs, double progress,
                      const QSize &canvasSize)
 {
     CompiledEffect *compiled = rt.compile(cacheKey, gpu);
@@ -760,7 +760,7 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
 
     std::map<QString, GlTarget> buffers;
     bool failed = false;
-    for (const drift::GpuEffectBufferSpec &spec : gpu.intermediateBuffers) {
+    for (const TonDron::GpuEffectBufferSpec &spec : gpu.intermediateBuffers) {
         const int w = qMax(1, int(std::lround(canvasSize.width() * spec.scale)));
         const int h = qMax(1, int(std::lround(canvasSize.height() * spec.scale)));
         GlTarget target = rt.acquireTarget(w, h);
@@ -773,7 +773,7 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
     }
 
     std::map<QString, GLuint> textures;
-    for (const drift::GpuEffectTextureSpec &spec : gpu.textures)
+    for (const TonDron::GpuEffectTextureSpec &spec : gpu.textures)
         textures[spec.id] = staticTexture(rt, gl, spec.path);
 
     GlTarget canvas = rt.acquireTarget(canvasSize.width(), canvasSize.height());
@@ -783,13 +783,13 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
     }
 
     for (int i = 0; !failed && i < gpu.passes.size(); ++i) {
-        const drift::GpuEffectPass &pass = gpu.passes[i];
+        const TonDron::GpuEffectPass &pass = gpu.passes[i];
         QOpenGLShaderProgram *program = compiled->passes[size_t(i)].program.get();
 
         QSize inputSize = canvasSize;
 
         GlTarget *outTarget = nullptr;
-        if (pass.output.type == drift::GpuEffectPassOutput::Type::Canvas) {
+        if (pass.output.type == TonDron::GpuEffectPassOutput::Type::Canvas) {
             outTarget = &canvas;
         } else {
             const auto it = buffers.find(pass.output.bufferId);
@@ -810,23 +810,23 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
         setPackageUniforms(program, parameters, inputSize, timeUs, progress);
 
         // Bind all declared inputs: unit 0 → u_currentTexture, unit i → u_texture{i}.
-        const QList<drift::GpuEffectPassInput> inputs =
-            pass.inputs.isEmpty() ? QList<drift::GpuEffectPassInput>{drift::GpuEffectPassInput{}}
+        const QList<TonDron::GpuEffectPassInput> inputs =
+            pass.inputs.isEmpty() ? QList<TonDron::GpuEffectPassInput>{TonDron::GpuEffectPassInput{}}
                                   : pass.inputs;
         int fromUnit = -1;
         int toUnit = -1;
         for (int texUnit = 0; texUnit < inputs.size(); ++texUnit) {
-            const drift::GpuEffectPassInput &in = inputs[texUnit];
+            const TonDron::GpuEffectPassInput &in = inputs[texUnit];
             GLuint tex = 0;
             switch (in.type) {
-            case drift::GpuEffectPassInput::Type::SourceTexture:
+            case TonDron::GpuEffectPassInput::Type::SourceTexture:
                 tex = sourceTexAt(in.sourceIndex);
                 if (in.sourceIndex == 0)
                     fromUnit = texUnit;
                 else if (in.sourceIndex == 1)
                     toUnit = texUnit;
                 break;
-            case drift::GpuEffectPassInput::Type::Buffer: {
+            case TonDron::GpuEffectPassInput::Type::Buffer: {
                 const auto it = buffers.find(in.bufferId);
                 if (it == buffers.end()) {
                     failed = true;
@@ -837,7 +837,7 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
                     inputSize = QSize(it->second.width, it->second.height);
                 break;
             }
-            case drift::GpuEffectPassInput::Type::Texture: {
+            case TonDron::GpuEffectPassInput::Type::Texture: {
                 const auto it = textures.find(in.textureId);
                 tex = it == textures.end() ? 0 : it->second;
                 break;
@@ -887,4 +887,4 @@ GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &ca
     return canvas;
 }
 
-} // namespace drift::gl
+} // namespace TonDron::gl

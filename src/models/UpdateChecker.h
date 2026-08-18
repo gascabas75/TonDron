@@ -10,7 +10,7 @@ class QNetworkAccessManager;
 // (AppImage, Windows installer, Arch package, Flatpak) have nothing in common to install *into*,
 // so the honest end of the flow is the release page in the user's browser.
 //
-// Builds that a package manager owns are configured with an empty DRIFT_UPDATE_FEED_URL and get
+// Builds that a package manager owns are configured with an empty TonDron_UPDATE_FEED_URL and get
 // none of this — see supported(). Nagging a Flatpak or pacman user about a version their package
 // manager will fetch on its own schedule is noise they cannot act on.
 class UpdateChecker : public QObject

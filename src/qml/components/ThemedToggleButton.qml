@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Checkable button for segmented groups (text align, valign) and standalone
 // on/off boxes (Italic, Word wrap, Shadow, Background).

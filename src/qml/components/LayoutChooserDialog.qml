@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Shown on a fresh empty project so the user picks a platform canvas before editing.
 // Category chips → template list (icon + label). "Decide later" keeps the default size

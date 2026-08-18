@@ -20,9 +20,9 @@ qint64 PlaybackClock::nowNs()
         .count();
 }
 
-void PlaybackClock::reset(drift::TimeUs playheadUs, int sampleRate)
+void PlaybackClock::reset(TonDron::TimeUs playheadUs, int sampleRate)
 {
-    m_pausedAtUs = qMax<drift::TimeUs>(0, playheadUs);
+    m_pausedAtUs = qMax<TonDron::TimeUs>(0, playheadUs);
     m_startPlayheadUs = m_pausedAtUs;
     m_sampleRate = qMax(1, sampleRate);
     m_audioSamplesRendered.store(0, std::memory_order_release);
@@ -68,18 +68,18 @@ void PlaybackClock::setRate(double rate)
     m_rate = qBound(0.1, rate, 8.0);
 }
 
-drift::TimeUs PlaybackClock::produceTimeUs() const
+TonDron::TimeUs PlaybackClock::produceTimeUs() const
 {
     if (!m_running.load(std::memory_order_acquire))
         return m_pausedAtUs;
 
-    return m_startPlayheadUs + static_cast<drift::TimeUs>(m_rate * static_cast<double>(renderedFramesUs()));
+    return m_startPlayheadUs + static_cast<TonDron::TimeUs>(m_rate * static_cast<double>(renderedFramesUs()));
 }
 
-drift::TimeUs PlaybackClock::renderedFramesUs() const
+TonDron::TimeUs PlaybackClock::renderedFramesUs() const
 {
     const int64_t samples = m_audioSamplesRendered.load(std::memory_order_acquire);
-    return static_cast<drift::TimeUs>((samples * drift::kUsPerSecond) / m_sampleRate);
+    return static_cast<TonDron::TimeUs>((samples * TonDron::kUsPerSecond) / m_sampleRate);
 }
 
 void PlaybackClock::onAudioSamplesRendered(int sampleCount)
@@ -89,32 +89,32 @@ void PlaybackClock::onAudioSamplesRendered(int sampleCount)
     m_audioSamplesRendered.fetch_add(sampleCount, std::memory_order_acq_rel);
 }
 
-void PlaybackClock::syncPlaybackUs(drift::TimeUs playedUs)
+void PlaybackClock::syncPlaybackUs(TonDron::TimeUs playedUs)
 {
     QMutexLocker lock(&m_anchorMutex);
-    m_anchorPlayedUs = qMax<drift::TimeUs>(0, playedUs);
+    m_anchorPlayedUs = qMax<TonDron::TimeUs>(0, playedUs);
     m_anchorWallNs = nowNs();
 }
 
-drift::TimeUs PlaybackClock::currentTimeUs() const
+TonDron::TimeUs PlaybackClock::currentTimeUs() const
 {
     if (!m_running.load(std::memory_order_acquire))
         return m_pausedAtUs;
 
     QMutexLocker lock(&m_anchorMutex);
-    drift::TimeUs positionUs;
+    TonDron::TimeUs positionUs;
     // Both branches measure real time played and scale it into timeline time, so a rate other than
     // 1 moves the playhead at that multiple without any of the sync logic changing shape.
     if (m_anchorWallNs == 0) { // no sink sync yet
         const qint64 sinceStartNs = nowNs() - m_startWallNs;
         positionUs = sinceStartNs > kSinkSyncGraceNs
                          ? m_startPlayheadUs
-                             + static_cast<drift::TimeUs>(m_rate * (sinceStartNs - kSinkSyncGraceNs)) / 1000
+                             + static_cast<TonDron::TimeUs>(m_rate * (sinceStartNs - kSinkSyncGraceNs)) / 1000
                          : m_startPlayheadUs;
     } else {
-        const drift::TimeUs interpUs = (nowNs() - m_anchorWallNs) / 1000;
-        const drift::TimeUs playedUs = m_anchorPlayedUs + qMax<drift::TimeUs>(0, interpUs);
-        positionUs = m_startPlayheadUs + static_cast<drift::TimeUs>(m_rate * static_cast<double>(playedUs));
+        const TonDron::TimeUs interpUs = (nowNs() - m_anchorWallNs) / 1000;
+        const TonDron::TimeUs playedUs = m_anchorPlayedUs + qMax<TonDron::TimeUs>(0, interpUs);
+        positionUs = m_startPlayheadUs + static_cast<TonDron::TimeUs>(m_rate * static_cast<double>(playedUs));
     }
 
     // The visible playhead must never run backwards while playing. Any correction

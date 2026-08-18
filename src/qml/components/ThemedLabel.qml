@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Compact label for form sections / field captions.
 // tone: "muted" | "default"   size: "xs" | "sm" | "base"

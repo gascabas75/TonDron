@@ -3,7 +3,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace drift {
+namespace TonDron {
 
 // Compare dotted numeric versions; trailing pre-release text is ignored, which is enough for the
 // "is there something newer" question both the Addon Manager and the update check actually ask.
@@ -22,4 +22,4 @@ inline int compareVersions(const QString &a, const QString &b)
     return 0;
 }
 
-} // namespace drift
+} // namespace TonDron

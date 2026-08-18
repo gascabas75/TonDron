@@ -6,7 +6,7 @@
 #include <QString>
 #include <QVariant>
 
-namespace drift {
+namespace TonDron {
 
 struct Clip;
 struct Track;
@@ -44,4 +44,4 @@ double transitionProgress(TimeUs timelineUs, TimeUs windowStartUs, TimeUs window
 const Transition *activeTransitionAt(const Track &track, TimeUs timelineUs, TimeUs &windowStartUs,
                                      TimeUs &windowEndUs);
 
-} // namespace drift
+} // namespace TonDron

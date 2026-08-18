@@ -5,7 +5,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 
 QStringList toolboxNames();
 QJsonObject catalogPayload();
@@ -18,4 +18,4 @@ QString toolboxForOp(const QString &name);
 QString homepageHtml();
 QString agentGuideText();
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

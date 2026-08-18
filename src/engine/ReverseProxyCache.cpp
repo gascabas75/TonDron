@@ -11,7 +11,7 @@
 #include <QStandardPaths>
 #include <QUuid>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -251,4 +251,4 @@ QString newReversePath()
     return QDir(dir).filePath(id + QStringLiteral(".mp4"));
 }
 
-} // namespace drift
+} // namespace TonDron

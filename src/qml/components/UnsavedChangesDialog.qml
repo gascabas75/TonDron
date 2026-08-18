@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Save / Don't Save / Cancel gate before New, Open, Recent, or Quit replaces
 // dirty work. Three actions — ThemedDialog's two-button footer is not enough,

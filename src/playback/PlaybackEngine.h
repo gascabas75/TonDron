@@ -55,9 +55,9 @@ public:
     explicit PlaybackEngine(QObject *parent = nullptr);
     ~PlaybackEngine() override;
 
-    void setProject(drift::Project *project);
-    void setPlayheadUs(drift::TimeUs us);
-    drift::TimeUs playheadUs() const { return m_playheadUs; }
+    void setProject(TonDron::Project *project);
+    void setPlayheadUs(TonDron::TimeUs us);
+    TonDron::TimeUs playheadUs() const { return m_playheadUs; }
 
     void setLoopWorkArea(bool enabled) { m_loopWorkArea = enabled; }
     bool loopWorkArea() const { return m_loopWorkArea; }
@@ -104,14 +104,14 @@ private:
     void onCompositeTick();
     void onCompositeFinished();
     void onFrameReady(const GpuFrameTexture &frame);
-    void checkEndOfTimeline(drift::TimeUs timeUs);
+    void checkEndOfTimeline(TonDron::TimeUs timeUs);
     bool isQualityMode() const { return m_playbackMode == QStringLiteral("quality"); }
     bool isAutoQuality() const { return m_previewQuality == QStringLiteral("auto"); }
-    bool shouldLoopWorkArea(drift::TimeUs *loopInOut, drift::TimeUs *loopOutOut) const;
-    drift::TimeUs frameStepUs() const;
+    bool shouldLoopWorkArea(TonDron::TimeUs *loopInOut, TonDron::TimeUs *loopOutOut) const;
+    TonDron::TimeUs frameStepUs() const;
     FrameCompositor::RenderOptions playbackRenderOptions() const;
 
-    drift::Project *m_project = nullptr;
+    TonDron::Project *m_project = nullptr;
     PlaybackClock m_clock;
     CompositorService m_compositor;
     AudioMixer m_mixer;
@@ -125,7 +125,7 @@ private:
     QTimer m_compositeTimer;
     GpuFrameTexture m_currentFrame;
     mutable QMutex m_frameMutex;
-    drift::TimeUs m_playheadUs = 0;
+    TonDron::TimeUs m_playheadUs = 0;
     std::atomic<bool> m_playing = false;
     QString m_previewQuality = QStringLiteral("full");
     QString m_playbackMode = QStringLiteral("fast");
@@ -134,11 +134,11 @@ private:
     double m_playbackRate = 1.0;
     // Global retiming for non-1x rates. Touched only from the audio thread; the GUI thread asks for
     // a restart by bumping the generation below rather than reaching into its state.
-    drift::ClipAudioRetimer m_rateRetimer;
+    TonDron::ClipAudioRetimer m_rateRetimer;
     std::atomic<quint64> m_audioStreamGeneration{1};
     // Playhead position the in-flight quality-mode frame was requested for; a
     // seek that lands elsewhere while it renders must not be stepped over.
-    drift::TimeUs m_qualityRequestUs = -1;
+    TonDron::TimeUs m_qualityRequestUs = -1;
     QString m_editingClipId;
     int m_previewRenderWidth = 0;
     int m_previewRenderHeight = 0;

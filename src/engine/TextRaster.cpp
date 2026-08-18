@@ -25,18 +25,18 @@ QHash<quint64, QImage> g_cache;
 // word — the cache has to be roomy enough that scrubbing a caption track does not thrash it.
 constexpr int kMaxCacheEntries = 256;
 
-quint64 highlightHash(const drift::TextHighlight &h)
+quint64 highlightHash(const TonDron::TextHighlight &h)
 {
     return qHashMulti(0, h.enabled, h.color.rgba(), h.padding, h.radius);
 }
 
 // Everything about a style that changes pixels. Shared by the block and span cache keys, which
 // would otherwise duplicate a 30-argument hash between them.
-quint64 styleHash(const drift::TextStyle &s)
+quint64 styleHash(const TonDron::TextStyle &s)
 {
     // Deliberately excludes the animation and the time: motion is applied to the layer, not the
     // raster, so one texture serves every frame of an entrance or exit.
-    const drift::WordAccent &a = s.accent;
+    const TonDron::WordAccent &a = s.accent;
     return qHashMulti(0, s.fontFamily, s.pixelSize, s.fontWeight, s.italic, s.color.rgba(),
                       static_cast<int>(s.align), static_cast<int>(s.valign), s.wordWrap, s.lineHeight,
                       s.letterSpacing, s.outlineEnabled, s.outlineWidth, s.outlineColor.rgba(),
@@ -51,7 +51,7 @@ quint64 styleHash(const drift::TextStyle &s)
                                  a.outlineColor.rgba(), highlightHash(a.highlight)));
 }
 
-quint64 rasterKey(const QString &text, const drift::TextStyle &s, int imageW, int imageH,
+quint64 rasterKey(const QString &text, const TonDron::TextStyle &s, int imageW, int imageH,
                   double renderScale, int activeWordIndex)
 {
     return qHashMulti(0, text, styleHash(s), imageW, imageH, qRound(renderScale * 1000.0),
@@ -162,28 +162,28 @@ QList<WordRange> wordRanges(const QString &source)
 
 // Whether a pack's rule picks out this word. Positional rules are pure functions of the index, so
 // the raster stays valid for the whole cue; Karaoke is the one rule that moves with the playhead.
-bool accentedWord(const drift::WordAccent &accent, int index, int count, int longestIndex,
+bool accentedWord(const TonDron::WordAccent &accent, int index, int count, int longestIndex,
                   int activeWordIndex)
 {
     switch (accent.rule) {
-    case drift::WordAccentRule::None:
+    case TonDron::WordAccentRule::None:
         return false;
-    case drift::WordAccentRule::FirstWord:
+    case TonDron::WordAccentRule::FirstWord:
         return index == 0;
-    case drift::WordAccentRule::LastWord:
+    case TonDron::WordAccentRule::LastWord:
         return index == count - 1;
-    case drift::WordAccentRule::EveryOther:
+    case TonDron::WordAccentRule::EveryOther:
         return index >= accent.phase && (index - accent.phase) % 2 == 0;
-    case drift::WordAccentRule::EveryNth:
+    case TonDron::WordAccentRule::EveryNth:
         return index >= accent.phase && (index - accent.phase) % qMax(1, accent.n) == 0;
-    case drift::WordAccentRule::LongestWord:
+    case TonDron::WordAccentRule::LongestWord:
         return index == longestIndex;
-    case drift::WordAccentRule::RandomStable: {
+    case TonDron::WordAccentRule::RandomStable: {
         // Stable per-index draw so the same words stay accented across frames. ~1 word in 3.
         const quint32 h = qHash(static_cast<quint32>(index) * 2654435761u) ^ 0x9e3779b9u;
         return (h & 0xffffu) < 0x5555u;
     }
-    case drift::WordAccentRule::Karaoke:
+    case TonDron::WordAccentRule::Karaoke:
         return index == activeWordIndex;
     }
     return false;
@@ -193,7 +193,7 @@ bool accentedWord(const drift::WordAccent &accent, int index, int count, int lon
 // `font` only when the pack scales its accent words, which is also the only case that needs
 // QTextLayout formats — without them the layout, and so the output, is byte-identical to the
 // single-font path this replaced.
-QList<StyledWord> layoutStyledText(const QString &text, const drift::TextStyle &style,
+QList<StyledWord> layoutStyledText(const QString &text, const TonDron::TextStyle &style,
                                    const QFont &font, const QFont &accentFont, double wrapWidth,
                                    double blockHeight, int activeWordIndex, WordSplit split)
 {
@@ -265,9 +265,9 @@ QList<StyledWord> layoutStyledText(const QString &text, const drift::TextStyle &
     }
 
     double blockTop = 0.0;
-    if (style.valign == drift::TextVAlign::Middle)
+    if (style.valign == TonDron::TextVAlign::Middle)
         blockTop = (blockHeight - totalH) * 0.5;
-    else if (style.valign == drift::TextVAlign::Bottom)
+    else if (style.valign == TonDron::TextVAlign::Bottom)
         blockTop = blockHeight - totalH;
 
     QList<StyledWord> words;
@@ -286,9 +286,9 @@ QList<StyledWord> layoutStyledText(const QString &text, const drift::TextStyle &
         // NoWrap, where the natural text can be wider than the box.
         const double natural = line.naturalTextWidth();
         double lineX = 0.0;
-        if (style.align == drift::TextAlign::Center)
+        if (style.align == TonDron::TextAlign::Center)
             lineX = (wrapWidth - natural) * 0.5;
-        else if (style.align == drift::TextAlign::Right)
+        else if (style.align == TonDron::TextAlign::Right)
             lineX = wrapWidth - natural;
 
         const double baseline = blockTop + lineTop + (mixedSizes ? line.ascent() : metrics.ascent());
@@ -354,16 +354,16 @@ QList<StyledWord> translatedWords(const QList<StyledWord> &words, double dx, dou
     return out;
 }
 
-QEasingCurve::Type easingType(drift::TextEase ease)
+QEasingCurve::Type easingType(TonDron::TextEase ease)
 {
     switch (ease) {
-    case drift::TextEase::Linear:
+    case TonDron::TextEase::Linear:
         return QEasingCurve::Linear;
-    case drift::TextEase::EaseInOut:
+    case TonDron::TextEase::EaseInOut:
         return QEasingCurve::InOutQuad;
-    case drift::TextEase::Back:
+    case TonDron::TextEase::Back:
         return QEasingCurve::OutBack;
-    case drift::TextEase::EaseOut:
+    case TonDron::TextEase::EaseOut:
         return QEasingCurve::OutCubic;
     }
     return QEasingCurve::OutCubic;
@@ -371,10 +371,10 @@ QEasingCurve::Type easingType(drift::TextEase ease)
 
 // `settled` runs 0 (fully out) to 1 (fully in place). `entering` flips the slide direction: an
 // entrance arrives from the opposite side, an exit departs toward the named one.
-void applyAnimation(const drift::TextAnimation &anim, double settled, bool entering,
+void applyAnimation(const TonDron::TextAnimation &anim, double settled, bool entering,
                     const QRectF &layoutRect, double renderScale, TextAnimSample *out)
 {
-    if (anim.kind == drift::TextAnimKind::None)
+    if (anim.kind == TonDron::TextAnimKind::None)
         return;
 
     const double a = QEasingCurve(easingType(anim.ease)).valueForProgress(qBound(0.0, settled, 1.0));
@@ -384,59 +384,59 @@ void applyAnimation(const drift::TextAnimation &anim, double settled, bool enter
     const double sign = entering ? 1.0 : -1.0;
 
     switch (anim.kind) {
-    case drift::TextAnimKind::None:
+    case TonDron::TextAnimKind::None:
         break;
-    case drift::TextAnimKind::Fade:
+    case TonDron::TextAnimKind::Fade:
         out->opacity *= a;
         break;
-    case drift::TextAnimKind::SlideUp:
+    case TonDron::TextAnimKind::SlideUp:
         out->dy += sign * away * travelY;
         out->opacity *= a;
         break;
-    case drift::TextAnimKind::SlideDown:
+    case TonDron::TextAnimKind::SlideDown:
         out->dy -= sign * away * travelY;
         out->opacity *= a;
         break;
-    case drift::TextAnimKind::SlideLeft:
+    case TonDron::TextAnimKind::SlideLeft:
         out->dx += sign * away * travelX;
         out->opacity *= a;
         break;
-    case drift::TextAnimKind::SlideRight:
+    case TonDron::TextAnimKind::SlideRight:
         out->dx -= sign * away * travelX;
         out->opacity *= a;
         break;
-    case drift::TextAnimKind::Pop:
+    case TonDron::TextAnimKind::Pop:
         out->scale *= 0.6 + 0.4 * a; // Back easing overshoots past 1 here, which is the bounce
         out->opacity *= qBound(0.0, a, 1.0);
         break;
-    case drift::TextAnimKind::Blur:
+    case TonDron::TextAnimKind::Blur:
         out->blurPx = qMax(out->blurPx, away * kTextBlurMaxPx * renderScale);
         out->opacity *= qBound(0.0, a, 1.0);
         break;
-    case drift::TextAnimKind::Typewriter:
+    case TonDron::TextAnimKind::Typewriter:
         // Hard binary reveal: a span is off until the playhead reaches its staggered start
         // (settled >= 0), then fully on. Duration is irrelevant, which is what makes it snap.
         out->opacity *= (settled >= 0.0 ? 1.0 : 0.0);
         break;
-    case drift::TextAnimKind::Rise:
+    case TonDron::TextAnimKind::Rise:
         out->dy += sign * away * travelY;
         out->scale *= 0.9 + 0.1 * a;
         out->opacity *= a;
         break;
-    case drift::TextAnimKind::Bounce: {
+    case TonDron::TextAnimKind::Bounce: {
         const double b = QEasingCurve(QEasingCurve::OutBounce).valueForProgress(qBound(0.0, settled, 1.0));
         out->dy += sign * (1.0 - b) * travelY;
         out->opacity *= qBound(0.0, settled * 4.0, 1.0);
         break;
     }
-    case drift::TextAnimKind::Wave:
+    case TonDron::TextAnimKind::Wave:
         break; // continuous; applied by applyWave in the samplers, not from a settle progress
     }
 }
 
 // Continuous vertical oscillation. Unlike the entrance/exit kinds it never settles — it bobs for the
 // whole clip, phase-shifted per span so a wave travels across the characters.
-void applyWave(drift::TimeUs clipLocalUs, int spanIndex, const QRectF &layoutRect, double renderScale,
+void applyWave(TonDron::TimeUs clipLocalUs, int spanIndex, const QRectF &layoutRect, double renderScale,
                TextAnimSample *out)
 {
     const double t = static_cast<double>(clipLocalUs) / 1'000'000.0;
@@ -446,15 +446,15 @@ void applyWave(drift::TimeUs clipLocalUs, int spanIndex, const QRectF &layoutRec
     out->dy += amp * std::sin(t * freq + phase);
 }
 
-double highlightBleed(const drift::TextHighlight &highlight)
+double highlightBleed(const TonDron::TextHighlight &highlight)
 {
     return highlight.enabled ? highlight.padding + highlight.radius : 0.0;
 }
 
-double bleedFor(const drift::TextStyle &style)
+double bleedFor(const TonDron::TextStyle &style)
 {
-    const drift::WordAccent &accent = style.accent;
-    const bool accented = accent.rule != drift::WordAccentRule::None;
+    const TonDron::WordAccent &accent = style.accent;
+    const bool accented = accent.rule != TonDron::WordAccentRule::None;
 
     double bleed = qMax(style.outlineEnabled ? style.outlineWidth : 0.0,
                         accented && accent.outlineEnabled ? accent.outlineWidth : 0.0);
@@ -471,7 +471,7 @@ double bleedFor(const drift::TextStyle &style)
     // A scaled accent word overshoots the block's line box on both sides.
     if (accented && accent.sizeScale > 1.0)
         bleed += style.pixelSize * (accent.sizeScale - 1.0);
-    if (style.animIn.kind == drift::TextAnimKind::Blur || style.animOut.kind == drift::TextAnimKind::Blur)
+    if (style.animIn.kind == TonDron::TextAnimKind::Blur || style.animOut.kind == TonDron::TextAnimKind::Blur)
         bleed += kTextBlurMaxPx;
     return bleed;
 }
@@ -494,7 +494,7 @@ QPainterPath outlineShape(const QPainterPath &path, double outlineWidth, double 
 }
 
 // The style a word is drawn with: the block's, with the pack's accent overrides folded in.
-double outlineWidthFor(const drift::TextStyle &style, bool accent)
+double outlineWidthFor(const TonDron::TextStyle &style, bool accent)
 {
     if (accent && style.accent.outlineEnabled)
         return style.accent.outlineWidth;
@@ -503,17 +503,17 @@ double outlineWidthFor(const drift::TextStyle &style, bool accent)
     return style.outlineWidth;
 }
 
-QColor outlineColorFor(const drift::TextStyle &style, bool accent)
+QColor outlineColorFor(const TonDron::TextStyle &style, bool accent)
 {
     return accent && style.accent.outlineEnabled ? style.accent.outlineColor : style.outlineColor;
 }
 
-QColor fillColorFor(const drift::TextStyle &style, bool accent)
+QColor fillColorFor(const TonDron::TextStyle &style, bool accent)
 {
     return accent && style.accent.colorEnabled ? style.accent.color : style.color;
 }
 
-const drift::TextHighlight *highlightFor(const drift::TextStyle &style, bool accent)
+const TonDron::TextHighlight *highlightFor(const TonDron::TextStyle &style, bool accent)
 {
     if (accent && style.accent.highlight.enabled)
         return &style.accent.highlight;
@@ -539,11 +539,11 @@ QImage blurredShapeLayer(const QList<QPainterPath> &shapes, const QSize &imageSi
 // Draw the highlight pills, shadow, glow, outline, glyph fill and underline for a laid-out block.
 // The box background is drawn by the caller (it is per-block, not per-span), so this stays reusable
 // for both the whole-layer raster and the per-span reveal rasters.
-void paintStyledWords(QPainter &p, const QList<StyledWord> &words, const drift::TextStyle &style,
+void paintStyledWords(QPainter &p, const QList<StyledWord> &words, const TonDron::TextStyle &style,
                       double renderScale, const QSize &imageSize)
 {
     for (const StyledWord &word : words) {
-        const drift::TextHighlight *highlight = highlightFor(style, word.accent);
+        const TonDron::TextHighlight *highlight = highlightFor(style, word.accent);
         if (!highlight)
             continue;
         const double pad = highlight->padding * renderScale;
@@ -608,7 +608,7 @@ struct StyleFonts
     QFont accent;
 };
 
-StyleFonts fontsForStyle(const drift::TextStyle &style, double renderScale)
+StyleFonts fontsForStyle(const TonDron::TextStyle &style, double renderScale)
 {
     StyleFonts fonts;
     fonts.base = fontForStyle(style, qRound(style.pixelSize * renderScale));
@@ -617,20 +617,20 @@ StyleFonts fontsForStyle(const drift::TextStyle &style, double renderScale)
 
     fonts.accent = fonts.base;
     const double scale = style.accent.sizeScale;
-    if (style.accent.rule != drift::WordAccentRule::None && scale > 0.0 && !qFuzzyCompare(scale, 1.0))
+    if (style.accent.rule != TonDron::WordAccentRule::None && scale > 0.0 && !qFuzzyCompare(scale, 1.0))
         fonts.accent.setPixelSize(qMax(1, qRound(style.pixelSize * scale * renderScale)));
     return fonts;
 }
 
 // Everything the block actually paints over: outlined glyphs plus any highlight pills. The box
 // background sizes to this.
-QRectF paintedBounds(const QList<StyledWord> &words, const drift::TextStyle &style, double renderScale)
+QRectF paintedBounds(const QList<StyledWord> &words, const TonDron::TextStyle &style, double renderScale)
 {
     QRectF bounds;
     for (const StyledWord &word : words) {
         QRectF piece =
             outlineShape(word.path, outlineWidthFor(style, word.accent), renderScale).boundingRect();
-        if (const drift::TextHighlight *highlight = highlightFor(style, word.accent)) {
+        if (const TonDron::TextHighlight *highlight = highlightFor(style, word.accent)) {
             const double pad = highlight->padding * renderScale;
             piece = piece.united(word.cellRect.adjusted(-pad, -pad, pad, pad));
         }
@@ -642,11 +642,11 @@ QRectF paintedBounds(const QList<StyledWord> &words, const drift::TextStyle &sty
 // Group the laid-out pieces into the reveal spans the caller asked for. Word and Character spans
 // are one piece each (the layout already split them); Line spans gather a line's words so a mixed
 // accent line still animates as one unit.
-QList<QList<StyledWord>> groupSpans(const QList<StyledWord> &words, drift::TextAnimUnit unit)
+QList<QList<StyledWord>> groupSpans(const QList<StyledWord> &words, TonDron::TextAnimUnit unit)
 {
     QList<QList<StyledWord>> groups;
     for (const StyledWord &word : words) {
-        if (unit == drift::TextAnimUnit::Line && !groups.isEmpty()
+        if (unit == TonDron::TextAnimUnit::Line && !groups.isEmpty()
             && groups.last().first().line == word.line)
             groups.last().append(word);
         else
@@ -657,13 +657,13 @@ QList<QList<StyledWord>> groupSpans(const QList<StyledWord> &words, drift::TextA
 
 } // namespace
 
-TextRasterResult rasterizeText(const drift::Clip &clip, const QString &text, const QRectF &layoutRect,
+TextRasterResult rasterizeText(const TonDron::Clip &clip, const QString &text, const QRectF &layoutRect,
                                double renderScale, int activeWordIndex)
 {
     if (text.isEmpty() || layoutRect.width() < 1.0 || layoutRect.height() < 1.0)
         return {};
 
-    const drift::TextStyle &style = clip.textStyle;
+    const TonDron::TextStyle &style = clip.textStyle;
 
     // The bleed is derived from style constants — never from the current animation — so the image
     // size holds still while an entrance plays and the cached raster stays usable.
@@ -723,7 +723,7 @@ TextRasterResult rasterizeText(const drift::Clip &clip, const QString &text, con
     return result;
 }
 
-TextRasterResult rasterizeText(const drift::Clip &clip, const QRectF &layoutRect, double renderScale,
+TextRasterResult rasterizeText(const TonDron::Clip &clip, const QRectF &layoutRect, double renderScale,
                                int activeWordIndex)
 {
     const QString text = clip.textContent.isEmpty() ? clip.name : clip.textContent;
@@ -740,8 +740,8 @@ QMutex g_spanCacheMutex;
 QHash<quint64, QList<TextSpanRaster>> g_spanCache;
 constexpr int kMaxSpanCacheEntries = 16;
 
-quint64 spanRasterKey(const QString &text, const drift::TextStyle &s, const QRectF &layoutRect,
-                      double renderScale, drift::TextAnimUnit unit, int activeWordIndex)
+quint64 spanRasterKey(const QString &text, const TonDron::TextStyle &s, const QRectF &layoutRect,
+                      double renderScale, TonDron::TextAnimUnit unit, int activeWordIndex)
 {
     return qHashMulti(0, text, styleHash(s), qRound(layoutRect.width()), qRound(layoutRect.height()),
                       qRound(renderScale * 1000.0), static_cast<int>(unit), activeWordIndex);
@@ -757,16 +757,16 @@ QList<TextSpanRaster> offsetSpans(const QList<TextSpanRaster> &local, const QPoi
 
 } // namespace
 
-QList<TextSpanRaster> rasterizeTextSpans(const drift::Clip &clip, const QString &text,
+QList<TextSpanRaster> rasterizeTextSpans(const TonDron::Clip &clip, const QString &text,
                                          const QRectF &layoutRect, double renderScale,
-                                         drift::TextAnimUnit unit, int activeWordIndex)
+                                         TonDron::TextAnimUnit unit, int activeWordIndex)
 {
     if (text.isEmpty() || layoutRect.width() < 1.0 || layoutRect.height() < 1.0)
         return {};
-    if (unit == drift::TextAnimUnit::Block)
+    if (unit == TonDron::TextAnimUnit::Block)
         return {}; // whole-layer path — callers use rasterizeText instead
 
-    const drift::TextStyle &style = clip.textStyle;
+    const TonDron::TextStyle &style = clip.textStyle;
 
     const quint64 key = spanRasterKey(text, style, layoutRect, renderScale, unit, activeWordIndex);
     {
@@ -780,7 +780,7 @@ QList<TextSpanRaster> rasterizeTextSpans(const drift::Clip &clip, const QString 
 
     const StyleFonts fonts = fontsForStyle(style, renderScale);
     const WordSplit split =
-        unit == drift::TextAnimUnit::Character ? WordSplit::Characters : WordSplit::Whole;
+        unit == TonDron::TextAnimUnit::Character ? WordSplit::Characters : WordSplit::Whole;
     const QList<StyledWord> words =
         layoutStyledText(text, style, fonts.base, fonts.accent, layoutRect.width(),
                          layoutRect.height(), activeWordIndex, split);
@@ -859,27 +859,27 @@ QList<TextSpanRaster> rasterizeTextSpans(const drift::Clip &clip, const QString 
 // Sample entrance/exit motion for a text span occupying [windowStartUs, windowStartUs +
 // windowDurationUs). Text clips pass the clip's span; subtitles pass the active cue's span
 // so every cue animates in and out on its own.
-static TextAnimSample sampleTextAnimationWindow(const drift::TextStyle &style, drift::TimeUs timelineUs,
-                                                drift::TimeUs windowStartUs, drift::TimeUs windowDurationUs,
+static TextAnimSample sampleTextAnimationWindow(const TonDron::TextStyle &style, TonDron::TimeUs timelineUs,
+                                                TonDron::TimeUs windowStartUs, TonDron::TimeUs windowDurationUs,
                                                 const QRectF &layoutRect, double renderScale)
 {
     TextAnimSample sample;
 
-    const drift::TimeUs elapsed = timelineUs - windowStartUs;
-    const drift::TimeUs remaining = windowDurationUs - elapsed;
+    const TonDron::TimeUs elapsed = timelineUs - windowStartUs;
+    const TonDron::TimeUs remaining = windowDurationUs - elapsed;
 
     // Whole-layer (Block) wave: the entire text bobs together. Per-span waves are handled by
     // sampleTextSpanAnimation with a per-span phase.
-    if (style.animIn.kind == drift::TextAnimKind::Wave) {
+    if (style.animIn.kind == TonDron::TextAnimKind::Wave) {
         applyWave(elapsed, 0, layoutRect, renderScale, &sample);
         return sample;
     }
 
-    if (style.animIn.kind != drift::TextAnimKind::None && style.animIn.durationUs > 0) {
+    if (style.animIn.kind != TonDron::TextAnimKind::None && style.animIn.durationUs > 0) {
         const double settled = static_cast<double>(elapsed) / static_cast<double>(style.animIn.durationUs);
         applyAnimation(style.animIn, settled, true, layoutRect, renderScale, &sample);
     }
-    if (style.animOut.kind != drift::TextAnimKind::None && style.animOut.durationUs > 0) {
+    if (style.animOut.kind != TonDron::TextAnimKind::None && style.animOut.durationUs > 0) {
         const double settled = static_cast<double>(remaining) / static_cast<double>(style.animOut.durationUs);
         applyAnimation(style.animOut, settled, false, layoutRect, renderScale, &sample);
     }
@@ -888,15 +888,15 @@ static TextAnimSample sampleTextAnimationWindow(const drift::TextStyle &style, d
     return sample;
 }
 
-TextAnimSample sampleTextAnimation(const drift::Clip &clip, drift::TimeUs timelineUs,
+TextAnimSample sampleTextAnimation(const TonDron::Clip &clip, TonDron::TimeUs timelineUs,
                                    const QRectF &layoutRect, double renderScale)
 {
     return sampleTextAnimationWindow(clip.textStyle, timelineUs, clip.timelineStart,
                                      clip.timelineDuration, layoutRect, renderScale);
 }
 
-TextAnimSample sampleSubtitleCueAnimation(const drift::Clip &clip, const drift::SubtitleCue &cue,
-                                          drift::TimeUs timelineUs, const QRectF &layoutRect,
+TextAnimSample sampleSubtitleCueAnimation(const TonDron::Clip &clip, const TonDron::SubtitleCue &cue,
+                                          TonDron::TimeUs timelineUs, const QRectF &layoutRect,
                                           double renderScale)
 {
     return sampleTextAnimationWindow(clip.textStyle, timelineUs, clip.timelineStart + cue.startUs,
@@ -907,18 +907,18 @@ namespace {
 
 // The stagger "slot" a span fires in, as a fractional index. Forward = reading order; the others
 // remap it without changing the drawn order.
-double reindexForOrder(int index, int count, drift::TextAnimOrder order)
+double reindexForOrder(int index, int count, TonDron::TextAnimOrder order)
 {
     if (count <= 1)
         return 0.0;
     switch (order) {
-    case drift::TextAnimOrder::Forward:
+    case TonDron::TextAnimOrder::Forward:
         return index;
-    case drift::TextAnimOrder::Backward:
+    case TonDron::TextAnimOrder::Backward:
         return count - 1 - index;
-    case drift::TextAnimOrder::CenterOut:
+    case TonDron::TextAnimOrder::CenterOut:
         return std::abs(index - (count - 1) / 2.0);
-    case drift::TextAnimOrder::Random: {
+    case TonDron::TextAnimOrder::Random: {
         // Stable per-index pseudo-random slot so the shuffle holds still across frames.
         const quint32 h = qHash(static_cast<quint32>(index) * 2654435761u) ^ 0x9e3779b9u;
         return (h & 0xffffu) / 65535.0 * (count - 1);
@@ -929,44 +929,44 @@ double reindexForOrder(int index, int count, drift::TextAnimOrder order)
 
 // Largest slot any span can occupy for a given order — used to anchor the staggered exit so the last
 // span leaves exactly at the clip's end.
-double maxReindex(int count, drift::TextAnimOrder order)
+double maxReindex(int count, TonDron::TextAnimOrder order)
 {
     if (count <= 1)
         return 0.0;
-    if (order == drift::TextAnimOrder::CenterOut)
+    if (order == TonDron::TextAnimOrder::CenterOut)
         return (count - 1) / 2.0;
     return count - 1;
 }
 
 } // namespace
 
-TextAnimSample sampleTextSpanAnimation(const drift::Clip &clip, drift::TimeUs timelineUs, int spanIndex,
+TextAnimSample sampleTextSpanAnimation(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int spanIndex,
                                        int spanCount, const QRectF &layoutRect, double renderScale)
 {
     TextAnimSample sample;
-    const drift::TextStyle &style = clip.textStyle;
-    const drift::TimeUs clipStart = clip.timelineStart;
-    const drift::TimeUs clipEnd = clip.timelineStart + clip.timelineDuration;
+    const TonDron::TextStyle &style = clip.textStyle;
+    const TonDron::TimeUs clipStart = clip.timelineStart;
+    const TonDron::TimeUs clipEnd = clip.timelineStart + clip.timelineDuration;
 
-    const drift::TextAnimation &in = style.animIn;
-    if (in.kind == drift::TextAnimKind::Wave) {
+    const TonDron::TextAnimation &in = style.animIn;
+    if (in.kind == TonDron::TextAnimKind::Wave) {
         applyWave(timelineUs - clipStart, spanIndex, layoutRect, renderScale, &sample);
-    } else if (in.kind != drift::TextAnimKind::None && in.durationUs > 0) {
+    } else if (in.kind != TonDron::TextAnimKind::None && in.durationUs > 0) {
         const double slot = reindexForOrder(spanIndex, spanCount, in.order);
-        const drift::TimeUs spanStart = clipStart + static_cast<drift::TimeUs>(slot * in.staggerUs);
+        const TonDron::TimeUs spanStart = clipStart + static_cast<TonDron::TimeUs>(slot * in.staggerUs);
         const double settled =
             static_cast<double>(timelineUs - spanStart) / static_cast<double>(in.durationUs);
         applyAnimation(in, settled, true, layoutRect, renderScale, &sample);
     }
 
-    const drift::TextAnimation &out = style.animOut;
-    if (out.kind != drift::TextAnimKind::None && out.kind != drift::TextAnimKind::Wave
+    const TonDron::TextAnimation &out = style.animOut;
+    if (out.kind != TonDron::TextAnimKind::None && out.kind != TonDron::TextAnimKind::Wave
         && out.durationUs > 0) {
         const double slot = reindexForOrder(spanIndex, spanCount, out.order);
         const double maxSlot = maxReindex(spanCount, out.order);
         // Each span finishes exiting slot-staggered before the clip end; the last-out span lands on
         // clipEnd. settled runs 1 (in place) -> 0 (gone) as the finish time approaches.
-        const drift::TimeUs finish = clipEnd - static_cast<drift::TimeUs>((maxSlot - slot) * out.staggerUs);
+        const TonDron::TimeUs finish = clipEnd - static_cast<TonDron::TimeUs>((maxSlot - slot) * out.staggerUs);
         const double settled = static_cast<double>(finish - timelineUs) / static_cast<double>(out.durationUs);
         applyAnimation(out, settled, false, layoutRect, renderScale, &sample);
     }

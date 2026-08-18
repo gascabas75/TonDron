@@ -27,7 +27,7 @@ TextStylePreviewImageProvider::TextStylePreviewImageProvider()
 QImage TextStylePreviewImageProvider::requestImage(const QString &id, QSize *size,
                                                    const QSize &requestedSize)
 {
-    const drift::TextPreset *preset = drift::textPresetForId(id);
+    const TonDron::TextPreset *preset = TonDron::textPresetForId(id);
     if (!preset) {
         if (size)
             *size = QSize();
@@ -37,15 +37,15 @@ QImage TextStylePreviewImageProvider::requestImage(const QString &id, QSize *siz
     const int width = requestedSize.width() > 0 ? requestedSize.width() : kDefaultWidth;
     const int height = requestedSize.height() > 0 ? requestedSize.height() : kDefaultHeight;
 
-    drift::Clip clip;
-    clip.type = drift::ClipType::Text;
+    TonDron::Clip clip;
+    clip.type = TonDron::ClipType::Text;
     clip.textStyle = preset->style;
 
     const QString sample = preset->sampleText.isEmpty() ? kFallbackSample : preset->sampleText;
 
     const QRectF layoutRect(0, 0, width, height);
     // A karaoke pack accents nothing at all without a playhead, so the card borrows the second word.
-    const int activeWord = preset->style.accent.rule == drift::WordAccentRule::Karaoke ? 1 : -1;
+    const int activeWord = preset->style.accent.rule == TonDron::WordAccentRule::Karaoke ? 1 : -1;
     const TextRasterResult raster =
         rasterizeText(clip, sample, layoutRect, width / kReferenceWidth, activeWord);
 

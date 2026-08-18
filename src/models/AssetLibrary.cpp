@@ -39,37 +39,37 @@ bool isAudioPath(const QString &path)
     return extensions.contains(QFileInfo(path).suffix().toLower());
 }
 
-drift::MediaKind kindFrom(const MediaInfo &info, const QString &path)
+TonDron::MediaKind kindFrom(const MediaInfo &info, const QString &path)
 {
     if (isImagePath(path))
-        return drift::MediaKind::Image;
+        return TonDron::MediaKind::Image;
 
     for (const StreamInfo &stream : info.streams) {
         if (stream.type == StreamInfo::Type::Video && !stream.attachedPicture)
-            return drift::MediaKind::Video;
+            return TonDron::MediaKind::Video;
     }
     for (const StreamInfo &stream : info.streams) {
         if (stream.type == StreamInfo::Type::Audio)
-            return drift::MediaKind::Audio;
+            return TonDron::MediaKind::Audio;
     }
-    return drift::MediaKind::Other;
+    return TonDron::MediaKind::Other;
 }
 
-drift::MediaKind provisionalKind(const QString &path)
+TonDron::MediaKind provisionalKind(const QString &path)
 {
     if (isImagePath(path))
-        return drift::MediaKind::Image;
+        return TonDron::MediaKind::Image;
     if (isAudioPath(path))
-        return drift::MediaKind::Audio;
-    return drift::MediaKind::Video;
+        return TonDron::MediaKind::Audio;
+    return TonDron::MediaKind::Video;
 }
 
-QString formatDuration(drift::TimeUs durationUs)
+QString formatDuration(TonDron::TimeUs durationUs)
 {
     if (durationUs <= 0)
         return {};
 
-    const int totalSeconds = static_cast<int>(durationUs / drift::kUsPerSecond);
+    const int totalSeconds = static_cast<int>(durationUs / TonDron::kUsPerSecond);
     const int hours = totalSeconds / 3600;
     const int minutes = (totalSeconds % 3600) / 60;
     const int seconds = totalSeconds % 60;
@@ -86,7 +86,7 @@ QString formatDuration(drift::TimeUs durationUs)
         .arg(seconds, 2, 10, QChar('0'));
 }
 
-void fillAudioPresence(drift::MediaAsset &asset, const MediaInfo &info)
+void fillAudioPresence(TonDron::MediaAsset &asset, const MediaInfo &info)
 {
     bool hasAudio = false;
     for (const StreamInfo &stream : info.streams) {
@@ -102,15 +102,15 @@ void fillAudioPresence(drift::MediaAsset &asset, const MediaInfo &info)
     asset.hasAudioKnown = true;
 }
 
-drift::MediaAsset buildProbedAsset(const QString &absolutePath, const QString &name, const MediaInfo &info)
+TonDron::MediaAsset buildProbedAsset(const QString &absolutePath, const QString &name, const MediaInfo &info)
 {
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.name = name;
     asset.path = absolutePath;
     asset.kind = kindFrom(info, absolutePath);
     asset.durationUs = info.durationUs;
     asset.durationLabel =
-        asset.kind == drift::MediaKind::Image ? QString() : formatDuration(info.durationUs);
+        asset.kind == TonDron::MediaKind::Image ? QString() : formatDuration(info.durationUs);
 
     for (const StreamInfo &stream : info.streams) {
         if (stream.type == StreamInfo::Type::Video && !stream.attachedPicture) {
@@ -123,17 +123,17 @@ drift::MediaAsset buildProbedAsset(const QString &absolutePath, const QString &n
     }
     fillAudioPresence(asset, info);
 
-    const QString kindString = drift::mediaKindToString(asset.kind);
+    const QString kindString = TonDron::mediaKindToString(asset.kind);
     asset.thumbnailPath = MediaThumbnail::generate(absolutePath, kindString);
-    asset.filmstripPath = asset.kind == drift::MediaKind::Video
+    asset.filmstripPath = asset.kind == TonDron::MediaKind::Video
                               ? MediaThumbnail::generateFilmstrip(absolutePath, kindString)
                               : asset.thumbnailPath;
     return asset;
 }
 
-drift::MediaAsset buildImageAsset(const QString &absolutePath, const QString &name)
+TonDron::MediaAsset buildImageAsset(const QString &absolutePath, const QString &name)
 {
-    const QString kindString = drift::mediaKindToString(drift::MediaKind::Image);
+    const QString kindString = TonDron::mediaKindToString(TonDron::MediaKind::Image);
     const QString thumb = MediaThumbnail::generate(absolutePath, kindString);
     QImageReader reader(absolutePath);
     reader.setAutoTransform(true);
@@ -141,10 +141,10 @@ drift::MediaAsset buildImageAsset(const QString &absolutePath, const QString &na
     if (reader.transformation() & QImageIOHandler::TransformationRotate90)
         size.transpose();
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.name = name;
     asset.path = absolutePath;
-    asset.kind = drift::MediaKind::Image;
+    asset.kind = TonDron::MediaKind::Image;
     asset.width = size.width();
     asset.height = size.height();
     asset.thumbnailPath = thumb;
@@ -156,7 +156,7 @@ drift::MediaAsset buildImageAsset(const QString &absolutePath, const QString &na
 
 // Reads everything the bin needs about a file. Blocking, so it only ever runs on a worker
 // thread — shared by the import path and the replace path.
-std::optional<drift::MediaAsset> probeAsset(const QString &absolutePath, bool imageOnly)
+std::optional<TonDron::MediaAsset> probeAsset(const QString &absolutePath, bool imageOnly)
 {
     const QString name = QFileInfo(absolutePath).fileName();
     if (imageOnly)
@@ -192,7 +192,7 @@ QList<QString> AssetLibrary::currentPaths() const
     QList<QString> paths;
     paths.reserve(m_project->assetOrder().size());
     for (const QString &id : m_project->assetOrder()) {
-        const drift::MediaAsset *asset = m_project->asset(id);
+        const TonDron::MediaAsset *asset = m_project->asset(id);
         paths.append(asset ? asset->path : QString{});
     }
     return paths;
@@ -234,7 +234,7 @@ void AssetLibrary::syncToProject()
     m_syncedPaths = paths;
 }
 
-void AssetLibrary::setProject(drift::Project *project)
+void AssetLibrary::setProject(TonDron::Project *project)
 {
     beginResetModel();
     m_project = project;
@@ -251,14 +251,14 @@ int AssetLibrary::rowCount(const QModelIndex &parent) const
     return m_project->assetOrder().size();
 }
 
-const drift::MediaAsset *AssetLibrary::assetAtIndex(int index) const
+const TonDron::MediaAsset *AssetLibrary::assetAtIndex(int index) const
 {
     if (!m_project || index < 0 || index >= m_project->assetOrder().size())
         return nullptr;
     return m_project->asset(m_project->assetIdAt(index));
 }
 
-drift::MediaAsset *AssetLibrary::assetAtIndex(int index)
+TonDron::MediaAsset *AssetLibrary::assetAtIndex(int index)
 {
     if (!m_project || index < 0 || index >= m_project->assetOrder().size())
         return nullptr;
@@ -267,7 +267,7 @@ drift::MediaAsset *AssetLibrary::assetAtIndex(int index)
 
 QVariant AssetLibrary::data(const QModelIndex &index, int role) const
 {
-    const drift::MediaAsset *asset = assetAtIndex(index.row());
+    const TonDron::MediaAsset *asset = assetAtIndex(index.row());
     if (!index.isValid() || !asset)
         return {};
 
@@ -277,11 +277,11 @@ QVariant AssetLibrary::data(const QModelIndex &index, int role) const
     case NameRole:
         return asset->name;
     case KindRole:
-        return drift::mediaKindToString(asset->kind);
+        return TonDron::mediaKindToString(asset->kind);
     case DurationRole:
         return asset->durationLabel;
     case DurationSecondsRole:
-        return drift::usToSeconds(asset->durationUs);
+        return TonDron::usToSeconds(asset->durationUs);
     case PathRole:
         return asset->path;
     case ThumbnailPathRole:
@@ -319,7 +319,7 @@ int AssetLibrary::indexOfPath(const QString &path) const
 
     const QString normalized = QFileInfo(path).absoluteFilePath();
     for (int i = 0; i < m_project->assetOrder().size(); ++i) {
-        const drift::MediaAsset *asset = assetAtIndex(i);
+        const TonDron::MediaAsset *asset = assetAtIndex(i);
         if (asset && asset->path == normalized)
             return i;
     }
@@ -353,15 +353,15 @@ void AssetLibrary::startThumbJob(const QString &assetId)
     if (!m_project || assetId.isEmpty() || m_thumbPending.contains(assetId))
         return;
 
-    drift::MediaAsset *asset = m_project->asset(assetId);
+    TonDron::MediaAsset *asset = m_project->asset(assetId);
     if (!asset)
         return;
 
     const bool needThumb = asset->thumbnailPath.isEmpty() || !QFileInfo::exists(asset->thumbnailPath);
-    const bool needStrip = asset->kind == drift::MediaKind::Video
+    const bool needStrip = asset->kind == TonDron::MediaKind::Video
                            && (asset->filmstripPath.isEmpty() || !QFileInfo::exists(asset->filmstripPath));
     if (!needThumb && !needStrip) {
-        if (asset->kind != drift::MediaKind::Video && !asset->thumbnailPath.isEmpty()
+        if (asset->kind != TonDron::MediaKind::Video && !asset->thumbnailPath.isEmpty()
             && asset->filmstripPath != asset->thumbnailPath) {
             asset->filmstripPath = asset->thumbnailPath;
             emitAssetRowChanged(indexOfId(assetId), {FilmstripPathRole});
@@ -371,17 +371,17 @@ void AssetLibrary::startThumbJob(const QString &assetId)
 
     m_thumbPending.insert(assetId);
     const QString path = asset->path;
-    const drift::MediaKind kind = asset->kind;
+    const TonDron::MediaKind kind = asset->kind;
 
     (void)QtConcurrent::run([this, assetId, path, kind, needThumb, needStrip]() {
-        const QString kindString = drift::mediaKindToString(kind);
+        const QString kindString = TonDron::mediaKindToString(kind);
         QString thumb;
         QString strip;
         if (needThumb)
             thumb = MediaThumbnail::generate(path, kindString);
         if (needStrip)
             strip = MediaThumbnail::generateFilmstrip(path, kindString);
-        else if (!thumb.isEmpty() && kind != drift::MediaKind::Video)
+        else if (!thumb.isEmpty() && kind != TonDron::MediaKind::Video)
             strip = thumb;
 
         QMetaObject::invokeMethod(
@@ -398,7 +398,7 @@ void AssetLibrary::applyThumbResult(const QString &assetId, const QString &sourc
     if (!m_project)
         return;
 
-    drift::MediaAsset *asset = m_project->asset(assetId);
+    TonDron::MediaAsset *asset = m_project->asset(assetId);
     // The source was replaced while this job ran, so these frames are of a file the row no
     // longer points at.
     if (!asset || asset->path != sourcePath)
@@ -412,7 +412,7 @@ void AssetLibrary::applyThumbResult(const QString &assetId, const QString &sourc
     if (!strip.isEmpty() && asset->filmstripPath != strip) {
         asset->filmstripPath = strip;
         changed = true;
-    } else if (asset->kind != drift::MediaKind::Video && !asset->thumbnailPath.isEmpty()
+    } else if (asset->kind != TonDron::MediaKind::Video && !asset->thumbnailPath.isEmpty()
                && asset->filmstripPath != asset->thumbnailPath) {
         asset->filmstripPath = asset->thumbnailPath;
         changed = true;
@@ -427,7 +427,7 @@ void AssetLibrary::applyThumbResult(const QString &assetId, const QString &sourc
 
 void AssetLibrary::refreshMediaAt(int index)
 {
-    drift::MediaAsset *asset = assetAtIndex(index);
+    TonDron::MediaAsset *asset = assetAtIndex(index);
     if (!asset)
         return;
     startThumbJob(asset->id);
@@ -441,8 +441,8 @@ void AssetLibrary::startImportJob(const QString &assetId, const QString &absolut
     m_importPending.insert(assetId);
 
     (void)QtConcurrent::run([this, assetId, absolutePath, imageOnly]() {
-        const std::optional<drift::MediaAsset> probed = probeAsset(absolutePath, imageOnly);
-        const drift::MediaAsset filled = probed.value_or(drift::MediaAsset{});
+        const std::optional<TonDron::MediaAsset> probed = probeAsset(absolutePath, imageOnly);
+        const TonDron::MediaAsset filled = probed.value_or(TonDron::MediaAsset{});
         const bool ok = probed.has_value();
 
         QMetaObject::invokeMethod(
@@ -454,7 +454,7 @@ void AssetLibrary::startImportJob(const QString &assetId, const QString &absolut
 
 bool AssetLibrary::startReplaceProbe(int index, const QString &absolutePath)
 {
-    const drift::MediaAsset *asset = assetAtIndex(index);
+    const TonDron::MediaAsset *asset = assetAtIndex(index);
     if (!asset || absolutePath.isEmpty())
         return false;
 
@@ -466,8 +466,8 @@ bool AssetLibrary::startReplaceProbe(int index, const QString &absolutePath)
     const bool imageOnly = isImagePath(absolutePath);
 
     (void)QtConcurrent::run([this, assetId, absolutePath, imageOnly]() {
-        const std::optional<drift::MediaAsset> probed = probeAsset(absolutePath, imageOnly);
-        const drift::MediaAsset filled = probed.value_or(drift::MediaAsset{});
+        const std::optional<TonDron::MediaAsset> probed = probeAsset(absolutePath, imageOnly);
+        const TonDron::MediaAsset filled = probed.value_or(TonDron::MediaAsset{});
         const bool ok = probed.has_value();
 
         QMetaObject::invokeMethod(
@@ -481,13 +481,13 @@ bool AssetLibrary::startReplaceProbe(int index, const QString &absolutePath)
     return true;
 }
 
-bool AssetLibrary::applyProbedSource(const QString &assetId, const drift::MediaAsset &filled)
+bool AssetLibrary::applyProbedSource(const QString &assetId, const TonDron::MediaAsset &filled)
 {
     if (!m_project)
         return false;
 
     const int index = indexOfId(assetId);
-    drift::MediaAsset *asset = index < 0 ? nullptr : m_project->asset(assetId);
+    TonDron::MediaAsset *asset = index < 0 ? nullptr : m_project->asset(assetId);
     if (!asset)
         return false;
 
@@ -509,7 +509,7 @@ bool AssetLibrary::applyProbedSource(const QString &assetId, const drift::MediaA
     return true;
 }
 
-void AssetLibrary::applyImportResult(const QString &assetId, const drift::MediaAsset &filled, bool ok)
+void AssetLibrary::applyImportResult(const QString &assetId, const TonDron::MediaAsset &filled, bool ok)
 {
     m_importPending.remove(assetId);
     if (!m_project)
@@ -527,7 +527,7 @@ void AssetLibrary::applyImportResult(const QString &assetId, const drift::MediaA
         return;
     }
 
-    drift::MediaAsset *asset = m_project->asset(assetId);
+    TonDron::MediaAsset *asset = m_project->asset(assetId);
     if (!asset)
         return;
 
@@ -556,16 +556,16 @@ void AssetLibrary::applyImportResult(const QString &assetId, const drift::MediaA
 
 QVariantMap AssetLibrary::assetAt(int index) const
 {
-    const drift::MediaAsset *asset = assetAtIndex(index);
+    const TonDron::MediaAsset *asset = assetAtIndex(index);
     if (!asset)
         return {};
 
     return {
         {QStringLiteral("id"), asset->id},
         {QStringLiteral("name"), asset->name},
-        {QStringLiteral("kind"), drift::mediaKindToString(asset->kind)},
+        {QStringLiteral("kind"), TonDron::mediaKindToString(asset->kind)},
         {QStringLiteral("duration"), asset->durationLabel},
-        {QStringLiteral("durationSeconds"), drift::usToSeconds(asset->durationUs)},
+        {QStringLiteral("durationSeconds"), TonDron::usToSeconds(asset->durationUs)},
         {QStringLiteral("path"), asset->path},
         {QStringLiteral("width"), asset->width},
         {QStringLiteral("height"), asset->height},
@@ -579,13 +579,13 @@ QVariantMap AssetLibrary::assetAt(int index) const
 
 QString AssetLibrary::thumbnailAt(int index) const
 {
-    const drift::MediaAsset *asset = assetAtIndex(index);
+    const TonDron::MediaAsset *asset = assetAtIndex(index);
     return asset ? asset->thumbnailPath : QString{};
 }
 
 QString AssetLibrary::filmstripAt(int index) const
 {
-    const drift::MediaAsset *asset = assetAtIndex(index);
+    const TonDron::MediaAsset *asset = assetAtIndex(index);
     return asset ? asset->filmstripPath : QString{};
 }
 
@@ -607,7 +607,7 @@ void AssetLibrary::ensureAudioPresence(const QString &assetId)
     if (!m_project || assetId.isEmpty() || m_audioProbePending.contains(assetId))
         return;
 
-    drift::MediaAsset *asset = m_project->asset(assetId);
+    TonDron::MediaAsset *asset = m_project->asset(assetId);
     if (!asset || asset->hasAudioKnown)
         return;
 
@@ -652,7 +652,7 @@ void AssetLibrary::applyAudioPresence(const QString &assetId, const QString &sou
     if (!m_project)
         return;
 
-    drift::MediaAsset *asset = m_project->asset(assetId);
+    TonDron::MediaAsset *asset = m_project->asset(assetId);
     // Answered for a file the row no longer points at; the replacement brought its own.
     if (!asset || asset->path != sourcePath)
         return;
@@ -676,8 +676,8 @@ void AssetLibrary::sortByName()
     beginResetModel();
     QList<QString> order = m_project->assetOrder();
     std::sort(order.begin(), order.end(), [this](const QString &a, const QString &b) {
-        const drift::MediaAsset *assetA = m_project->asset(a);
-        const drift::MediaAsset *assetB = m_project->asset(b);
+        const TonDron::MediaAsset *assetA = m_project->asset(a);
+        const TonDron::MediaAsset *assetB = m_project->asset(b);
         if (!assetA || !assetB)
             return a < b;
         return assetA->name.compare(assetB->name, Qt::CaseInsensitive) < 0;
@@ -688,7 +688,7 @@ void AssetLibrary::sortByName()
 
 bool AssetLibrary::setAssetName(int index, const QString &name)
 {
-    drift::MediaAsset *asset = assetAtIndex(index);
+    TonDron::MediaAsset *asset = assetAtIndex(index);
     if (!asset)
         return false;
 
@@ -710,12 +710,12 @@ void AssetLibrary::sortByKind()
     beginResetModel();
     QList<QString> order = m_project->assetOrder();
     std::sort(order.begin(), order.end(), [this](const QString &a, const QString &b) {
-        const drift::MediaAsset *assetA = m_project->asset(a);
-        const drift::MediaAsset *assetB = m_project->asset(b);
+        const TonDron::MediaAsset *assetA = m_project->asset(a);
+        const TonDron::MediaAsset *assetB = m_project->asset(b);
         if (!assetA || !assetB)
             return a < b;
-        const int cmp = drift::mediaKindToString(assetA->kind)
-                            .compare(drift::mediaKindToString(assetB->kind), Qt::CaseInsensitive);
+        const int cmp = TonDron::mediaKindToString(assetA->kind)
+                            .compare(TonDron::mediaKindToString(assetB->kind), Qt::CaseInsensitive);
         return cmp != 0 ? cmp < 0 : assetA->name.compare(assetB->name, Qt::CaseInsensitive) < 0;
     });
     m_project->assetOrder() = order;
@@ -762,13 +762,13 @@ QJsonArray AssetLibrary::toJsonArray() const
 
     QJsonArray assets;
     for (const QString &id : m_project->assetOrder()) {
-        const drift::MediaAsset *asset = m_project->asset(id);
+        const TonDron::MediaAsset *asset = m_project->asset(id);
         if (!asset)
             continue;
         QJsonObject object{
             {QStringLiteral("id"), asset->id},
             {QStringLiteral("name"), asset->name},
-            {QStringLiteral("kind"), drift::mediaKindToString(asset->kind)},
+            {QStringLiteral("kind"), TonDron::mediaKindToString(asset->kind)},
             {QStringLiteral("durationUs"), static_cast<double>(asset->durationUs)},
             {QStringLiteral("duration"), asset->durationLabel},
             {QStringLiteral("path"), asset->path},
@@ -803,15 +803,15 @@ void AssetLibrary::loadFromJsonArray(const QJsonArray &assets)
 
     for (const QJsonValue &value : assets) {
         const QJsonObject object = value.toObject();
-        drift::MediaAsset asset;
+        TonDron::MediaAsset asset;
         asset.id = object.value(QStringLiteral("id")).toString(QUuid::createUuid().toString(QUuid::WithoutBraces));
         asset.name = object.value(QStringLiteral("name")).toString();
-        asset.kind = drift::mediaKindFromString(object.value(QStringLiteral("kind")).toString());
+        asset.kind = TonDron::mediaKindFromString(object.value(QStringLiteral("kind")).toString());
         asset.durationLabel = object.value(QStringLiteral("duration")).toString();
         if (object.contains(QStringLiteral("durationUs"))) {
-            asset.durationUs = static_cast<drift::TimeUs>(object.value(QStringLiteral("durationUs")).toDouble());
+            asset.durationUs = static_cast<TonDron::TimeUs>(object.value(QStringLiteral("durationUs")).toDouble());
         } else {
-            asset.durationUs = drift::secondsToUs(object.value(QStringLiteral("durationSeconds")).toDouble());
+            asset.durationUs = TonDron::secondsToUs(object.value(QStringLiteral("durationSeconds")).toDouble());
         }
         asset.path = object.value(QStringLiteral("path")).toString();
         asset.width = object.value(QStringLiteral("width")).toInt();
@@ -867,7 +867,7 @@ bool AssetLibrary::isImportPending(const QString &assetId) const
     return m_importPending.contains(assetId);
 }
 
-QString AssetLibrary::addGeneratedAsset(drift::MediaAsset asset)
+QString AssetLibrary::addGeneratedAsset(TonDron::MediaAsset asset)
 {
     if (!m_project || asset.path.isEmpty())
         return {};
@@ -907,7 +907,7 @@ QStringList AssetLibrary::importFilesReturningIds(const QStringList &paths)
             continue;
         }
 
-        drift::MediaAsset placeholder;
+        TonDron::MediaAsset placeholder;
         placeholder.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         placeholder.name = fileInfo.fileName();
         placeholder.path = absolutePath;

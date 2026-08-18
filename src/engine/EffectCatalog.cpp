@@ -169,10 +169,10 @@ QString effectCategoryLabel(const QString &categoryId)
     return {};
 }
 
-QMap<QString, QVariant> resolvedEffectParameters(const drift::Effect &effect, const EffectPresetEntry &def)
+QMap<QString, QVariant> resolvedEffectParameters(const TonDron::Effect &effect, const EffectPresetEntry &def)
 {
     QMap<QString, QVariant> params = def.fixedParams;
-    for (const drift::EffectParamSpec &spec : def.meta.parameters)
+    for (const TonDron::EffectParamSpec &spec : def.meta.parameters)
         params.insert(spec.key, spec.defaultVariant());
     for (auto it = effect.parameters.constBegin(); it != effect.parameters.end(); ++it)
         params.insert(it.key(), it.value());
@@ -180,7 +180,7 @@ QMap<QString, QVariant> resolvedEffectParameters(const drift::Effect &effect, co
     // A colour key can carry a stale double: isKnownKeyframeProp accepts any well-formed fx.N.key
     // without consulting the catalog, so a hand-edited project or a package that changed a
     // parameter from float to colour would otherwise reach the shader as a number and bind black.
-    for (const drift::EffectParamSpec &spec : def.meta.parameters) {
+    for (const TonDron::EffectParamSpec &spec : def.meta.parameters) {
         if (spec.isColor() && params.value(spec.key).typeId() != QMetaType::QString)
             params.insert(spec.key, spec.defaultColorHex);
     }
@@ -198,7 +198,7 @@ QMap<QString, QVariant> resolvedEffectParameters(const drift::Effect &effect, co
     return params;
 }
 
-QString buildFilterGraphForEffect(const drift::Effect &effect, const EffectPresetEntry *def)
+QString buildFilterGraphForEffect(const TonDron::Effect &effect, const EffectPresetEntry *def)
 {
     const EffectPresetEntry *entry = def;
     if (!entry && !effect.catalogId.isEmpty())

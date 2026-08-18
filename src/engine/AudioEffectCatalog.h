@@ -31,7 +31,7 @@ struct AudioEffectEntry
     int order = 0;
     QString processorId;
     int prerollMs = 0;
-    QList<drift::EffectParamSpec> parameters;
+    QList<TonDron::EffectParamSpec> parameters;
     QString packageDir; // where it was loaded from; traces the entry back to its addon
     // Lucide file name (no extension) for the Audio FX browser card / inspector chip.
     QString icon;
@@ -43,13 +43,13 @@ const QList<AudioEffectEntry> &audioEffectCatalog();
 const AudioEffectEntry *audioEffectDefForId(const QString &id);
 
 // Merge each parameter's current instance value (or its default) into a name->value map.
-QMap<QString, QVariant> resolvedAudioEffectParameters(const drift::Effect &effect,
+QMap<QString, QVariant> resolvedAudioEffectParameters(const TonDron::Effect &effect,
                                                       const AudioEffectEntry &def);
 
 // Reduce a clip's effect list to what AudioEffectRack needs. Effects whose catalogId is not in the
 // catalog are dropped, which is what makes an uninstalled addon a clean passthrough rather than a
 // dropout.
-QVector<drift::AudioEffectSpec> audioEffectSpecsFor(const QList<drift::Effect> &effects);
+QVector<TonDron::AudioEffectSpec> audioEffectSpecsFor(const QList<TonDron::Effect> &effects);
 
 QStringList audioEffectPresetIds();
 
@@ -60,6 +60,6 @@ QString audioEffectCategoryLabel(const QString &categoryId);
 // Reload from the given roots, or defaultAudioEffectSearchPaths() when empty.
 void reloadAudioEffectCatalog(const QStringList &packageRoots = {});
 
-// Default roots: DRIFT_AUDIO_EFFECTS_DIR, installed "audio-effects" addons, <appDir>/audio-effects
+// Default roots: TonDron_AUDIO_EFFECTS_DIR, installed "audio-effects" addons, <appDir>/audio-effects
 // and <AppDataLocation>/audio-effects — same precedence GPU effects use.
 QStringList defaultAudioEffectSearchPaths();

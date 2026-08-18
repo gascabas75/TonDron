@@ -9,7 +9,7 @@
 class AppController;
 class QThread;
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 class McpHttp;
 class McpDispatcher;
 
@@ -53,4 +53,4 @@ private:
     bool m_running = false;
 };
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

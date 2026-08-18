@@ -27,7 +27,7 @@ public:
     struct VideoRequest
     {
         QString path;
-        drift::TimeUs sourceUs = 0;
+        TonDron::TimeUs sourceUs = 0;
         int maxWidth = 0;
         int maxHeight = 0;
     };
@@ -42,12 +42,12 @@ public:
     // source time. Set per composite from the render options; 0 (the default)
     // leaves the plain one-frame-ahead prefetch. Only the NV12 preview path
     // buffers — export and thumbnails consume as fast as they decode anyway.
-    void setReadAheadUs(drift::TimeUs readAheadUs);
+    void setReadAheadUs(TonDron::TimeUs readAheadUs);
 
-    QImage readVideoFrame(const QString &path, drift::TimeUs sourceUs, int maxWidth, int maxHeight);
+    QImage readVideoFrame(const QString &path, TonDron::TimeUs sourceUs, int maxWidth, int maxHeight);
     // Preview path: NV12 for cheaper GPU upload. Falls back empty when decode fails.
-    Nv12Frame readVideoFrameNv12(const QString &path, drift::TimeUs sourceUs, int maxWidth, int maxHeight);
-    int readAudioInterleaved(const QString &path, drift::TimeUs sourceStartUs, int sampleCount,
+    Nv12Frame readVideoFrameNv12(const QString &path, TonDron::TimeUs sourceUs, int maxWidth, int maxHeight);
+    int readAudioInterleaved(const QString &path, TonDron::TimeUs sourceStartUs, int sampleCount,
                              int outputSampleRate, float *interleavedStereoOut);
     void retainActivePaths(const QSet<QString> &videoPaths, const QSet<QString> &audioPaths);
 
@@ -65,7 +65,7 @@ private:
     ClipReaderWorker *ensureWorker(std::map<QString, std::unique_ptr<WorkerEntry>> &workers, const QString &path);
 
     QMutex m_mutex;
-    std::atomic<drift::TimeUs> m_readAheadUs{0};
+    std::atomic<TonDron::TimeUs> m_readAheadUs{0};
     std::map<QString, std::unique_ptr<WorkerEntry>> m_videoWorkers;
     std::map<QString, std::unique_ptr<WorkerEntry>> m_audioWorkers;
 };

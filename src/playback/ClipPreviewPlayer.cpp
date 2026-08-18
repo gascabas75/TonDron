@@ -59,7 +59,7 @@ void ClipPreviewFrameWorker::decode(const QString &path, qint64 sourceUs, int ma
         return; // a newer position arrived while this sat in the queue
 
     const QImage image = ClipReaderPool::instance().readVideoFrame(
-        path, static_cast<drift::TimeUs>(sourceUs), maxWidth, maxHeight);
+        path, static_cast<TonDron::TimeUs>(sourceUs), maxWidth, maxHeight);
     if (!image.isNull())
         emit decoded(image, token);
 }
@@ -126,7 +126,7 @@ void ClipPreviewPlayer::ensureAudioSink()
         Qt::BlockingQueuedConnection);
 }
 
-void ClipPreviewPlayer::setClip(const drift::Clip &clip, int sampleRate, int fps)
+void ClipPreviewPlayer::setClip(const TonDron::Clip &clip, int sampleRate, int fps)
 {
     pause();
 
@@ -149,9 +149,9 @@ void ClipPreviewPlayer::setClip(const drift::Clip &clip, int sampleRate, int fps
     requestFrame(0);
 }
 
-void ClipPreviewPlayer::setSpeedCurve(const drift::SpeedCurve &curve)
+void ClipPreviewPlayer::setSpeedCurve(const TonDron::SpeedCurve &curve)
 {
-    drift::TimeUs duration = 0;
+    TonDron::TimeUs duration = 0;
     {
         QMutexLocker lock(&m_clipMutex);
         m_clip.speedCurve = curve;
@@ -173,7 +173,7 @@ void ClipPreviewPlayer::clear()
     pause();
     {
         QMutexLocker lock(&m_clipMutex);
-        m_clip = drift::Clip{};
+        m_clip = TonDron::Clip{};
     }
     m_positionUs = 0;
     m_frameSize = QSize();
@@ -183,13 +183,13 @@ void ClipPreviewPlayer::clear()
     emit positionChanged();
 }
 
-drift::TimeUs ClipPreviewPlayer::durationUs() const
+TonDron::TimeUs ClipPreviewPlayer::durationUs() const
 {
     QMutexLocker lock(&m_clipMutex);
     return m_clip.timelineDuration;
 }
 
-drift::TimeUs ClipPreviewPlayer::positionUs() const
+TonDron::TimeUs ClipPreviewPlayer::positionUs() const
 {
     return m_playing ? m_clock.currentTimeUs() : m_positionUs;
 }
@@ -250,9 +250,9 @@ void ClipPreviewPlayer::pause()
     emit positionChanged();
 }
 
-void ClipPreviewPlayer::seek(drift::TimeUs us)
+void ClipPreviewPlayer::seek(TonDron::TimeUs us)
 {
-    m_positionUs = qBound<drift::TimeUs>(0, us, durationUs());
+    m_positionUs = qBound<TonDron::TimeUs>(0, us, durationUs());
     if (m_playing) {
         m_clock.reset(m_positionUs, m_sampleRate);
         m_clock.start();
@@ -266,8 +266,8 @@ void ClipPreviewPlayer::onPositionTick()
     if (!m_playing)
         return;
 
-    const drift::TimeUs duration = durationUs();
-    const drift::TimeUs now = m_clock.currentTimeUs();
+    const TonDron::TimeUs duration = durationUs();
+    const TonDron::TimeUs now = m_clock.currentTimeUs();
     if (now >= duration) {
         m_positionUs = duration;
         pause();
@@ -279,15 +279,15 @@ void ClipPreviewPlayer::onPositionTick()
     emit positionChanged();
 }
 
-void ClipPreviewPlayer::requestFrame(drift::TimeUs position)
+void ClipPreviewPlayer::requestFrame(TonDron::TimeUs position)
 {
     QString path;
-    drift::TimeUs sourceUs = 0;
+    TonDron::TimeUs sourceUs = 0;
     {
         QMutexLocker lock(&m_clipMutex);
-        if (m_clip.type == drift::ClipType::Audio || m_clip.path.isEmpty())
+        if (m_clip.type == TonDron::ClipType::Audio || m_clip.path.isEmpty())
             return;
-        const drift::VideoRead read = drift::resolveVideoRead(m_clip, position);
+        const TonDron::VideoRead read = TonDron::resolveVideoRead(m_clip, position);
         path = read.path;
         sourceUs = read.sourceUs;
     }
@@ -324,13 +324,13 @@ int ClipPreviewPlayer::fillAudio(float *buffer, int sampleCount)
         return sampleCount;
     }
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     {
         QMutexLocker lock(&m_clipMutex);
         clip = m_clip;
     }
 
-    const drift::TimeUs timeUs = m_clock.produceTimeUs();
+    const TonDron::TimeUs timeUs = m_clock.produceTimeUs();
     const QVector<float> mixed =
         AudioMixer::readClipAudio(clip, timeUs, sampleCount, m_sampleRate, &m_retimer);
     const int frames = qMin(sampleCount, static_cast<int>(mixed.size() / 2));
@@ -342,6 +342,6 @@ int ClipPreviewPlayer::fillAudio(float *buffer, int sampleCount)
 
     m_clock.onAudioSamplesRendered(sampleCount);
     if (m_sink)
-        m_clock.syncPlaybackUs(static_cast<drift::TimeUs>(m_sink->processedUSecs()));
+        m_clock.syncPlaybackUs(static_cast<TonDron::TimeUs>(m_sink->processedUSecs()));
     return sampleCount;
 }

@@ -23,17 +23,17 @@ public:
     // that step re-arms itself until the reader has readAheadUs of decoded source
     // buffered. Keeping a single step in flight is what bounds a decode request's
     // wait to one frame — a queue of them would serialize ahead of it.
-    void requestPrefetchNv12(int maxWidth, int maxHeight, drift::TimeUs readAheadUs);
+    void requestPrefetchNv12(int maxWidth, int maxHeight, TonDron::TimeUs readAheadUs);
 
 public slots:
     void openPath(const QString &path);
     void closePath();
-    QImage decodeVideo(drift::TimeUs sourceUs, int maxWidth, int maxHeight);
-    Nv12Frame decodeVideoNv12(drift::TimeUs sourceUs, int maxWidth, int maxHeight);
-    int decodeAudio(drift::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
+    QImage decodeVideo(TonDron::TimeUs sourceUs, int maxWidth, int maxHeight);
+    Nv12Frame decodeVideoNv12(TonDron::TimeUs sourceUs, int maxWidth, int maxHeight);
+    int decodeAudio(TonDron::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
                     float *interleavedStereoOut);
     void prefetchNextVideo(int maxWidth, int maxHeight);
-    void prefetchNextVideoNv12(int maxWidth, int maxHeight, drift::TimeUs readAheadUs);
+    void prefetchNextVideoNv12(int maxWidth, int maxHeight, TonDron::TimeUs readAheadUs);
 
 private:
     ClipReader m_reader;

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Themed modal dialog chrome. Put page content in `contentItem`; use footer buttons
 // via acceptText / rejectText (or set showFooter: false and supply your own footer).

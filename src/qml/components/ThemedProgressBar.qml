@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Slim determinate progress bar for long-running jobs shown inline in a panel.
 //

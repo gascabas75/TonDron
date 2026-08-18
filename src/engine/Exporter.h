@@ -10,7 +10,7 @@
 
 #include "core/Time.h"
 
-namespace drift {
+namespace TonDron {
 class Project;
 }
 
@@ -49,8 +49,8 @@ struct ExportSettings
     QString metadataAlbum;
     QString metadataComment;
     // Optional export slice on the timeline. Both zero = encode the full project.
-    drift::TimeUs startUs = 0;
-    drift::TimeUs endUs = 0;
+    TonDron::TimeUs startUs = 0;
+    TonDron::TimeUs endUs = 0;
 };
 
 // WYSIWYG exporter: encodes frames straight from FrameCompositor and audio from
@@ -88,6 +88,6 @@ public:
     static ExportSettings defaultSettings();
     static ExportSettings settingsFromMap(const QVariantMap &map);
 
-    static bool run(const drift::Project &project, const ExportSettings &settings, const QString &outputPath,
+    static bool run(const TonDron::Project &project, const ExportSettings &settings, const QString &outputPath,
                     QString *errorOut, const ProgressFn &onProgress = {});
 };

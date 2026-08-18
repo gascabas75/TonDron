@@ -15,7 +15,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 enum class ClipType { Video, Audio, Image, Text, Subtitle, Shape };
 
@@ -189,4 +189,4 @@ struct Clip
     }
 };
 
-} // namespace drift
+} // namespace TonDron

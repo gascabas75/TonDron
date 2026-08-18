@@ -35,38 +35,38 @@
 
 namespace {
 
-void collectActivePaths(const drift::Project *project, drift::TimeUs timelineUs, QSet<QString> &videoPaths,
+void collectActivePaths(const TonDron::Project *project, TonDron::TimeUs timelineUs, QSet<QString> &videoPaths,
                         QSet<QString> &audioPaths)
 {
     if (!project)
         return;
 
-    for (const drift::Track &track : project->tracks()) {
+    for (const TonDron::Track &track : project->tracks()) {
         if (track.hidden)
             continue;
 
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (!clip.containsTime(timelineUs))
                 continue;
 
             // Retained separately from clip.path: the matte has its own reader, and dropping it
             // here would tear the worker down and re-open the file every frame.
-            if (clip.mask.shape == drift::MaskShape::Matte && !clip.mask.mattePath.isEmpty())
+            if (clip.mask.shape == TonDron::MaskShape::Matte && !clip.mask.mattePath.isEmpty())
                 videoPaths.insert(clip.mask.mattePath);
 
             if (clip.path.isEmpty())
                 continue;
-            if (clip.type == drift::ClipType::Shape)
+            if (clip.type == TonDron::ClipType::Shape)
                 continue;
 
-            if ((track.type == drift::TrackType::Video || track.type == drift::TrackType::Shape)
-                && clip.type != drift::ClipType::Text) {
+            if ((track.type == TonDron::TrackType::Video || track.type == TonDron::TrackType::Shape)
+                && clip.type != TonDron::ClipType::Text) {
                 // The reversed proxy, when there is one, is what the composite actually reads —
                 // retaining clip.path instead would tear down the proxy's worker every frame.
-                videoPaths.insert(drift::videoReadPath(clip));
+                videoPaths.insert(TonDron::videoReadPath(clip));
             }
-            if (track.type == drift::TrackType::Audio
-                || (track.type == drift::TrackType::Video && clip.type == drift::ClipType::Video)) {
+            if (track.type == TonDron::TrackType::Audio
+                || (track.type == TonDron::TrackType::Video && clip.type == TonDron::ClipType::Video)) {
                 audioPaths.insert(clip.path);
             }
         }
@@ -75,36 +75,36 @@ void collectActivePaths(const drift::Project *project, drift::TimeUs timelineUs,
 
 // Every video frame this composite will need, so the readers can decode them
 // concurrently on their own threads instead of one clip at a time on ours.
-QList<ClipReaderPool::VideoRequest> collectVideoRequests(const drift::Project *project,
-                                                         drift::TimeUs timelineUs, int maxWidth,
+QList<ClipReaderPool::VideoRequest> collectVideoRequests(const TonDron::Project *project,
+                                                         TonDron::TimeUs timelineUs, int maxWidth,
                                                          int maxHeight)
 {
     QList<ClipReaderPool::VideoRequest> requests;
     if (!project)
         return requests;
 
-    for (const drift::Track &track : project->tracks()) {
-        if (track.hidden || track.type == drift::TrackType::Audio)
+    for (const TonDron::Track &track : project->tracks()) {
+        if (track.hidden || track.type == TonDron::TrackType::Audio)
             continue;
 
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (!clip.containsTime(timelineUs))
                 continue;
 
             // Mattes decode like any other video, so warm them alongside the sources rather
             // than stalling the composite on a serial read later.
-            if (clip.mask.shape == drift::MaskShape::Matte && !clip.mask.mattePath.isEmpty()) {
+            if (clip.mask.shape == TonDron::MaskShape::Matte && !clip.mask.mattePath.isEmpty()) {
                 requests.append(ClipReaderPool::VideoRequest{
                     clip.mask.mattePath,
-                    qMax<drift::TimeUs>(0, clip.timelineToSourceUs(timelineUs)
+                    qMax<TonDron::TimeUs>(0, clip.timelineToSourceUs(timelineUs)
                                                - clip.mask.matteSrcOffsetUs),
                     maxWidth, maxHeight});
             }
 
-            if (clip.type != drift::ClipType::Video || clip.path.isEmpty())
+            if (clip.type != TonDron::ClipType::Video || clip.path.isEmpty())
                 continue;
 
-            const drift::VideoRead read = drift::resolveVideoRead(clip, timelineUs);
+            const TonDron::VideoRead read = TonDron::resolveVideoRead(clip, timelineUs);
             requests.append(
                 ClipReaderPool::VideoRequest{read.path, read.sourceUs, maxWidth, maxHeight});
         }
@@ -112,9 +112,9 @@ QList<ClipReaderPool::VideoRequest> collectVideoRequests(const drift::Project *p
     return requests;
 }
 
-const drift::Effect *findTimeEchoEffect(const QList<drift::Effect> &effects)
+const TonDron::Effect *findTimeEchoEffect(const QList<TonDron::Effect> &effects)
 {
-    for (const drift::Effect &effect : effects) {
+    for (const TonDron::Effect &effect : effects) {
         if (!effect.enabled)
             continue;
         if (effect.catalogId == QStringLiteral("time_echo"))
@@ -125,9 +125,9 @@ const drift::Effect *findTimeEchoEffect(const QList<drift::Effect> &effects)
 
 // Only worth touching the face track when something in the chain actually consumes it, so a clip
 // that has been detected but is running ordinary effects pays nothing.
-bool chainNeedsFace(const QList<drift::Effect> &effects)
+bool chainNeedsFace(const QList<TonDron::Effect> &effects)
 {
-    for (const drift::Effect &effect : effects) {
+    for (const TonDron::Effect &effect : effects) {
         if (!effect.enabled)
             continue;
         const EffectPresetEntry *def =
@@ -141,13 +141,13 @@ bool chainNeedsFace(const QList<drift::Effect> &effects)
 // This frame's anchors for a clip, or an empty list when nothing in the chain wants them. Shared by
 // the CPU and GPU compositing paths so a face warp cannot come out differently between preview and
 // export depending on which one ran.
-QList<drift::FaceAnchors> faceSlotsForClip(const drift::Clip &clip,
-                                           const QList<drift::Effect> &effects,
-                                           drift::TimeUs timelineUs)
+QList<TonDron::FaceAnchors> faceSlotsForClip(const TonDron::Clip &clip,
+                                           const QList<TonDron::Effect> &effects,
+                                           TonDron::TimeUs timelineUs)
 {
     if (clip.faceTrackPath.isEmpty() || !chainNeedsFace(effects))
         return {};
-    const auto track = drift::loadFaceTrackCached(clip.faceTrackPath);
+    const auto track = TonDron::loadFaceTrackCached(clip.faceTrackPath);
     if (!track)
         return {};
     return track->sampleAll(clip.timelineToSourceUs(timelineUs) - clip.faceTrackSrcOffsetUs);
@@ -157,11 +157,11 @@ QList<drift::FaceAnchors> faceSlotsForClip(const drift::Clip &clip,
 // before the chain runs) and every keyframed parameter baked down to its value at clipTimeUs.
 // Both the CPU and GPU paths go through here, so an animated parameter cannot come out different
 // between preview and export.
-QList<drift::Effect> resolvedClipEffects(const drift::Clip &clip, drift::TimeUs clipTimeUs)
+QList<TonDron::Effect> resolvedClipEffects(const TonDron::Clip &clip, TonDron::TimeUs clipTimeUs)
 {
-    QList<drift::Effect> filtered;
+    QList<TonDron::Effect> filtered;
     filtered.reserve(clip.effects.size());
-    for (const drift::Effect &effect : clip.effects) {
+    for (const TonDron::Effect &effect : clip.effects) {
         if (!effect.enabled)
             continue;
         if (effect.catalogId != QStringLiteral("time_echo"))
@@ -231,38 +231,38 @@ QImage decodedStillImage(const QString &path, int maxWidth, int maxHeight)
 // and a changing decode size invalidates the decoder's frame cache and forces a
 // keyframe seek per frame. Decoding to a stable, canvas-bounded size and letting
 // the draw step scale is both stable and cheaper.
-QImage decodeClipMediaFrame(const drift::Clip &clip, drift::TimeUs timelineUs, int maxWidth, int maxHeight)
+QImage decodeClipMediaFrame(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int maxWidth, int maxHeight)
 {
     if (clip.path.isEmpty())
         return {};
 
-    if (clip.type == drift::ClipType::Image)
+    if (clip.type == TonDron::ClipType::Image)
         return decodedStillImage(clip.path, maxWidth, maxHeight);
 
-    if (clip.type == drift::ClipType::Video) {
-        const drift::VideoRead read = drift::resolveVideoRead(clip, timelineUs);
+    if (clip.type == TonDron::ClipType::Video) {
+        const TonDron::VideoRead read = TonDron::resolveVideoRead(clip, timelineUs);
         return ClipReaderPool::instance().readVideoFrame(read.path, read.sourceUs, maxWidth, maxHeight);
     }
 
     return {};
 }
 
-QImage shapeImageForClip(const drift::Clip &clip, int width, int height, double renderScale);
+QImage shapeImageForClip(const TonDron::Clip &clip, int width, int height, double renderScale);
 
 // maxWidth/maxHeight bound the decoded frame; the returned image may be smaller
 // (source-limited) and is scaled to the clip's layout rect at draw time.
-QImage imageForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int maxWidth, int maxHeight,
+QImage imageForClip(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int maxWidth, int maxHeight,
                     int projectFps, int maxTimeEchoHistoryFrames)
 {
-    if (clip.type == drift::ClipType::Shape)
+    if (clip.type == TonDron::ClipType::Shape)
         return shapeImageForClip(clip, maxWidth, maxHeight, 1.0);
 
     if (clip.path.isEmpty())
         return {};
 
-    const drift::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
-    const drift::Effect *timeEcho = findTimeEchoEffect(clip.effects);
-    const QList<drift::Effect> otherEffects = resolvedClipEffects(clip, clipTimeUs);
+    const TonDron::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
+    const TonDron::Effect *timeEcho = findTimeEchoEffect(clip.effects);
+    const QList<TonDron::Effect> otherEffects = resolvedClipEffects(clip, clipTimeUs);
 
     QImage image;
     if (timeEcho) {
@@ -279,7 +279,7 @@ QImage imageForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int maxWi
         const auto blendMode =
             CompositorFrameHistory::parseEchoBlendMode(params.value(QStringLiteral("blendMode")).toString());
 
-        const drift::TimeUs frameStepUs = drift::frameDurationUs(projectFps);
+        const TonDron::TimeUs frameStepUs = TonDron::frameDurationUs(projectFps);
         QList<QImage> samples;
         samples.reserve(frameCount + 1);
 
@@ -289,10 +289,10 @@ QImage imageForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int maxWi
         samples.append(current);
 
         for (int i = 1; i <= frameCount; ++i) {
-            const drift::TimeUs pastClipUs = clipTimeUs - static_cast<drift::TimeUs>(i) * frameStepUs;
+            const TonDron::TimeUs pastClipUs = clipTimeUs - static_cast<TonDron::TimeUs>(i) * frameStepUs;
             if (pastClipUs < 0)
                 break;
-            const drift::TimeUs pastTimelineUs = clip.timelineStart + pastClipUs;
+            const TonDron::TimeUs pastTimelineUs = clip.timelineStart + pastClipUs;
             const QImage past = decodeClipMediaFrame(clip, pastTimelineUs, maxWidth, maxHeight);
             if (!past.isNull())
                 samples.append(past);
@@ -314,36 +314,36 @@ QImage imageForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int maxWi
         image = EffectProcessor::applyEffects(image, otherEffects, clipTimeUs,
                                               faceSlotsForClip(clip, otherEffects, timelineUs));
     }
-    if (clip.mask.shape != drift::MaskShape::None)
-        image = drift::applyMask(image, clip.mask, image.width(), image.height());
+    if (clip.mask.shape != TonDron::MaskShape::None)
+        image = TonDron::applyMask(image, clip.mask, image.width(), image.height());
     return image;
 }
 
-Qt::PenStyle penStyleFor(drift::ShapeStrokeStyle style)
+Qt::PenStyle penStyleFor(TonDron::ShapeStrokeStyle style)
 {
     switch (style) {
-    case drift::ShapeStrokeStyle::None:
+    case TonDron::ShapeStrokeStyle::None:
         return Qt::NoPen;
-    case drift::ShapeStrokeStyle::Solid:
+    case TonDron::ShapeStrokeStyle::Solid:
         return Qt::SolidLine;
-    case drift::ShapeStrokeStyle::Dash:
+    case TonDron::ShapeStrokeStyle::Dash:
         return Qt::DashLine;
-    case drift::ShapeStrokeStyle::Dot:
+    case TonDron::ShapeStrokeStyle::Dot:
         return Qt::DotLine;
-    case drift::ShapeStrokeStyle::DashDot:
+    case TonDron::ShapeStrokeStyle::DashDot:
         return Qt::DashDotLine;
     }
     return Qt::SolidLine;
 }
 
-QBrush shapeBrush(const drift::ShapeStyle &style, const QRectF &bounds)
+QBrush shapeBrush(const TonDron::ShapeStyle &style, const QRectF &bounds)
 {
     switch (style.fillKind) {
-    case drift::ShapeFillKind::None:
+    case TonDron::ShapeFillKind::None:
         return Qt::NoBrush;
-    case drift::ShapeFillKind::Solid:
+    case TonDron::ShapeFillKind::Solid:
         return style.fill;
-    case drift::ShapeFillKind::LinearGradient: {
+    case TonDron::ShapeFillKind::LinearGradient: {
         // Angle sweeps the gradient axis across the shape's own bounding box, so the same angle
         // reads the same whatever the clip is scaled to.
         const double radians = qDegreesToRadians(style.gradientAngle);
@@ -355,7 +355,7 @@ QBrush shapeBrush(const drift::ShapeStyle &style, const QRectF &bounds)
         gradient.setColorAt(1.0, style.fillSecondary);
         return gradient;
     }
-    case drift::ShapeFillKind::RadialGradient: {
+    case TonDron::ShapeFillKind::RadialGradient: {
         QRadialGradient gradient(bounds.center(),
                                  qMax(bounds.width(), bounds.height()) / 2.0);
         gradient.setColorAt(0.0, style.fill);
@@ -368,9 +368,9 @@ QBrush shapeBrush(const drift::ShapeStyle &style, const QRectF &bounds)
 
 // Rasterized at exactly the destination size: the GPU quad is the layout rect and samples this
 // texture 0..1, so anything smaller is upscaled and the stroke stretches with it.
-QImage shapeImageForClip(const drift::Clip &clip, int width, int height, double renderScale)
+QImage shapeImageForClip(const TonDron::Clip &clip, int width, int height, double renderScale)
 {
-    if (clip.type != drift::ClipType::Shape)
+    if (clip.type != TonDron::ClipType::Shape)
         return {};
 
     const int w = qMax(1, width);
@@ -382,16 +382,16 @@ QImage shapeImageForClip(const drift::Clip &clip, int width, int height, double 
     QPainter p(&image);
     p.setRenderHint(QPainter::Antialiasing);
 
-    const drift::ShapeStyle &style = clip.shapeStyle;
+    const TonDron::ShapeStyle &style = clip.shapeStyle;
     // Stroke width and corner radius are authored in project pixels, so they scale with the render
     // just like the layout rect does — otherwise preview and export disagree.
     const double strokeWidth =
-        style.strokeStyle == drift::ShapeStrokeStyle::None ? 0.0 : style.strokeWidth * renderScale;
+        style.strokeStyle == TonDron::ShapeStrokeStyle::None ? 0.0 : style.strokeWidth * renderScale;
     const double inset = strokeWidth / 2.0;
     const QRectF bounds =
         QRectF(0, 0, w, h).adjusted(inset, inset, -inset, -inset).normalized();
 
-    drift::ShapeStyle scaled = style;
+    TonDron::ShapeStyle scaled = style;
     scaled.cornerRadius = style.cornerRadius * renderScale;
 
     p.setBrush(shapeBrush(scaled, bounds));
@@ -399,24 +399,24 @@ QImage shapeImageForClip(const drift::Clip &clip, int width, int height, double 
                  ? QPen(Qt::NoPen)
                  : QPen(style.stroke, strokeWidth, penStyleFor(style.strokeStyle), Qt::RoundCap,
                         Qt::RoundJoin));
-    p.drawPath(drift::shapePath(scaled, bounds));
+    p.drawPath(TonDron::shapePath(scaled, bounds));
 
     p.end();
     return image;
 }
 
-double opacityForClip(const drift::Clip &clip, drift::TimeUs timelineUs)
+double opacityForClip(const TonDron::Clip &clip, TonDron::TimeUs timelineUs)
 {
     double value = 1.0;
     if (!clip.opacity.isEmpty()) {
-        const drift::TimeUs relative = timelineUs - clip.timelineStart;
+        const TonDron::TimeUs relative = timelineUs - clip.timelineStart;
         value = qBound(0.0, clip.opacity.evaluateAt(relative), 1.0);
     }
     // Edge-relative fades ride on top of any opacity keyframes.
     return value * clip.fadeMultiplier(timelineUs);
 }
 
-double transformValue(const drift::KeyframeTrack<double> &track, drift::TimeUs relative, double defaultValue)
+double transformValue(const TonDron::KeyframeTrack<double> &track, TonDron::TimeUs relative, double defaultValue)
 {
     if (track.isEmpty())
         return defaultValue;
@@ -425,11 +425,11 @@ double transformValue(const drift::KeyframeTrack<double> &track, drift::TimeUs r
 
 // Layout is stored in project pixels. Preview/export canvases may be scaled
 // via renderScale — always map project → canvas here so WYSIWYG handles match.
-void layoutRectForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int projectWidth, int projectHeight,
+void layoutRectForClip(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int projectWidth, int projectHeight,
                        double renderScale, double extraScale, double *xOut, double *yOut, double *wOut, double *hOut,
                        double *rotationOut = nullptr)
 {
-    const drift::TimeUs relative = timelineUs - clip.timelineStart;
+    const TonDron::TimeUs relative = timelineUs - clip.timelineStart;
     const double scale = renderScale * extraScale;
     *xOut = transformValue(clip.transformX, relative, 0.0) * renderScale;
     *yOut = transformValue(clip.transformY, relative, 0.0) * renderScale;
@@ -441,17 +441,17 @@ void layoutRectForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int pr
 
 // The bottommost active video/image frame at this time, used to derive a blur fill.
 // Track 0 is topmost, so walk tracks back-to-front and take the first hit.
-QImage bottommostVisualFrame(const drift::Project &project, drift::TimeUs timelineUs, int width, int height)
+QImage bottommostVisualFrame(const TonDron::Project &project, TonDron::TimeUs timelineUs, int width, int height)
 {
-    const QList<drift::Track> &tracks = project.tracks();
+    const QList<TonDron::Track> &tracks = project.tracks();
     for (int ti = tracks.size() - 1; ti >= 0; --ti) {
-        const drift::Track &track = tracks.at(ti);
-        if (track.hidden || track.type == drift::TrackType::Audio)
+        const TonDron::Track &track = tracks.at(ti);
+        if (track.hidden || track.type == TonDron::TrackType::Audio)
             continue;
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (!clip.containsTime(timelineUs))
                 continue;
-            if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Image)
+            if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Image)
                 continue;
             QImage frame = imageForClip(clip, timelineUs, width, height, project.fps(), -1);
             if (!frame.isNull())
@@ -467,13 +467,13 @@ QImage bottommostVisualFrame(const drift::Project &project, drift::TimeUs timeli
 // The pixels a clip contributes before the GPU takes over: decode, plus the
 // time_echo trail (which needs several decoded frames). Effects and the mask are
 // deliberately left to the GPU.
-QImage gpuSourceForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int maxWidth, int maxHeight,
+QImage gpuSourceForClip(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int maxWidth, int maxHeight,
                         int projectFps, int maxTimeEchoHistoryFrames)
 {
     if (clip.path.isEmpty())
         return {};
 
-    const drift::Effect *timeEcho = findTimeEchoEffect(clip.effects);
+    const TonDron::Effect *timeEcho = findTimeEchoEffect(clip.effects);
     if (!timeEcho)
         return decodeClipMediaFrame(clip, timelineUs, maxWidth, maxHeight);
 
@@ -481,7 +481,7 @@ QImage gpuSourceForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int m
     if (!def)
         return {};
 
-    const drift::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
+    const TonDron::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
     const QMap<QString, QVariant> params =
         resolvedEffectParameters(timeEcho->resolvedAt(clipTimeUs), *def);
     int frameCount = qBound(1, params.value(QStringLiteral("frames"), 4).toInt(), 10);
@@ -491,7 +491,7 @@ QImage gpuSourceForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int m
     const auto blendMode =
         CompositorFrameHistory::parseEchoBlendMode(params.value(QStringLiteral("blendMode")).toString());
 
-    const drift::TimeUs frameStepUs = drift::frameDurationUs(projectFps);
+    const TonDron::TimeUs frameStepUs = TonDron::frameDurationUs(projectFps);
     QList<QImage> samples;
     samples.reserve(frameCount + 1);
 
@@ -501,7 +501,7 @@ QImage gpuSourceForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int m
     samples.append(current);
 
     for (int i = 1; i <= frameCount; ++i) {
-        const drift::TimeUs pastClipUs = clipTimeUs - static_cast<drift::TimeUs>(i) * frameStepUs;
+        const TonDron::TimeUs pastClipUs = clipTimeUs - static_cast<TonDron::TimeUs>(i) * frameStepUs;
         if (pastClipUs < 0)
             break;
         const QImage past =
@@ -515,15 +515,15 @@ QImage gpuSourceForClip(const drift::Clip &clip, drift::TimeUs timelineUs, int m
 
 // Prefer NV12 for plain video (preview upload path); fall back to RGBA QImage
 // when time_echo needs CPU blending or NV12 decode fails.
-void fillGpuLayerPixels(GpuLayer &layer, const drift::Clip &clip, drift::TimeUs timelineUs, int maxWidth,
+void fillGpuLayerPixels(GpuLayer &layer, const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int maxWidth,
                         int maxHeight, int projectFps, int maxTimeEchoHistoryFrames)
 {
     if (clip.path.isEmpty())
         return;
 
-    const drift::Effect *timeEcho = findTimeEchoEffect(clip.effects);
-    if (!timeEcho && clip.type == drift::ClipType::Video) {
-        const drift::VideoRead read = drift::resolveVideoRead(clip, timelineUs);
+    const TonDron::Effect *timeEcho = findTimeEchoEffect(clip.effects);
+    if (!timeEcho && clip.type == TonDron::ClipType::Video) {
+        const TonDron::VideoRead read = TonDron::resolveVideoRead(clip, timelineUs);
         const Nv12Frame nv12 =
             ClipReaderPool::instance().readVideoFrameNv12(read.path, read.sourceUs, maxWidth, maxHeight);
         if (nv12.isValid()) {
@@ -540,35 +540,35 @@ void fillGpuLayerPixels(GpuLayer &layer, const drift::Clip &clip, drift::TimeUs 
 
 // The word the playhead sits on, for styles whose accent rule follows the speech. -1 for every
 // other rule, which keeps their raster time-independent and therefore cached across the clip.
-int karaokeWordIndex(const drift::Clip &clip, drift::TimeUs timelineUs)
+int karaokeWordIndex(const TonDron::Clip &clip, TonDron::TimeUs timelineUs)
 {
-    if (clip.textStyle.accent.rule != drift::WordAccentRule::Karaoke)
+    if (clip.textStyle.accent.rule != TonDron::WordAccentRule::Karaoke)
         return -1;
     const QString text = clip.textContent.isEmpty() ? clip.name : clip.textContent;
-    return drift::activeWordIndexAt(text, clip.timelineStart,
+    return TonDron::activeWordIndexAt(text, clip.timelineStart,
                                     clip.timelineStart + clip.timelineDuration, timelineUs);
 }
 
-int karaokeWordIndex(const drift::Clip &clip, const drift::SubtitleCue &cue, drift::TimeUs localUs)
+int karaokeWordIndex(const TonDron::Clip &clip, const TonDron::SubtitleCue &cue, TonDron::TimeUs localUs)
 {
-    if (clip.textStyle.accent.rule != drift::WordAccentRule::Karaoke)
+    if (clip.textStyle.accent.rule != TonDron::WordAccentRule::Karaoke)
         return -1;
-    return drift::activeWordIndexAt(cue.text, cue.startUs, cue.endUs, localUs);
+    return TonDron::activeWordIndexAt(cue.text, cue.startUs, cue.endUs, localUs);
 }
 
 // CapCut-style body intro/outro: opacity/offset/scale/rotation on top of fades and text anims.
-void applyClipBodyAnimation(const drift::Clip &clip, drift::TimeUs timelineUs, double layoutW,
+void applyClipBodyAnimation(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, double layoutW,
                             double layoutH, QRectF *destRect, double *opacity, double *rotation)
 {
     if (!destRect || !opacity || !rotation)
         return;
-    if (clip.type == drift::ClipType::Audio || clip.type == drift::ClipType::Subtitle)
+    if (clip.type == TonDron::ClipType::Audio || clip.type == TonDron::ClipType::Subtitle)
         return;
-    if (clip.animIn.kind == drift::ClipAnimKind::None && clip.animOut.kind == drift::ClipAnimKind::None)
+    if (clip.animIn.kind == TonDron::ClipAnimKind::None && clip.animOut.kind == TonDron::ClipAnimKind::None)
         return;
 
-    const drift::ClipAnimSample body =
-        drift::evaluateClipAnimation(clip.timelineStart, clip.timelineDuration, clip.animIn,
+    const TonDron::ClipAnimSample body =
+        TonDron::evaluateClipAnimation(clip.timelineStart, clip.timelineDuration, clip.animIn,
                                      clip.animOut, timelineUs, layoutW, layoutH);
     *opacity *= body.opacity;
     destRect->translate(body.dx, body.dy);
@@ -580,13 +580,13 @@ void applyClipBodyAnimation(const drift::Clip &clip, drift::TimeUs timelineUs, d
     *rotation += body.rotationDeg;
 }
 
-GpuLayer buildGpuLayer(const drift::Clip &clip, drift::TimeUs timelineUs, int projectWidth,
+GpuLayer buildGpuLayer(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int projectWidth,
                        int projectHeight, double renderScale, int canvasWidth, int canvasHeight,
                        int projectFps, int maxTimeEchoHistoryFrames)
 {
     GpuLayer layer;
 
-    const drift::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
+    const TonDron::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
 
     double x = 0.0;
     double y = 0.0;
@@ -605,7 +605,7 @@ GpuLayer buildGpuLayer(const drift::Clip &clip, drift::TimeUs timelineUs, int pr
     QRectF destRect = layoutRect;
     double opacity = opacityForClip(clip, timelineUs);
 
-    if (clip.type == drift::ClipType::Text) {
+    if (clip.type == TonDron::ClipType::Text) {
         // The raster carries a bleed margin for the stroke, shadow and box, so its destination rect
         // is wider than the layout rect. Entrance/exit motion rides on the layer, not the pixels.
         const TextRasterResult raster =
@@ -624,14 +624,14 @@ GpuLayer buildGpuLayer(const drift::Clip &clip, drift::TimeUs timelineUs, int pr
         opacity *= anim.opacity;
 
         if (anim.blurPx > 0.5) {
-            drift::Effect blur;
+            TonDron::Effect blur;
             blur.catalogId = QStringLiteral("builtin.effects.gaussian_blur");
             blur.parameters.insert(QStringLiteral("u_blurRadius"), anim.blurPx);
             layer.effects.append(blur);
         }
-    } else if (clip.type == drift::ClipType::Subtitle) {
-        const drift::TimeUs localUs = timelineUs - clip.timelineStart;
-        const drift::SubtitleCue *cue = activeSubtitleCueAt(clip.subtitleCues, localUs);
+    } else if (clip.type == TonDron::ClipType::Subtitle) {
+        const TonDron::TimeUs localUs = timelineUs - clip.timelineStart;
+        const TonDron::SubtitleCue *cue = activeSubtitleCueAt(clip.subtitleCues, localUs);
         if (!cue || cue->text.trimmed().isEmpty())
             return layer;
 
@@ -657,12 +657,12 @@ GpuLayer buildGpuLayer(const drift::Clip &clip, drift::TimeUs timelineUs, int pr
         opacity *= anim.opacity;
 
         if (anim.blurPx > 0.5) {
-            drift::Effect blur;
+            TonDron::Effect blur;
             blur.catalogId = QStringLiteral("builtin.effects.gaussian_blur");
             blur.parameters.insert(QStringLiteral("u_blurRadius"), anim.blurPx);
             layer.effects.append(blur);
         }
-    } else if (clip.type == drift::ClipType::Shape) {
+    } else if (clip.type == TonDron::ClipType::Shape) {
         layer.source = shapeImageForClip(clip, layoutW, layoutH, renderScale);
         layer.effects = resolvedClipEffects(clip, clipTimeUs);
     } else {
@@ -678,12 +678,12 @@ GpuLayer buildGpuLayer(const drift::Clip &clip, drift::TimeUs timelineUs, int pr
     applyClipBodyAnimation(clip, timelineUs, w, h, &destRect, &opacity, &rotation);
 
     layer.mask = clip.mask;
-    if (clip.mask.shape == drift::MaskShape::Matte && !clip.mask.mattePath.isEmpty()) {
+    if (clip.mask.shape == TonDron::MaskShape::Matte && !clip.mask.mattePath.isEmpty()) {
         // The matte covers the segmented source range, so it starts at matteSrcOffsetUs.
-        const drift::TimeUs matteUs =
+        const TonDron::TimeUs matteUs =
             clip.timelineToSourceUs(timelineUs) - clip.mask.matteSrcOffsetUs;
         const QImage matte = ClipReaderPool::instance().readVideoFrame(
-            clip.mask.mattePath, qMax<drift::TimeUs>(0, matteUs), canvasWidth, canvasHeight);
+            clip.mask.mattePath, qMax<TonDron::TimeUs>(0, matteUs), canvasWidth, canvasHeight);
         // A missing matte frame must not silently blank the clip — leave the layer unmasked.
         if (!matte.isNull())
             layer.matte = matte;
@@ -701,24 +701,24 @@ GpuLayer buildGpuLayer(const drift::Clip &clip, drift::TimeUs timelineUs, int pr
 
 // The reveal granularity in effect for a text clip: the entrance's unit, or the exit's if the
 // entrance is whole-block. TextAnimUnit::Block means the whole-layer path (buildGpuLayer) is used.
-drift::TextAnimUnit activeSpanUnit(const drift::TextStyle &style)
+TonDron::TextAnimUnit activeSpanUnit(const TonDron::TextStyle &style)
 {
-    if (style.animIn.kind != drift::TextAnimKind::None && style.animIn.unit != drift::TextAnimUnit::Block)
+    if (style.animIn.kind != TonDron::TextAnimKind::None && style.animIn.unit != TonDron::TextAnimUnit::Block)
         return style.animIn.unit;
-    if (style.animOut.kind != drift::TextAnimKind::None && style.animOut.unit != drift::TextAnimUnit::Block)
+    if (style.animOut.kind != TonDron::TextAnimKind::None && style.animOut.unit != TonDron::TextAnimUnit::Block)
         return style.animOut.unit;
-    return drift::TextAnimUnit::Block;
+    return TonDron::TextAnimUnit::Block;
 }
 
 // Build one GpuItem per reveal span (character / word / line) of a text clip, so the entrance/exit
 // staggers across the block. Mirrors the text branch of buildGpuLayer, but each span is its own
 // layer carrying its own sampled transform. Returns empty for whole-block text (use buildGpuLayer).
-QList<GpuItem> buildTextSpanItems(const drift::Clip &clip, drift::TimeUs timelineUs, int projectWidth,
-                                  int projectHeight, double renderScale, drift::TextAnimUnit unit)
+QList<GpuItem> buildTextSpanItems(const TonDron::Clip &clip, TonDron::TimeUs timelineUs, int projectWidth,
+                                  int projectHeight, double renderScale, TonDron::TextAnimUnit unit)
 {
     QList<GpuItem> items;
 
-    const drift::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
+    const TonDron::TimeUs clipTimeUs = timelineUs - clip.timelineStart;
 
     double x = 0.0, y = 0.0, w = 0.0, h = 0.0, rotation = 0.0;
     layoutRectForClip(clip, timelineUs, projectWidth, projectHeight, renderScale, 1.0, &x, &y, &w, &h,
@@ -734,7 +734,7 @@ QList<GpuItem> buildTextSpanItems(const drift::Clip &clip, drift::TimeUs timelin
         return items;
 
     const double clipOpacity = opacityForClip(clip, timelineUs);
-    const QList<drift::Effect> baseEffects = resolvedClipEffects(clip, clipTimeUs);
+    const QList<TonDron::Effect> baseEffects = resolvedClipEffects(clip, clipTimeUs);
     int spanCount = 0;
     for (const TextSpanRaster &s : spans)
         spanCount = qMax(spanCount, s.count);
@@ -764,7 +764,7 @@ QList<GpuItem> buildTextSpanItems(const drift::Clip &clip, drift::TimeUs timelin
             }
             opacity *= anim.opacity;
             if (anim.blurPx > 0.5) {
-                drift::Effect blur;
+                TonDron::Effect blur;
                 blur.catalogId = QStringLiteral("builtin.effects.gaussian_blur");
                 blur.parameters.insert(QStringLiteral("u_blurRadius"), anim.blurPx);
                 layer.effects.append(blur);
@@ -793,7 +793,7 @@ QList<GpuItem> buildTextSpanItems(const drift::Clip &clip, drift::TimeUs timelin
     return items;
 }
 
-GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, int width, int height,
+GpuScene buildGpuScene(const TonDron::Project &project, TonDron::TimeUs timelineUs, int width, int height,
                        double renderScale, const FrameCompositor::RenderOptions &options)
 {
     GpuScene scene;
@@ -803,8 +803,8 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
     const int projectHeight = project.height();
     const int fps = project.fps();
 
-    const drift::Background &bg = project.background();
-    if (bg.kind == drift::BackgroundKind::Blur) {
+    const TonDron::Background &bg = project.background();
+    if (bg.kind == TonDron::BackgroundKind::Blur) {
         scene.backgroundColor = Qt::black;
         scene.backgroundBlur = true;
         scene.blurStrengthPx = bg.blurStrength;
@@ -816,20 +816,20 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
     }
 
     // Track 0 is topmost and composites in front, so emit back-to-front.
-    const QList<drift::Track> &tracks = project.tracks();
+    const QList<TonDron::Track> &tracks = project.tracks();
     for (int ti = tracks.size() - 1; ti >= 0; --ti) {
-        const drift::Track &track = tracks.at(ti);
-        if (track.hidden || track.type == drift::TrackType::Audio)
+        const TonDron::Track &track = tracks.at(ti);
+        if (track.hidden || track.type == TonDron::TrackType::Audio)
             continue;
 
         QSet<QString> transitionClipIds;
-        drift::TimeUs transitionStart = 0;
-        drift::TimeUs transitionEnd = 0;
-        const drift::Transition *activeTransition =
-            drift::activeTransitionAt(track, timelineUs, transitionStart, transitionEnd);
+        TonDron::TimeUs transitionStart = 0;
+        TonDron::TimeUs transitionEnd = 0;
+        const TonDron::Transition *activeTransition =
+            TonDron::activeTransitionAt(track, timelineUs, transitionStart, transitionEnd);
         if (activeTransition) {
-            const drift::Clip *fromClip = drift::clipById(track, activeTransition->fromClipId);
-            const drift::Clip *toClip = drift::clipById(track, activeTransition->toClipId);
+            const TonDron::Clip *fromClip = TonDron::clipById(track, activeTransition->fromClipId);
+            const TonDron::Clip *toClip = TonDron::clipById(track, activeTransition->toClipId);
             if (fromClip && toClip) {
                 GpuItem item;
                 item.isTransition = true;
@@ -837,7 +837,7 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
                                           width, height, fps, options.maxTimeEchoHistoryFrames);
                 item.to = buildGpuLayer(*toClip, timelineUs, projectWidth, projectHeight, renderScale,
                                         width, height, fps, options.maxTimeEchoHistoryFrames);
-                item.progress = drift::transitionProgress(timelineUs, transitionStart, transitionEnd);
+                item.progress = TonDron::transitionProgress(timelineUs, transitionStart, transitionEnd);
                 // Time is measured from the start of the transition window so a
                 // shader's u_time is a pure function of window position, like
                 // u_progress.
@@ -855,7 +855,7 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
             }
         }
 
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (transitionClipIds.contains(clip.id) || !clip.containsTime(timelineUs))
                 continue;
             // The clip being edited in place on the preview is hidden here so the
@@ -865,9 +865,9 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
 
             // Text with a per-span reveal expands into one layer per character/word/line so the
             // entrance/exit can stagger across the block; everything else is a single layer.
-            if (clip.type == drift::ClipType::Text) {
-                const drift::TextAnimUnit unit = activeSpanUnit(clip.textStyle);
-                if (unit != drift::TextAnimUnit::Block) {
+            if (clip.type == TonDron::ClipType::Text) {
+                const TonDron::TextAnimUnit unit = activeSpanUnit(clip.textStyle);
+                if (unit != TonDron::TextAnimUnit::Block) {
                     scene.items.append(buildTextSpanItems(clip, timelineUs, projectWidth, projectHeight,
                                                           renderScale, unit));
                     continue;
@@ -888,12 +888,12 @@ GpuScene buildGpuScene(const drift::Project &project, drift::TimeUs timelineUs, 
 
 } // namespace
 
-QImage FrameCompositor::compositeAt(drift::TimeUs timelineUs) const
+QImage FrameCompositor::compositeAt(TonDron::TimeUs timelineUs) const
 {
     return compositeAt(timelineUs, RenderOptions{});
 }
 
-bool FrameCompositor::prepare(drift::TimeUs timelineUs, const RenderOptions &options, GpuScene *sceneOut,
+bool FrameCompositor::prepare(TonDron::TimeUs timelineUs, const RenderOptions &options, GpuScene *sceneOut,
                               int *widthOut, int *heightOut, double *renderScaleOut) const
 {
     if (!m_project)
@@ -926,7 +926,7 @@ bool FrameCompositor::prepare(drift::TimeUs timelineUs, const RenderOptions &opt
     return true;
 }
 
-QImage FrameCompositor::compositeAt(drift::TimeUs timelineUs, const RenderOptions &options) const
+QImage FrameCompositor::compositeAt(TonDron::TimeUs timelineUs, const RenderOptions &options) const
 {
     GpuScene scene;
     int width = 0;
@@ -938,7 +938,7 @@ QImage FrameCompositor::compositeAt(drift::TimeUs timelineUs, const RenderOption
     return GpuCompositor::render(scene);
 }
 
-GpuFrameTexture FrameCompositor::compositeToTextureAt(drift::TimeUs timelineUs,
+GpuFrameTexture FrameCompositor::compositeToTextureAt(TonDron::TimeUs timelineUs,
                                                       const RenderOptions &options) const
 {
     if (!GpuCompositor::isAvailable())

@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Filmstrip across a video clip body.
 //

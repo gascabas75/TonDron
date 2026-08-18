@@ -8,7 +8,7 @@
 
 #include <memory>
 
-namespace drift {
+namespace TonDron {
 
 // Writes a grayscale matte video: one lossless frame per source frame, consumed later as an
 // ordinary video by ClipReaderPool.
@@ -52,4 +52,4 @@ QString matteCacheDir();
 // A fresh, unused absolute path inside matteCacheDir().
 QString newMattePath();
 
-} // namespace drift
+} // namespace TonDron

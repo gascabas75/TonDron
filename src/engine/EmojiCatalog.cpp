@@ -75,7 +75,7 @@ void rebuildLocked(const QStringList &packageRoots)
     g_family.clear();
 
     const QStringList roots = packageRoots.isEmpty()
-        ? GpuPackageParse::defaultSearchPaths(QStringLiteral("DRIFT_EMOJI_FONT_DIR"),
+        ? GpuPackageParse::defaultSearchPaths(QStringLiteral("TonDron_EMOJI_FONT_DIR"),
                                               QStringLiteral("emoji-fonts"),
                                               QStringLiteral("emoji-font"))
         : packageRoots;
@@ -98,8 +98,8 @@ void rebuildLocked(const QStringList &packageRoots)
     probe.setPixelSize(64);
     const QRawFont raw = QRawFont::fromFont(probe);
 
-    for (int i = 0; i < drift::emoji::kTableSize; ++i) {
-        const drift::emoji::TableEntry &entry = drift::emoji::kTable[i];
+    for (int i = 0; i < TonDron::emoji::kTableSize; ++i) {
+        const TonDron::emoji::TableEntry &entry = TonDron::emoji::kTable[i];
         const QString emoji = QString::fromUtf8(entry.emoji);
 
         bool covered = true;
@@ -114,7 +114,7 @@ void rebuildLocked(const QStringList &packageRoots)
         if (!covered)
             continue;
 
-        const QString group = QString::fromUtf8(drift::emoji::kGroups[entry.group]);
+        const QString group = QString::fromUtf8(TonDron::emoji::kGroups[entry.group]);
         if (!g_groups.contains(group))
             g_groups.append(group);
         g_catalog.append(EmojiEntry{emoji, QString::fromUtf8(entry.name), group,

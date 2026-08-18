@@ -14,35 +14,35 @@ QRectF squareBounds(const QPointF &center, double radius)
     return QRectF(center.x() - radius, center.y() - radius, radius * 2.0, radius * 2.0);
 }
 
-QPainterPath maskPath(const drift::Mask &mask, int canvasWidth, int canvasHeight)
+QPainterPath maskPath(const TonDron::Mask &mask, int canvasWidth, int canvasHeight)
 {
     const QPointF center(mask.x * canvasWidth, mask.y * canvasHeight);
     const double halfW = qMax(1.0, mask.w * canvasWidth * 0.5);
     const double halfH = qMax(1.0, mask.h * canvasHeight * 0.5);
 
     switch (mask.shape) {
-    case drift::MaskShape::Rectangle: {
+    case TonDron::MaskShape::Rectangle: {
         QPainterPath path;
         path.addRect(QRectF(center.x() - halfW, center.y() - halfH, halfW * 2.0, halfH * 2.0));
         return path;
     }
-    case drift::MaskShape::Ellipse: {
+    case TonDron::MaskShape::Ellipse: {
         QPainterPath path;
         path.addEllipse(center, halfW, halfH);
         return path;
     }
-    case drift::MaskShape::Star:
-        return drift::regularPolygonPath(squareBounds(center, qMin(halfW, halfH)), 5, mask.rotation);
-    case drift::MaskShape::Heart:
-        return drift::heartPath(squareBounds(center, qMin(halfW, halfH)));
-    case drift::MaskShape::Bars: {
+    case TonDron::MaskShape::Star:
+        return TonDron::regularPolygonPath(squareBounds(center, qMin(halfW, halfH)), 5, mask.rotation);
+    case TonDron::MaskShape::Heart:
+        return TonDron::heartPath(squareBounds(center, qMin(halfW, halfH)));
+    case TonDron::MaskShape::Bars: {
         const double barH = halfH;
         QPainterPath path;
         path.addRect(QRectF(0, 0, canvasWidth, barH));
         path.addRect(QRectF(0, canvasHeight - barH, canvasWidth, barH));
         return path;
     }
-    case drift::MaskShape::Freeform: {
+    case TonDron::MaskShape::Freeform: {
         QPainterPath path;
         if (mask.points.isEmpty())
             return path;
@@ -56,11 +56,11 @@ QPainterPath maskPath(const drift::Mask &mask, int canvasWidth, int canvasHeight
         path.closeSubpath();
         return path;
     }
-    case drift::MaskShape::Matte:
+    case TonDron::MaskShape::Matte:
         // Raster, not parametric: the coverage map is decoded per frame in FrameCompositor and
         // rides on GpuLayer::matte. There is no path to rasterize.
         break;
-    case drift::MaskShape::None:
+    case TonDron::MaskShape::None:
         break;
     }
     return {};
@@ -98,7 +98,7 @@ QImage blurAlpha(const QImage &alpha, int radius)
 
 } // namespace
 
-namespace drift {
+namespace TonDron {
 
 QImage maskAlphaMap(const Mask &mask, int canvasWidth, int canvasHeight)
 {
@@ -160,4 +160,4 @@ QImage applyMask(const QImage &frame, const Mask &mask, int canvasWidth, int can
     return out;
 }
 
-} // namespace drift
+} // namespace TonDron

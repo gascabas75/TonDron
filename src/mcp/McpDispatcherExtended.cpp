@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <memory>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 namespace {
 
 int jsonInt(const QJsonValue &v, int fallback = -1)
@@ -1273,4 +1273,4 @@ QJsonObject McpDispatcher::applyOneExtended(const QString &tool, const QJsonObje
     return err("unknown_op", tool);
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

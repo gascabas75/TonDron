@@ -8,7 +8,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 namespace {
 
 QString defaultSessionDir()
@@ -16,14 +16,14 @@ QString defaultSessionDir()
     QString base = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (base.isEmpty())
         base = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    return QDir(base).filePath(QStringLiteral("drift"));
+    return QDir(base).filePath(QStringLiteral("TonDron"));
 }
 
 } // namespace
 
 QString sessionFilePath()
 {
-    const QString override = qEnvironmentVariable("DRIFT_MCP_SESSION_PATH");
+    const QString override = qEnvironmentVariable("TonDron_MCP_SESSION_PATH");
     if (!override.isEmpty())
         return override;
     return QDir(defaultSessionDir()).filePath(QStringLiteral("mcp-session.json"));
@@ -63,19 +63,19 @@ bool readSessionFile(quint16 *port, QString *token, QString *error)
     if (!file.exists()) {
         if (error) {
             *error = QStringLiteral(
-                "Drift MCP is off. Open Drift and enable Agent access in Settings.");
+                "TonDron MCP is off. Open TonDron and enable Agent access in Settings.");
         }
         return false;
     }
     if (!file.open(QIODevice::ReadOnly)) {
         if (error)
-            *error = QStringLiteral("Could not read the Drift MCP session file.");
+            *error = QStringLiteral("Could not read the TonDron MCP session file.");
         return false;
     }
     const auto doc = QJsonDocument::fromJson(file.readAll());
     if (!doc.isObject()) {
         if (error)
-            *error = QStringLiteral("Drift MCP session file is invalid.");
+            *error = QStringLiteral("TonDron MCP session file is invalid.");
         return false;
     }
     const QJsonObject o = doc.object();
@@ -83,7 +83,7 @@ bool readSessionFile(quint16 *port, QString *token, QString *error)
     const QString t = o.value(QStringLiteral("token")).toString();
     if (p <= 0 || p > 65535 || t.isEmpty()) {
         if (error)
-            *error = QStringLiteral("Drift MCP session file is incomplete.");
+            *error = QStringLiteral("TonDron MCP session file is incomplete.");
         return false;
     }
     if (port)
@@ -93,4 +93,4 @@ bool readSessionFile(quint16 *port, QString *token, QString *error)
     return true;
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

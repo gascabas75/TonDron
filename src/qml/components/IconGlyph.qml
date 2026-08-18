@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Effects
-import Drift
+import TonDron
 
 // Renders a Lucide icon from resources/icons/<name>.png (white-mask PNGs
 // rasterised from lucide-icons-1.25.0 SVGs; tinted via MultiEffect).
@@ -23,7 +23,7 @@ Item {
         width: root.iconSize
         height: root.iconSize
         source: root.glyph.length > 0
-                ? "qrc:/qt/qml/Drift/resources/icons/" + root.glyph + ".png"
+                ? "qrc:/qt/qml/TonDron/resources/icons/" + root.glyph + ".png"
                 : ""
         sourceSize: Qt.size(Math.ceil(root.iconSize * 2), Math.ceil(root.iconSize * 2))
         fillMode: Image.PreserveAspectFit

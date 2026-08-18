@@ -100,7 +100,7 @@ QVector<float> downsamplePeaks(const QVector<float> &fine, int sampleCount)
     return buckets;
 }
 
-// Direct-form-I biquad, for the speech band-pass below. driftengine is kept JUCE-free, so
+// Direct-form-I biquad, for the speech band-pass below. TonDronengine is kept JUCE-free, so
 // the effect-rack filters in engine/audio aren't reachable from here.
 struct Biquad
 {

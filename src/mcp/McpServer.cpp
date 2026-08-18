@@ -12,7 +12,7 @@
 #include <QThread>
 #include <QTimer>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 
 McpServer::McpServer(AppController *controller, QObject *parent)
     : QObject(parent)
@@ -40,7 +40,7 @@ QString McpServer::cursorSnippet() const
     return QStringLiteral(
                "{\n"
                "  \"mcpServers\": {\n"
-               "    \"drift\": {\n"
+               "    \"TonDron\": {\n"
                "      \"url\": \"%1\",\n"
                "      \"headers\": {\n"
                "        \"Authorization\": \"Bearer %2\"\n"
@@ -56,7 +56,7 @@ QString McpServer::claudeCommand() const
     if (!m_running)
         return {};
     return QStringLiteral(
-               "claude mcp add --transport http drift %1 --header \"Authorization: Bearer %2\"")
+               "claude mcp add --transport http TonDron %1 --header \"Authorization: Bearer %2\"")
         .arg(url(), m_token);
 }
 
@@ -186,4 +186,4 @@ QJsonObject McpServer::dispatchTool(const QString &name, const QJsonObject &args
     return textResult(m_dispatcher->applyOne(name, args));
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Shows live progress for a background export. Closable while the export keeps
 // running; EditorHeader reopens it via the circular-progress badge next to the

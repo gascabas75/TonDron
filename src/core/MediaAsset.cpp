@@ -1,6 +1,6 @@
 #include "MediaAsset.h"
 
-namespace drift {
+namespace TonDron {
 
 QString mediaKindToString(MediaKind kind)
 {
@@ -28,4 +28,4 @@ MediaKind mediaKindFromString(const QString &kind)
     return MediaKind::Other;
 }
 
-} // namespace drift
+} // namespace TonDron

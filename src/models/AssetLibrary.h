@@ -8,7 +8,7 @@
 #include <QStringList>
 #include <QUrl>
 
-namespace drift {
+namespace TonDron {
 class Project;
 }
 
@@ -35,8 +35,8 @@ public:
 
     explicit AssetLibrary(QObject *parent = nullptr);
 
-    void setProject(drift::Project *project);
-    drift::Project *project() const { return m_project; }
+    void setProject(TonDron::Project *project);
+    TonDron::Project *project() const { return m_project; }
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -50,7 +50,7 @@ public:
     bool isImportPending(const QString &assetId) const;
     // Registers media the app rendered itself (freeze frames and the like). The asset is already
     // complete, so this skips the probe and thumbnail jobs the import path runs. Returns its id.
-    QString addGeneratedAsset(drift::MediaAsset asset);
+    QString addGeneratedAsset(TonDron::MediaAsset asset);
     Q_INVOKABLE QVariantMap assetAt(int index) const;
     Q_INVOKABLE QString assetIdAt(int index) const;
     Q_INVOKABLE int indexOfId(const QString &id) const;
@@ -73,7 +73,7 @@ public:
     // Writes a probed source over the asset at `assetId`, keeping the id. Keeping it is the
     // whole point: clips address their media through it, so they stay bound across the swap.
     // Callers own the undo snapshot and the clip fixups.
-    bool applyProbedSource(const QString &assetId, const drift::MediaAsset &filled);
+    bool applyProbedSource(const QString &assetId, const TonDron::MediaAsset &filled);
     // Re-reads the project after undo/redo has swapped it wholesale.
     void syncToProject();
 
@@ -90,7 +90,7 @@ signals:
     void assetMetadataChanged(const QString &assetId);
     // Result of startReplaceProbe. Nothing has been applied yet; the caller decides whether the
     // probed media is an acceptable stand-in and calls applyProbedSource if so.
-    void assetSourceProbed(const QString &assetId, const drift::MediaAsset &filled, bool ok);
+    void assetSourceProbed(const QString &assetId, const TonDron::MediaAsset &filled, bool ok);
 
 private:
     void importFiles(const QStringList &paths);
@@ -99,7 +99,7 @@ private:
     void refreshMediaAt(int index);
     void startImportJob(const QString &assetId, const QString &absolutePath, bool imageOnly);
     void startThumbJob(const QString &assetId);
-    void applyImportResult(const QString &assetId, const drift::MediaAsset &filled, bool ok);
+    void applyImportResult(const QString &assetId, const TonDron::MediaAsset &filled, bool ok);
     // `sourcePath` is the file the job actually read. It is compared against the asset's current
     // path on landing so a result for media that has since been replaced is dropped.
     void applyThumbResult(const QString &assetId, const QString &sourcePath, const QString &thumb,
@@ -109,10 +109,10 @@ private:
     void emitAssetRowChanged(int index, const QList<int> &roles);
     void snapshotAssets();
     QList<QString> currentPaths() const;
-    const drift::MediaAsset *assetAtIndex(int index) const;
-    drift::MediaAsset *assetAtIndex(int index);
+    const TonDron::MediaAsset *assetAtIndex(int index) const;
+    TonDron::MediaAsset *assetAtIndex(int index);
 
-    drift::Project *m_project = nullptr;
+    TonDron::Project *m_project = nullptr;
     // Asset order and per-row source paths as of the last change this model itself made, so
     // syncToProject() can tell an undone asset edit from every other undo. A replaced source
     // leaves the order alone and only moves a path, which is why both are tracked.

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Standard "nothing here yet" placeholder: icon frame, title, hint, optional CTA.
 //

@@ -2,7 +2,7 @@
 
 #include <QCoreApplication>
 
-namespace drift {
+namespace TonDron {
 
 QString textAlignToString(TextAlign align)
 {
@@ -529,4 +529,4 @@ const TextStyle *textStyleForPresetId(const QString &id)
     return preset ? &preset->style : nullptr;
 }
 
-} // namespace drift
+} // namespace TonDron

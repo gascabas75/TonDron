@@ -9,7 +9,7 @@
 #include <memory>
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 // Where the user clicked, in source-frame pixel coordinates.
 struct Sam2Prompt
@@ -118,4 +118,4 @@ private:
     std::unique_ptr<Impl> d;
 };
 
-} // namespace drift
+} // namespace TonDron

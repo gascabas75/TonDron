@@ -17,7 +17,7 @@
 #include <QUrl>
 #include <QVariantMap>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 namespace {
 
 QSet<QString> clipIdSet(AppController *c)
@@ -327,9 +327,9 @@ bool applyExportPatch(AppController *c, QVariantMap &map, const QJsonObject &arg
                 *error = QStringLiteral("out must be greater than in");
             return false;
         }
-        map.insert(QStringLiteral("startUs"), static_cast<double>(drift::secondsToUs(inSec)));
+        map.insert(QStringLiteral("startUs"), static_cast<double>(TonDron::secondsToUs(inSec)));
         if (hasOut)
-            map.insert(QStringLiteral("endUs"), static_cast<double>(drift::secondsToUs(outSec)));
+            map.insert(QStringLiteral("endUs"), static_cast<double>(TonDron::secondsToUs(outSec)));
         map.insert(QStringLiteral("exportWorkAreaOnly"), false);
     } else if (map.value(QStringLiteral("exportWorkAreaOnly")).toBool()) {
         if (!c->workAreaActive()) {
@@ -343,9 +343,9 @@ bool applyExportPatch(AppController *c, QVariantMap &map, const QJsonObject &arg
             map.remove(QStringLiteral("endUs"));
         } else {
             map.insert(QStringLiteral("startUs"),
-                       static_cast<double>(drift::secondsToUs(c->workAreaInSeconds())));
+                       static_cast<double>(TonDron::secondsToUs(c->workAreaInSeconds())));
             map.insert(QStringLiteral("endUs"),
-                       static_cast<double>(drift::secondsToUs(c->workAreaOutSeconds())));
+                       static_cast<double>(TonDron::secondsToUs(c->workAreaOutSeconds())));
         }
     } else {
         map.remove(QStringLiteral("startUs"));
@@ -383,10 +383,10 @@ QJsonObject compactExportSettings(AppController *c, const QVariantMap &map)
         {QStringLiteral("suffix"), c->exportDefaultSuffix(container, audioOnly && !gif)},
     };
     if (map.contains(QStringLiteral("startUs")) && map.contains(QStringLiteral("endUs"))) {
-        o.insert(QStringLiteral("in"), drift::usToSeconds(
-                                           static_cast<drift::TimeUs>(map.value(QStringLiteral("startUs")).toDouble())));
-        o.insert(QStringLiteral("out"), drift::usToSeconds(
-                                            static_cast<drift::TimeUs>(map.value(QStringLiteral("endUs")).toDouble())));
+        o.insert(QStringLiteral("in"), TonDron::usToSeconds(
+                                           static_cast<TonDron::TimeUs>(map.value(QStringLiteral("startUs")).toDouble())));
+        o.insert(QStringLiteral("out"), TonDron::usToSeconds(
+                                            static_cast<TonDron::TimeUs>(map.value(QStringLiteral("endUs")).toDouble())));
     }
     return o;
 }
@@ -1733,5 +1733,5 @@ QJsonObject McpDispatcher::opResetShortcuts()
     return ok({{QStringLiteral("reset"), true}});
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp
 

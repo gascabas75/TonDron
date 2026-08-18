@@ -15,8 +15,8 @@
 // Unlike effects, transitions are always GPU (with a built-in CPU crossfade fallback).
 struct TransitionPresetEntry
 {
-    drift::EffectPresetMeta meta;        // id, displayName, category, parameters[]
-    drift::GpuEffectDefinition gpu;
+    TonDron::EffectPresetMeta meta;        // id, displayName, category, parameters[]
+    TonDron::GpuEffectDefinition gpu;
     QMap<QString, QVariant> fixedParams; // always applied, not exposed as sliders
     QString audioCurve;                  // "crossfade" (default) | "dip" | "hold"
     QString previewStripPath;            // absolute path to the horizontal sprite-sheet (optional)
@@ -28,7 +28,7 @@ const QList<TransitionPresetEntry> &transitionCatalog();
 const TransitionPresetEntry *transitionDefForId(const QString &id);
 
 // Merge fixed + default + instance parameters for one transition.
-QMap<QString, QVariant> resolvedTransitionParameters(const drift::Transition &transition,
+QMap<QString, QVariant> resolvedTransitionParameters(const TonDron::Transition &transition,
                                                      const TransitionPresetEntry &def);
 
 // All loaded transition ids, in catalog order.

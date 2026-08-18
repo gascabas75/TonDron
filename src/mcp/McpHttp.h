@@ -11,7 +11,7 @@
 class QTcpServer;
 class QTcpSocket;
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 
 class McpHttp : public QObject
 {
@@ -48,4 +48,4 @@ private:
     QHash<QTcpSocket *, QByteArray> m_buffers;
 };
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

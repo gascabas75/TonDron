@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Shared ".panel" chrome: dark surface, hairline border, 5.6px radius.
 Rectangle {

@@ -14,12 +14,12 @@
 #include <cmath>
 #include <limits>
 
-namespace drift {
+namespace TonDron {
 namespace {
 
-using drift::ort::cstrs;
-using drift::ort::ortPath;
-using drift::ort::sessionNames;
+using TonDron::ort::cstrs;
+using TonDron::ort::ortPath;
+using TonDron::ort::sessionNames;
 
 constexpr int kMaxFaces = 4;
 constexpr int kLandmarkPoints = 468; // before the iris rings the attention head adds
@@ -48,7 +48,7 @@ constexpr std::array<int, 36> kFaceOval{10,  338, 297, 332, 284, 251, 389, 356, 
 //
 // HANDEDNESS: everything here is named in *image* space, matching FaceAnchors — "left" means the
 // low-x side of the frame, not the subject's own left. MediaPipe names its sets from the subject's
-// point of view, so Drift's kEyeLeft is MediaPipe's FACEMESH_RIGHT_EYE and vice versa. The
+// point of view, so TonDron's kEyeLeft is MediaPipe's FACEMESH_RIGHT_EYE and vice versa. The
 // existing kIdxMouthLeft = 61 already follows this convention. Swapping a pair here produces
 // mirrored liner and shadow, which a symmetric test face will not reveal — check the overlay.
 constexpr std::array<int, 20> kLipOuter{61,  185, 40,  39,  37,  0,   267, 269, 270, 409,
@@ -89,7 +89,7 @@ struct Detection
 QString resolveFaceModelDir()
 {
     const QStringList roots = GpuPackageParse::defaultSearchPaths(
-        QStringLiteral("DRIFT_FACE_MODEL_DIR"), QStringLiteral("models/face"),
+        QStringLiteral("TonDron_FACE_MODEL_DIR"), QStringLiteral("models/face"),
         QStringLiteral("face-model"));
 
     // A directory only counts as a model when every piece is there — a half-downloaded folder
@@ -296,22 +296,22 @@ bool FaceLandmarker::Impl::ensureLoaded()
         // app is running, and latching here would make it need a restart. A model that is present
         // but fails to load is latched below, since retrying that just repeats the failure.
         error = QStringLiteral("Face model not found. Install the face model addon, place it in "
-                               "models/face, or set DRIFT_FACE_MODEL_DIR.");
+                               "models/face, or set TonDron_FACE_MODEL_DIR.");
         return false;
     }
     // The runtime is an addon too. Unlike the model it cannot be picked up mid-session — the
     // library is loaded once per process — which is why the Addon Manager asks for a restart.
-    if (!drift::ort::ensureLoaded(&error))
+    if (!TonDron::ort::ensureLoaded(&error))
         return false;
     loadAttempted = true;
 
     if (!loadConstants(modelDir))
         return false;
 
-    Ort::Env &ortEnv = drift::ort::env();
+    Ort::Env &ortEnv = TonDron::ort::env();
     const QDir dir(modelDir);
     QString buildError;
-    const bool built = drift::ort::buildSessions(
+    const bool built = TonDron::ort::buildSessions(
         ortEnv, "face", false, &buildError, [&](Ort::SessionOptions &opts) {
             detector = std::make_unique<Ort::Session>(
                 ortEnv, ortPath(dir.filePath(QLatin1String(kDetectorFile))).c_str(), opts);
@@ -368,7 +368,7 @@ QList<Detection> FaceLandmarker::Impl::runDetector(const QImage &frame)
     std::vector<Ort::Value> results;
     try {
         const std::array<int64_t, 4> shape{1, 3, n, n};
-        Ort::Value tensor = Ort::Value::CreateTensor<float>(drift::ort::cpuMemory(), input.data(), input.size(),
+        Ort::Value tensor = Ort::Value::CreateTensor<float>(TonDron::ort::cpuMemory(), input.data(), input.size(),
                                                             shape.data(), shape.size());
         const auto inNames = cstrs(detIn);
         const auto outNames = cstrs(detOut);
@@ -497,7 +497,7 @@ FaceAnchors FaceLandmarker::Impl::runLandmark(const QImage &frame, const Detecti
     std::vector<Ort::Value> results;
     try {
         const std::array<int64_t, 4> shape{1, 3, n, n};
-        Ort::Value tensor = Ort::Value::CreateTensor<float>(drift::ort::cpuMemory(), input.data(), input.size(),
+        Ort::Value tensor = Ort::Value::CreateTensor<float>(TonDron::ort::cpuMemory(), input.data(), input.size(),
                                                             shape.data(), shape.size());
         const auto inNames = cstrs(lmIn);
         const auto outNames = cstrs(lmOut);
@@ -598,7 +598,7 @@ FaceAnchors FaceLandmarker::Impl::runLandmark(const QImage &frame, const Detecti
     anchors.faceCenter = QPointF(centroid.x(), centroid.y() / aspect);
 
     // Contours, stored in width-normalized space. The oval is re-walked rather than reusing the
-    // list above so that every span is filled by the same loop and the order cannot drift apart
+    // list above so that every span is filled by the same loop and the order cannot TonDron apart
     // from contour::Span.
     anchors.contour.reserve(contour::kTotalPoints);
     auto appendLoop = [&](const auto &indices) {
@@ -780,4 +780,4 @@ QList<FaceAnchors> FaceLandmarker::detect(const QImage &frame, const QList<FaceA
     return tracked;
 }
 
-} // namespace drift
+} // namespace TonDron

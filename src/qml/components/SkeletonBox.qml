@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Shimmering placeholder for content that is still being produced: async
 // thumbnails, filmstrip frames, waveform peaks, addon lists.

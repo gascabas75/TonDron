@@ -4,7 +4,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 enum class ShapeKind {
     // Basic
@@ -98,4 +98,4 @@ const QList<ShapeCatalogEntry> &shapeCatalog();
 const ShapeCatalogEntry *shapeCatalogEntry(const QString &id);
 QList<ShapeCategory> shapeCategories();
 
-} // namespace drift
+} // namespace TonDron

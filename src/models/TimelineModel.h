@@ -21,7 +21,7 @@ public:
 
     explicit TimelineModel(QObject *parent = nullptr);
 
-    void setProject(drift::Project *project);
+    void setProject(TonDron::Project *project);
     void refresh();
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -29,5 +29,5 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
 private:
-    drift::Project *m_project = nullptr;
+    TonDron::Project *m_project = nullptr;
 };

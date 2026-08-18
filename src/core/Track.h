@@ -6,7 +6,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 enum class TrackType { Video, Audio, Text, Subtitle, Shape };
 
@@ -29,4 +29,4 @@ struct Track
     bool allowsClipType(ClipType clipType) const;
 };
 
-} // namespace drift
+} // namespace TonDron

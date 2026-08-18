@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 QString subtitleClipName(const QList<SubtitleCue> &cues)
 {
@@ -201,4 +201,4 @@ QList<SubtitleCue> packSubtitleCues(const QList<SubtitleCue> &cues, int maxLineW
     return packed;
 }
 
-} // namespace drift
+} // namespace TonDron

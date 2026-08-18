@@ -1,6 +1,6 @@
 #include "Track.h"
 
-namespace drift {
+namespace TonDron {
 
 QString trackTypeToString(TrackType type)
 {
@@ -49,4 +49,4 @@ bool Track::allowsClipType(ClipType clipType) const
     return false;
 }
 
-} // namespace drift
+} // namespace TonDron

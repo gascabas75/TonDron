@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Browse, install and remove addons. Content that used to be baked into the build — fonts,
 // stickers, the Whisper model — is downloaded from here instead.
@@ -245,7 +245,7 @@ ThemedDialog {
                 visible: accelerationPanel.restartRequired
                 color: Theme.destructive
                 tone: "default"
-                text: qsTr("Restart Drift for this to take effect.")
+                text: qsTr("Restart TonDron for this to take effect.")
             }
         }
 

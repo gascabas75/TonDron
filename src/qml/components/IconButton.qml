@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Icon-only button, variants "text" / "ghost" / "secondary".
 //

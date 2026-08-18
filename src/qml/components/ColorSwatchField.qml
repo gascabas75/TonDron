@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Dialogs
-import Drift
+import TonDron
 
 // Colour swatch that opens a picker, paired with a hex field for exact values.
 Row {

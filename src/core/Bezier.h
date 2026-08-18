@@ -1,6 +1,6 @@
 #pragma once
 
-namespace drift {
+namespace TonDron {
 
 // Cubic bezier on one axis.
 inline double cubicBezier(double a, double b, double c, double d, double t)
@@ -25,4 +25,4 @@ inline double bezierParameterForX(double x0, double x1, double x2, double x3, do
     return 0.5 * (lo + hi);
 }
 
-} // namespace drift
+} // namespace TonDron

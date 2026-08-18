@@ -5,7 +5,7 @@
 
 #include <QSet>
 
-namespace drift {
+namespace TonDron {
 
 constexpr TimeUs kImageClipDurationUs = 5 * kUsPerSecond;
 constexpr TimeUs kTextClipDurationUs = 5 * kUsPerSecond;
@@ -91,4 +91,4 @@ QString assignSplitLinkIds(Clip &head, Clip &tail);
 // simply clipped away by the compositor.
 void rebaseClipLayout(Project &project, int oldWidth, int oldHeight, double originX, double originY);
 
-} // namespace drift
+} // namespace TonDron

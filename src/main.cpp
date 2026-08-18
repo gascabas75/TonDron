@@ -10,7 +10,7 @@
 #include "models/FileDialogs.h"
 #include "models/UpdateChecker.h"
 #include "ClipPreviewImageProvider.h"
-#include "DriftImageProvider.h"
+#include "TonDronImageProvider.h"
 #include "SegmentImageProvider.h"
 #include "TextStylePreviewImageProvider.h"
 #include "preview/PreviewItem.h"
@@ -35,7 +35,7 @@ namespace {
 
 bool verboseLoggingRequested(int argc, char *argv[])
 {
-    if (qEnvironmentVariableIntValue("DRIFT_VERBOSE") != 0)
+    if (qEnvironmentVariableIntValue("TonDron_VERBOSE") != 0)
         return true;
     for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--verbose") == 0)
@@ -68,9 +68,9 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--mcp-stdio") == 0) {
             QCoreApplication app(argc, argv);
-            QCoreApplication::setApplicationName("CutWire Drift");
-            QCoreApplication::setOrganizationName("CutWire Drift");
-            return drift::mcp::runStdioAttach();
+            QCoreApplication::setApplicationName("CutWire TonDron");
+            QCoreApplication::setOrganizationName("CutWire TonDron");
+            return TonDron::mcp::runStdioAttach();
         }
     }
 
@@ -92,15 +92,15 @@ int main(int argc, char *argv[])
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 
     QApplication app(argc, argv);
-    QApplication::setApplicationName("CutWire Drift");
-    QApplication::setOrganizationName("CutWire Drift");
+    QApplication::setApplicationName("CutWire TonDron");
+    QApplication::setOrganizationName("CutWire TonDron");
     // Associates the window with the installed .desktop entry so shells (notably
     // Wayland) can find its icon and app metadata.
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.cutwire.Drift"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("org.cutwire.TonDron"));
     // Title bar / taskbar icon when no desktop entry is available (Windows, and
     // Linux runs from the build tree). The .exe still needs the Windows .rc icon
     // for Explorer and pinned-taskbar identity.
-    QApplication::setWindowIcon(QIcon(QStringLiteral(":/app/drift.png")));
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/app/TonDron.png")));
 
     // qsTr/tr resolve when the QML engine loads, so translators must be installed first.
     // Protocol strings under src/mcp/ are excluded from the catalog; they stay English.
@@ -113,37 +113,37 @@ int main(int argc, char *argv[])
 
     // Noise-removal A/B snippets are scratch. Anything still here is from a previous session that
     // did not get to clean up after itself.
-    drift::sweepDenoisePreviews();
+    TonDron::sweepDenoisePreviews();
 
     // Reversed proxies are a pure cache: dropping one only costs the clip its smooth playback, so
     // they are pruned to a budget rather than kept forever the way mattes are.
-    drift::ReverseProxyCache::instance().load();
-    drift::ReverseProxyCache::instance().sweep(drift::ReverseProxyCache::kDefaultMaxBytes);
+    TonDron::ReverseProxyCache::instance().load();
+    TonDron::ReverseProxyCache::instance().sweep(TonDron::ReverseProxyCache::kDefaultMaxBytes);
 
-    qmlRegisterType<PreviewItem>("Drift", 1, 0, "PreviewItem");
+    qmlRegisterType<PreviewItem>("TonDron", 1, 0, "PreviewItem");
 
     static AssetLibrary assetLibrary;
     static EditorState editorState(&assetLibrary);
     static FileDialogs fileDialogs;
     static AddonManager addonManager;
     static UpdateChecker updateChecker;
-    qmlRegisterSingletonInstance("Drift", 1, 0, "AssetLibrary", &assetLibrary);
-    qmlRegisterSingletonInstance("Drift", 1, 0, "EditorState", &editorState);
-    qmlRegisterSingletonInstance("Drift", 1, 0, "AppController", &editorState);
-    qmlRegisterSingletonInstance("Drift", 1, 0, "FileDialogs", &fileDialogs);
-    qmlRegisterSingletonInstance("Drift", 1, 0, "Addons", &addonManager);
-    qmlRegisterSingletonInstance("Drift", 1, 0, "Updates", &updateChecker);
+    qmlRegisterSingletonInstance("TonDron", 1, 0, "AssetLibrary", &assetLibrary);
+    qmlRegisterSingletonInstance("TonDron", 1, 0, "EditorState", &editorState);
+    qmlRegisterSingletonInstance("TonDron", 1, 0, "AppController", &editorState);
+    qmlRegisterSingletonInstance("TonDron", 1, 0, "FileDialogs", &fileDialogs);
+    qmlRegisterSingletonInstance("TonDron", 1, 0, "Addons", &addonManager);
+    qmlRegisterSingletonInstance("TonDron", 1, 0, "Updates", &updateChecker);
 
     QQmlApplicationEngine engine;
     QObject::connect(&editorState, &AppController::uiLanguageChanged,
                      &engine, &QQmlEngine::retranslate);
-    engine.addImageProvider(QStringLiteral("drift"), new DriftImageProvider());
+    engine.addImageProvider(QStringLiteral("TonDron"), new TonDronImageProvider());
     engine.addImageProvider(QStringLiteral("segment"), new SegmentImageProvider());
     engine.addImageProvider(QStringLiteral("clippreview"), new ClipPreviewImageProvider());
     engine.addImageProvider(QStringLiteral("textstyle"), new TextStylePreviewImageProvider());
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QGuiApplication::exit(-1); }, Qt::QueuedConnection);
-    engine.loadFromModule("Drift", "Main");
+    engine.loadFromModule("TonDron", "Main");
 
     return app.exec();
 }

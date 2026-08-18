@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // The full Unicode emoji set, offered next to the curated sticker packs — those only cover a
 // couple of hundred glyphs. Picking one rasterises it and drops it on an image track, so from the

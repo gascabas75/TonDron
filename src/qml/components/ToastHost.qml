@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Visual host for the Toasts queue. Instantiated once, in Main.qml, on top of
 // the whole window so any panel's message lands in the same place.

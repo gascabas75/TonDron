@@ -11,7 +11,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 struct Bookmark
 {
@@ -129,4 +129,4 @@ private:
     QHash<QString, MediaAsset> m_assetsById;
 };
 
-} // namespace drift
+} // namespace TonDron

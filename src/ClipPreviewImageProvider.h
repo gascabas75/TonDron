@@ -4,7 +4,7 @@
 
 // Serves the speed-curve window's decoded clip frame from ClipPreviewImageStore, as
 // image://clippreview/frame. The pixels change on every pump tick and never hit disk, so there
-// is nothing for DriftImageProvider's path-based lookup to load.
+// is nothing for TonDronImageProvider's path-based lookup to load.
 class ClipPreviewImageProvider : public QQuickImageProvider
 {
 public:

@@ -1,6 +1,6 @@
 #include "Effect.h"
 
-namespace drift {
+namespace TonDron {
 
 QString Effect::filterGraphString() const
 {
@@ -38,4 +38,4 @@ Effect Effect::resolvedAt(TimeUs clipTimeUs) const
     return out;
 }
 
-} // namespace drift
+} // namespace TonDron

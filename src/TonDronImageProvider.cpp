@@ -1,15 +1,15 @@
-#include "DriftImageProvider.h"
+#include "TonDronImageProvider.h"
 
 #include <QFileInfo>
 #include <QUrl>
 #include <QUrlQuery>
 
-DriftImageProvider::DriftImageProvider()
+TonDronImageProvider::TonDronImageProvider()
     : QQuickImageProvider(QQuickImageProvider::Image)
 {
 }
 
-QImage DriftImageProvider::requestImage(const QString &id, QSize *size, const QSize &requestedSize)
+QImage TonDronImageProvider::requestImage(const QString &id, QSize *size, const QSize &requestedSize)
 {
     // Optional "?frame=<i>&count=<n>" selects one frame of a filmstrip so each tile can
     // request a distinct sub-image (a shared source URL would collapse to a single cached

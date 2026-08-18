@@ -56,10 +56,10 @@ public:
     // the resulting decode size stable, so an animated clip transform does not
     // change the decode size — and therefore does not invalidate the frame cache
     // — on every frame. Callers scale the returned image to their layout rect.
-    bool readVideoFrameAt(drift::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight);
+    bool readVideoFrameAt(TonDron::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight);
     // Same seek/decode path as readVideoFrameAt, but converts to NV12 for the
     // preview compositor (half the upload bandwidth vs RGBA).
-    bool readVideoFrameAtNv12(drift::TimeUs sourceUs, Nv12Frame &out, int maxWidth, int maxHeight);
+    bool readVideoFrameAtNv12(TonDron::TimeUs sourceUs, Nv12Frame &out, int maxWidth, int maxHeight);
     // Decode one frame past the current position into the cache, to overlap
     // decode with the caller's compositing work. Match the format of the last
     // read so prefetch does not consume a frame the other format still needs.
@@ -68,8 +68,8 @@ public:
     // still short of readAheadUs of decoded source past the last frame the
     // caller asked for. Callers step it one frame at a time so a real read never
     // waits behind more than a single decode. 0 keeps the old one-frame prefetch.
-    bool prefetchNextVideoFrameNv12(int maxWidth, int maxHeight, drift::TimeUs readAheadUs = 0);
-    int readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
+    bool prefetchNextVideoFrameNv12(int maxWidth, int maxHeight, TonDron::TimeUs readAheadUs = 0);
+    int readAudioInterleaved(TonDron::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
                              float *interleavedStereoOut);
 
 private:
@@ -92,22 +92,22 @@ private:
     bool transferHwFrameToImage(const AVFrame *hwFrame, QImage &out, int targetWidth, int targetHeight);
     bool convertFrame(const AVFrame *frame, QImage &out, int targetWidth, int targetHeight);
     bool convertFrameNv12(const AVFrame *frame, Nv12Frame &out, int targetWidth, int targetHeight);
-    bool decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight,
+    bool decodeVideoFrameAtOnce(TonDron::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight,
                                 bool *hwFailure);
-    bool decodeVideoFrameAtOnceNv12(drift::TimeUs sourceUs, Nv12Frame &out, int maxWidth, int maxHeight,
+    bool decodeVideoFrameAtOnceNv12(TonDron::TimeUs sourceUs, Nv12Frame &out, int maxWidth, int maxHeight,
                                     bool *hwFailure);
-    bool seekVideoStream(drift::TimeUs sourceUs);
-    bool seekAudioStream(drift::TimeUs sourceUs);
+    bool seekVideoStream(TonDron::TimeUs sourceUs);
+    bool seekAudioStream(TonDron::TimeUs sourceUs);
 
     // Decode size fitted into the caller's box, quantized so small preview
     // resizes don't churn the sws context and the frame cache.
     QSize decodeSizeFor(int maxWidth, int maxHeight) const;
     void applyDecodeSize(const QSize &size);
-    drift::TimeUs frameToleranceUs() const;
-    bool lookupCachedFrame(drift::TimeUs sourceUs, QImage &out) const;
-    void storeCachedFrame(drift::TimeUs ptsUs, const QImage &image);
-    bool lookupCachedNv12(drift::TimeUs sourceUs, Nv12Frame &out) const;
-    void storeCachedNv12(drift::TimeUs ptsUs, const Nv12Frame &frame);
+    TonDron::TimeUs frameToleranceUs() const;
+    bool lookupCachedFrame(TonDron::TimeUs sourceUs, QImage &out) const;
+    void storeCachedFrame(TonDron::TimeUs ptsUs, const QImage &image);
+    bool lookupCachedNv12(TonDron::TimeUs sourceUs, Nv12Frame &out) const;
+    void storeCachedNv12(TonDron::TimeUs ptsUs, const Nv12Frame &frame);
     int nv12CacheCapacity() const;
     void trimNv12Cache();
     bool wantsMoreNv12ReadAhead() const;
@@ -146,23 +146,23 @@ private:
     // Sequential-decode state: lets playback decode forward without re-seeking
     // to a keyframe on every frame. Only seek on a backward jump or a large gap.
     bool m_videoPositioned = false;
-    drift::TimeUs m_lastVideoPtsUs = 0;
+    TonDron::TimeUs m_lastVideoPtsUs = 0;
     int m_decodeW = 0;
     int m_decodeH = 0;
-    drift::TimeUs m_sourceFrameDurationUs = 0; // 0 until the stream is opened
-    static constexpr drift::TimeUs kForwardSeekThresholdUs = 2 * drift::kUsPerSecond;
+    TonDron::TimeUs m_sourceFrameDurationUs = 0; // 0 until the stream is opened
+    static constexpr TonDron::TimeUs kForwardSeekThresholdUs = 2 * TonDron::kUsPerSecond;
 
     // Recently returned frames, most-recent first, keyed by source PTS. Backward
     // scrubbing and time_echo's history samples hit this instead of re-seeking.
     struct CachedFrame
     {
-        drift::TimeUs ptsUs = 0;
+        TonDron::TimeUs ptsUs = 0;
         QImage image;
     };
     QList<CachedFrame> m_videoCache;
     struct CachedNv12
     {
-        drift::TimeUs ptsUs = 0;
+        TonDron::TimeUs ptsUs = 0;
         Nv12Frame frame;
     };
     QList<CachedNv12> m_nv12Cache;
@@ -171,8 +171,8 @@ private:
     // Preview read-ahead. m_lastRequestedNv12Us is the last position a caller
     // actually asked for — prefetch must not advance it, or the buffer would
     // always measure itself as one frame deep. m_prefetching marks those reads.
-    drift::TimeUs m_readAheadUs = 0;
-    drift::TimeUs m_lastRequestedNv12Us = 0;
+    TonDron::TimeUs m_readAheadUs = 0;
+    TonDron::TimeUs m_lastRequestedNv12Us = 0;
     bool m_prefetching = false;
     // Read-ahead frames are held in RAM on top of the history above, so the depth
     // is capped by bytes as well as by time: the same 2 s is 60 frames of a 25 fps
@@ -184,8 +184,8 @@ private:
     // resampler and demux position across buffers so contiguous playback decodes
     // straight through instead of re-seeking on every ~10 ms buffer.
     bool m_audioPositioned = false;
-    drift::TimeUs m_audioNextPtsUs = 0; // source position of m_audioLeftover front
+    TonDron::TimeUs m_audioNextPtsUs = 0; // source position of m_audioLeftover front
     QVector<float> m_audioLeftover;     // decoded-but-unreturned interleaved stereo
-    static constexpr drift::TimeUs kAudioSeekToleranceUs = 50'000;
-    static constexpr drift::TimeUs kAudioForwardSeekThresholdUs = 2 * drift::kUsPerSecond;
+    static constexpr TonDron::TimeUs kAudioSeekToleranceUs = 50'000;
+    static constexpr TonDron::TimeUs kAudioForwardSeekThresholdUs = 2 * TonDron::kUsPerSecond;
 };

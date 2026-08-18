@@ -7,14 +7,14 @@
 #include <QMutex>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 // Registry of pre-rendered reversed copies of source ranges, so a reversed clip can be read
 // forwards instead of asking the decoder for an ever-earlier timestamp (which costs a keyframe
 // seek and a GOP re-decode per displayed frame).
 //
-// This is deliberately a pure cache and lives entirely outside drift::Project: nothing here is
-// serialized, nothing enters the undo stack, and nothing is embedded in a .drift bundle. A miss
+// This is deliberately a pure cache and lives entirely outside TonDron::Project: nothing here is
+// serialized, nothing enters the undo stack, and nothing is embedded in a .TonDron bundle. A miss
 // is not an error — the caller falls back to decoding the source live, which is what the app did
 // before proxies existed, only slower.
 class ReverseProxyCache
@@ -79,4 +79,4 @@ QString reverseCacheDir();
 // may already hold the old one open and would keep serving frames from the stale file.
 QString newReversePath();
 
-} // namespace drift
+} // namespace TonDron

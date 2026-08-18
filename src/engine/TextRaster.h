@@ -18,9 +18,9 @@ struct TextRasterResult
 // Rasterize (or return a cached copy of) the styled text. layoutRect is the clip's layout rect in
 // canvas pixels; renderScale maps project pixels to canvas pixels. activeWordIndex is the word the
 // playhead is currently on, and only matters for the Karaoke accent rule (-1 = none).
-TextRasterResult rasterizeText(const drift::Clip &clip, const QString &text, const QRectF &layoutRect,
+TextRasterResult rasterizeText(const TonDron::Clip &clip, const QString &text, const QRectF &layoutRect,
                                double renderScale, int activeWordIndex = -1);
-TextRasterResult rasterizeText(const drift::Clip &clip, const QRectF &layoutRect, double renderScale,
+TextRasterResult rasterizeText(const TonDron::Clip &clip, const QRectF &layoutRect, double renderScale,
                                int activeWordIndex = -1);
 
 // One reveal span (a character, word or line) of a text clip, rasterized on its own so the
@@ -37,9 +37,9 @@ struct TextSpanRaster
 // Split the styled text into per-`unit` spans (Word / Character / Line) and rasterize each. Returns
 // empty for TextAnimUnit::Block — callers use rasterizeText for the whole-layer path. The optional
 // box background is returned first with index == -1.
-QList<TextSpanRaster> rasterizeTextSpans(const drift::Clip &clip, const QString &text,
+QList<TextSpanRaster> rasterizeTextSpans(const TonDron::Clip &clip, const QString &text,
                                          const QRectF &layoutRect, double renderScale,
-                                         drift::TextAnimUnit unit, int activeWordIndex = -1);
+                                         TonDron::TextAnimUnit unit, int activeWordIndex = -1);
 
 // Entrance/exit motion, sampled at a timeline instant. Applied to the *layer* — never to the
 // raster — so the cached texture stays valid for every frame of the animation.
@@ -52,19 +52,19 @@ struct TextAnimSample
     double blurPx = 0.0;
 };
 
-TextAnimSample sampleTextAnimation(const drift::Clip &clip, drift::TimeUs timelineUs,
+TextAnimSample sampleTextAnimation(const TonDron::Clip &clip, TonDron::TimeUs timelineUs,
                                    const QRectF &layoutRect, double renderScale);
 
 // Entrance/exit motion for a single reveal span, staggered by the animation's unit/stagger/order.
 // spanIndex is the span's reading-order index and spanCount the total glyph-span count.
-TextAnimSample sampleTextSpanAnimation(const drift::Clip &clip, drift::TimeUs timelineUs,
+TextAnimSample sampleTextSpanAnimation(const TonDron::Clip &clip, TonDron::TimeUs timelineUs,
                                        int spanIndex, int spanCount, const QRectF &layoutRect,
                                        double renderScale);
 
 // Same, but scoped to a single subtitle cue's [start, end) window so each cue on a subtitle
 // clip plays its own entrance and exit, one after another.
-TextAnimSample sampleSubtitleCueAnimation(const drift::Clip &clip, const drift::SubtitleCue &cue,
-                                          drift::TimeUs timelineUs, const QRectF &layoutRect,
+TextAnimSample sampleSubtitleCueAnimation(const TonDron::Clip &clip, const TonDron::SubtitleCue &cue,
+                                          TonDron::TimeUs timelineUs, const QRectF &layoutRect,
                                           double renderScale);
 
 // Widest blur an entrance/exit can ask for, in project px. Reserved in the bleed margin up front so

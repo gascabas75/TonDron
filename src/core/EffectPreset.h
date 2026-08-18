@@ -4,7 +4,7 @@
 #include <QString>
 #include <QVariant>
 
-namespace drift {
+namespace TonDron {
 
 // Colour is a distinct type rather than three float sliders because a shade is picked, not dialled,
 // and because the GPU runtime already binds a "#rrggbb" string as a vec3.
@@ -68,4 +68,4 @@ struct EffectPresetMeta
     bool compositorOnly = false; // true when not expressible via libavfilter alone
 };
 
-} // namespace drift
+} // namespace TonDron

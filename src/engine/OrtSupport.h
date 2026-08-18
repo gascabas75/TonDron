@@ -15,11 +15,11 @@
 
 // Boilerplate every ONNX Runtime user in the engine needs: path conversion, session name
 // enumeration, and execution-provider selection. Shared so the acceleration choice behaves
-// identically everywhere rather than drifting per model.
+// identically everywhere rather than TonDroning per model.
 //
 // Loading the library itself is OrtRuntime.h's job, and nothing here may be called before
 // ensureLoaded() has succeeded.
-namespace drift::ort {
+namespace TonDron::ort {
 
 inline std::basic_string<ORTCHAR_T> ortPath(const QString &path)
 {
@@ -82,7 +82,7 @@ inline QString providerToTry()
     return QStringLiteral("cuda");
 }
 
-// Applies that choice. The acceleration preference (or DRIFT_ORT_EP) selects between the CUDA
+// Applies that choice. The acceleration preference (or TonDron_ORT_EP) selects between the CUDA
 // provider carried by a CUDA core, a plugin EP registered on the env, and plain CPU.
 //
 // Whether a failure is worth complaining about depends on who asked. An explicit choice that
@@ -204,4 +204,4 @@ bool buildSessions(Ort::Env &env, const char *tag, bool sharedArena, QString *er
     }
 }
 
-} // namespace drift::ort
+} // namespace TonDron::ort

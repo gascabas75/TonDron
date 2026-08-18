@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Large progress ring with the percentage in the middle.
 //

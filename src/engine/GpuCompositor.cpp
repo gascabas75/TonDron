@@ -15,7 +15,7 @@
 #include <map>
 #include <vector>
 
-using namespace drift::gl;
+using namespace TonDron::gl;
 
 namespace {
 
@@ -120,31 +120,31 @@ void main() {
 }
 )";
 
-int blendModeCode(drift::BlendMode mode)
+int blendModeCode(TonDron::BlendMode mode)
 {
     switch (mode) {
-    case drift::BlendMode::Multiply:
+    case TonDron::BlendMode::Multiply:
         return 1;
-    case drift::BlendMode::Screen:
+    case TonDron::BlendMode::Screen:
         return 2;
-    case drift::BlendMode::Overlay:
+    case TonDron::BlendMode::Overlay:
         return 3;
-    case drift::BlendMode::Add:
+    case TonDron::BlendMode::Add:
         return 4;
-    case drift::BlendMode::Darken:
+    case TonDron::BlendMode::Darken:
         return 5;
-    case drift::BlendMode::Lighten:
+    case TonDron::BlendMode::Lighten:
         return 6;
-    case drift::BlendMode::Normal:
+    case TonDron::BlendMode::Normal:
         break;
     }
     return 0;
 }
 
 // Modes GL fixed-function blending can do directly.
-bool isFixedFunctionBlend(drift::BlendMode mode)
+bool isFixedFunctionBlend(TonDron::BlendMode mode)
 {
-    return mode == drift::BlendMode::Normal || mode == drift::BlendMode::Add;
+    return mode == TonDron::BlendMode::Normal || mode == TonDron::BlendMode::Add;
 }
 
 // Canvas pixels (top-left origin) → clip space. The FBO's v=0 row corresponds to
@@ -172,9 +172,9 @@ QMatrix4x4 modelMatrixFor(const GpuLayer &layer, const QSize &canvas)
 
 // Mask coverage maps only change when the mask or the size does, so they are
 // rasterized once and kept as GL textures.
-GLuint maskTexture(GlRuntime &rt, QOpenGLExtraFunctions *gl, const drift::Mask &mask, const QSize &size)
+GLuint maskTexture(GlRuntime &rt, QOpenGLExtraFunctions *gl, const TonDron::Mask &mask, const QSize &size)
 {
-    if (mask.shape == drift::MaskShape::None)
+    if (mask.shape == TonDron::MaskShape::None)
         return 0;
 
     const QString key = QStringLiteral("__mask__:%1:%2:%3:%4:%5:%6:%7:%8:%9:%10:%11")
@@ -194,7 +194,7 @@ GLuint maskTexture(GlRuntime &rt, QOpenGLExtraFunctions *gl, const drift::Mask &
     if (it != rt.staticTextures.end())
         return it->second;
 
-    const QImage alpha = drift::maskAlphaMap(mask, size.width(), size.height());
+    const QImage alpha = TonDron::maskAlphaMap(mask, size.width(), size.height());
     if (alpha.isNull()) {
         rt.staticTextures[key] = 0;
         return 0;
@@ -223,7 +223,7 @@ GlTarget buildLayerTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl, const GpuLay
     if (!target.isValid())
         return {};
 
-    for (const drift::Effect &effect : layer.effects) {
+    for (const TonDron::Effect &effect : layer.effects) {
         const EffectPresetEntry *def =
             effect.catalogId.isEmpty() ? nullptr : effectDefForId(effect.catalogId);
         if (!def || !def->isGpu || !def->gpu.valid)
@@ -233,7 +233,7 @@ GlTarget buildLayerTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl, const GpuLay
 
         QMap<QString, QVariant> params = resolvedEffectParameters(effect, *def);
         if (def->needsFace)
-            drift::applyFaceUniforms(&params, layer.faceSlots);
+            TonDron::applyFaceUniforms(&params, layer.faceSlots);
 
         const std::vector<const GlTarget *> sources{&target};
         GlTarget next = runPipeline(rt, gl, def->meta.id, def->gpu, sources, params,
@@ -258,7 +258,7 @@ void bindQuad(GlRuntime &rt, QOpenGLExtraFunctions *gl)
 // Draw a prepared layer target onto the canvas with transform, opacity, mask and
 // blend mode. For non-fixed-function modes the canvas is ping-ponged.
 void drawLayerOnCanvas(GlRuntime &rt, QOpenGLExtraFunctions *gl, GlTarget &canvas,
-                       const GlTarget &layerTarget, const GpuLayer &layer, drift::BlendMode blend,
+                       const GlTarget &layerTarget, const GpuLayer &layer, TonDron::BlendMode blend,
                        const QSize &canvasSize)
 {
     if (!layerTarget.isValid() || layer.rect.width() < 0.5 || layer.rect.height() < 0.5)
@@ -303,7 +303,7 @@ void drawLayerOnCanvas(GlRuntime &rt, QOpenGLExtraFunctions *gl, GlTarget &canva
         canvas.fbo->bind();
         gl->glViewport(0, 0, canvas.width, canvas.height);
         gl->glEnable(GL_BLEND);
-        if (blend == drift::BlendMode::Add)
+        if (blend == TonDron::BlendMode::Add)
             gl->glBlendFunc(GL_ONE, GL_ONE);
         else
             gl->glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied source-over
@@ -394,7 +394,7 @@ GlTarget renderIsolatedLayer(GlRuntime &rt, QOpenGLExtraFunctions *gl, const Gpu
 
     // Isolated layers always composite source-over: the clip's own blend mode has
     // nothing to blend against here, and the transition shader does the mixing.
-    drawLayerOnCanvas(rt, gl, isolated, source, layer, drift::BlendMode::Normal, canvasSize);
+    drawLayerOnCanvas(rt, gl, isolated, source, layer, TonDron::BlendMode::Normal, canvasSize);
     rt.releaseTarget(std::move(source));
     return isolated;
 }
@@ -441,7 +441,7 @@ void fillBackground(GlRuntime &rt, QOpenGLExtraFunctions *gl, GlTarget &canvas, 
         rt.releaseTarget(std::move(coverTarget));
         return;
     }
-    drawLayerOnCanvas(rt, gl, coverTarget, src, cover, drift::BlendMode::Normal, canvasSize);
+    drawLayerOnCanvas(rt, gl, coverTarget, src, cover, TonDron::BlendMode::Normal, canvasSize);
     rt.releaseTarget(std::move(src));
 
     QOpenGLShaderProgram *blur =
@@ -526,7 +526,7 @@ void composeOnGlThread(GlRuntime &rt, const GpuScene &scene, GlTarget &canvas)
             GpuLayer full;
             full.valid = true;
             full.rect = QRectF(0, 0, canvasSize.width(), canvasSize.height());
-            drawLayerOnCanvas(rt, gl, canvas, mixed, full, drift::BlendMode::Normal, canvasSize);
+            drawLayerOnCanvas(rt, gl, canvas, mixed, full, TonDron::BlendMode::Normal, canvasSize);
             rt.releaseTarget(std::move(mixed));
         } else {
             // Grace mode: a plain crossfade, still on the GPU.
@@ -535,10 +535,10 @@ void composeOnGlThread(GlRuntime &rt, const GpuScene &scene, GlTarget &canvas)
             a.valid = true;
             a.rect = QRectF(0, 0, canvasSize.width(), canvasSize.height());
             a.opacity = 1.0 - p;
-            drawLayerOnCanvas(rt, gl, canvas, fromTarget, a, drift::BlendMode::Normal, canvasSize);
+            drawLayerOnCanvas(rt, gl, canvas, fromTarget, a, TonDron::BlendMode::Normal, canvasSize);
             GpuLayer b = a;
             b.opacity = p;
-            drawLayerOnCanvas(rt, gl, canvas, toTarget, b, drift::BlendMode::Normal, canvasSize);
+            drawLayerOnCanvas(rt, gl, canvas, toTarget, b, TonDron::BlendMode::Normal, canvasSize);
         }
 
         rt.releaseTarget(std::move(fromTarget));

@@ -7,7 +7,7 @@
 #include <QString>
 #include <QtMath>
 
-namespace drift {
+namespace TonDron {
 
 // Named tangent shapes. These are *presets* that write handles onto a single key, not a
 // separate interpolation system — except Hold, which is a step discontinuity and therefore
@@ -239,4 +239,4 @@ private:
     bool m_enabled = true;
 };
 
-} // namespace drift
+} // namespace TonDron

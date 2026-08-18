@@ -7,7 +7,7 @@ ClipListModel::ClipListModel(QObject *parent)
 {
 }
 
-void ClipListModel::setProject(drift::Project *project)
+void ClipListModel::setProject(TonDron::Project *project)
 {
     m_project = project;
     refresh();
@@ -42,28 +42,28 @@ QVariant ClipListModel::data(const QModelIndex &index, int role) const
         return {};
     if (m_trackIndex < 0 || m_trackIndex >= m_project->tracks().size())
         return {};
-    const drift::Track &track = m_project->tracks().at(m_trackIndex);
+    const TonDron::Track &track = m_project->tracks().at(m_trackIndex);
     if (index.row() < 0 || index.row() >= track.clips.size())
         return {};
 
-    const drift::Clip &clip = track.clips.at(index.row());
+    const TonDron::Clip &clip = track.clips.at(index.row());
     switch (role) {
     case IdRole:
         return clip.id;
     case NameRole:
         return clip.name;
     case KindRole:
-        return drift::clipTypeToString(clip.type);
+        return TonDron::clipTypeToString(clip.type);
     case PathRole:
         return clip.path;
     case StartRole:
-        return drift::usToSeconds(clip.timelineStart);
+        return TonDron::usToSeconds(clip.timelineStart);
     case DurationRole:
-        return drift::usToSeconds(clip.timelineDuration);
+        return TonDron::usToSeconds(clip.timelineDuration);
     case InPointRole:
-        return drift::usToSeconds(clip.srcIn);
+        return TonDron::usToSeconds(clip.srcIn);
     case OutPointRole:
-        return drift::usToSeconds(clip.srcOut);
+        return TonDron::usToSeconds(clip.srcOut);
     case TextContentRole:
         return clip.textContent;
     case ThumbnailPathRole:

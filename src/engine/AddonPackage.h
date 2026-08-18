@@ -7,9 +7,9 @@
 #include <functional>
 #include <optional>
 
-// The .driftpkg container: signed, solid-zstd-compressed addon packages.
+// The .TonDronpkg container: signed, solid-zstd-compressed addon packages.
 //
-//   0   "DRIFTPKG"          8   magic
+//   0   "TonDronPKG"          8   magic
 //   8   formatVersion       4   uint32 LE, currently 1
 //   12  metadataLength      4   uint32 LE
 //   16  metadata            n   UTF-8 JSON, uncompressed (the addon manifest)
@@ -23,7 +23,7 @@
 // the *uncompressed* stream, which keeps solid compression (much better across a font pack than
 // per-file) without pulling in an archive library.
 
-namespace drift::addon {
+namespace TonDron::addon {
 
 struct PackageFile
 {
@@ -88,4 +88,4 @@ using ProgressFn = std::function<bool(qint64 done, qint64 total)>;
 bool install(const QString &packagePath, const QString &destDir, const ProgressFn &progress,
              PackageInfo *installed, QString *error);
 
-} // namespace drift::addon
+} // namespace TonDron::addon

@@ -39,7 +39,7 @@ FilmstripTileCache::FilmstripTileCache(QObject *parent)
     // Destroys the context and its timer on their own thread, as part of thread teardown.
     connect(&m_decodeThread, &QThread::finished, m_decodeContext, &QObject::deleteLater);
 
-    m_decodeThread.setObjectName(QStringLiteral("drift-filmstrip"));
+    m_decodeThread.setObjectName(QStringLiteral("TonDron-filmstrip"));
     m_decodeThread.start();
 }
 

@@ -2,7 +2,7 @@
 
 #include "Track.h"
 
-namespace drift {
+namespace TonDron {
 
 TransitionAudioGains transitionAudioGains(const QString &curve, double progress)
 {
@@ -115,4 +115,4 @@ const Transition *activeTransitionAt(const Track &track, TimeUs timelineUs, Time
     return nullptr;
 }
 
-} // namespace drift
+} // namespace TonDron

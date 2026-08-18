@@ -15,18 +15,18 @@
 // moments, so they live and die together in one entry.
 struct ClipAudioState
 {
-    drift::AudioEffectRack rack;
-    drift::ClipAudioRetimer retimer;
+    TonDron::AudioEffectRack rack;
+    TonDron::ClipAudioRetimer retimer;
 };
 
 // Mixes active audio clips into interleaved stereo float PCM.
 class AudioMixer
 {
 public:
-    void setProject(const drift::Project *project);
+    void setProject(const TonDron::Project *project);
     void resetClipAudioState();
 
-    void mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleRate, float *interleavedStereoOut) const;
+    void mix(TonDron::TimeUs timelineStartUs, int sampleCount, int sampleRate, float *interleavedStereoOut) const;
 
     // One clip's audio in timeline space, with its source read, reverse and speed (constant or
     // curved) applied exactly as playback does. Exposed so the speed-curve editor's preview
@@ -36,11 +36,11 @@ public:
     //
     // `retimer` carries the stretcher state across blocks. It must be the same one for every block
     // of a given clip, and callers must not share one between clips.
-    static QVector<float> readClipAudio(const drift::Clip &clip, drift::TimeUs winStartUs, int outFrames,
-                                        int sampleRate, drift::ClipAudioRetimer *retimer);
+    static QVector<float> readClipAudio(const TonDron::Clip &clip, TonDron::TimeUs winStartUs, int outFrames,
+                                        int sampleRate, TonDron::ClipAudioRetimer *retimer);
 
 private:
-    const drift::Project *m_project = nullptr;
+    const TonDron::Project *m_project = nullptr;
     // mix() runs on the audio thread; resetClipAudioState() is called from the GUI thread on seek,
     // play and pause. The mutex covers the hash itself — callers take a shared_ptr copy out of it
     // and work on the state with the lock released.

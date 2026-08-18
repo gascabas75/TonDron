@@ -5,7 +5,7 @@
 
 class AppController;
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 
 class McpDispatcher
 {
@@ -103,4 +103,4 @@ private:
     AppController *m_controller = nullptr;
 };
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

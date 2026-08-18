@@ -15,7 +15,7 @@ extern "C" {
 #include <cmath>
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -310,4 +310,4 @@ void sweepDenoisePreviews()
         QFile::remove(dir.filePath(name));
 }
 
-} // namespace drift
+} // namespace TonDron

@@ -23,15 +23,15 @@ public slots:
     // editing, and reading a QMap/QList while the GUI thread rebalances it is a
     // use-after-free. Use Project::detachedCopy() so Qt COW payloads are unique,
     // then share that snapshot via shared_ptr across queued invokes.
-    void composite(drift::TimeUs timeUs, FrameCompositor::RenderOptions options,
-                   std::shared_ptr<const drift::Project> snapshot);
+    void composite(TonDron::TimeUs timeUs, FrameCompositor::RenderOptions options,
+                   std::shared_ptr<const TonDron::Project> snapshot);
 
 signals:
-    void frameReady(const GpuFrameTexture &frame, drift::TimeUs timeUs);
+    void frameReady(const GpuFrameTexture &frame, TonDron::TimeUs timeUs);
 
 private:
     FrameCompositor m_compositor;
-    std::shared_ptr<const drift::Project> m_snapshot;
+    std::shared_ptr<const TonDron::Project> m_snapshot;
 };
 
 // Background compositor thread. Frames are delivered to the GUI as live GL
@@ -46,8 +46,8 @@ public:
     explicit CompositorService(QObject *parent = nullptr);
     ~CompositorService() override;
 
-    void setProject(const drift::Project *project);
-    void requestComposite(drift::TimeUs timeUs,
+    void setProject(const TonDron::Project *project);
+    void requestComposite(TonDron::TimeUs timeUs,
                           FrameCompositor::RenderOptions options = FrameCompositor::RenderOptions{});
 
     // Fast playback (the default) drops frames that finish after the playhead has
@@ -81,27 +81,27 @@ signals:
     void compositeFinished();
 
 private slots:
-    void onWorkerFrameReady(const GpuFrameTexture &frame, drift::TimeUs timeUs);
+    void onWorkerFrameReady(const GpuFrameTexture &frame, TonDron::TimeUs timeUs);
 
 private:
-    void dispatch(drift::TimeUs timeUs, const FrameCompositor::RenderOptions &options);
+    void dispatch(TonDron::TimeUs timeUs, const FrameCompositor::RenderOptions &options);
     void noteFrameLate(bool late);
     void resetAdaptiveState();
     FrameCompositor::RenderOptions effectiveOptions(FrameCompositor::RenderOptions options) const;
 
-    const drift::Project *m_project = nullptr;
+    const TonDron::Project *m_project = nullptr;
     // Reused across ticks until the live project pointer changes or the GUI
     // asks for a fresh snapshot after edits (generation bump via invalidateSnapshot).
-    std::shared_ptr<const drift::Project> m_sharedSnapshot;
+    std::shared_ptr<const TonDron::Project> m_sharedSnapshot;
     int m_snapshotGeneration = 0;
     int m_liveGeneration = 0;
 
     std::atomic<bool> m_requestPending{false};
-    std::atomic<drift::TimeUs> m_pendingTimeUs{0};
+    std::atomic<TonDron::TimeUs> m_pendingTimeUs{0};
     std::atomic<int> m_pendingPreviewScalePercent{100};
     std::atomic<int> m_pendingMaxTimeEchoHistoryFrames{-1};
-    std::atomic<drift::TimeUs> m_pendingReadAheadUs{0};
-    drift::TimeUs m_lastDispatchedTimeUs = -1;
+    std::atomic<TonDron::TimeUs> m_pendingReadAheadUs{0};
+    TonDron::TimeUs m_lastDispatchedTimeUs = -1;
     // The scale the caller asked for, before any adaptive multiplier — that is
     // applied at dispatch, so a change takes effect on the very next frame.
     FrameCompositor::RenderOptions m_lastDispatchedOptions;
@@ -130,4 +130,4 @@ public:
 };
 
 Q_DECLARE_METATYPE(GpuFrameTexture)
-Q_DECLARE_METATYPE(std::shared_ptr<const drift::Project>)
+Q_DECLARE_METATYPE(std::shared_ptr<const TonDron::Project>)

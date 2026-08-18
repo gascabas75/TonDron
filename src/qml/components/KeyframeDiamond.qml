@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Diamond switch for one property's animation. Its colour says whether the keyframes are driving
 // the property; clicking parks them (they are kept) or brings them back:

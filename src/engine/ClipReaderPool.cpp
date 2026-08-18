@@ -10,7 +10,7 @@ ClipReaderPool &ClipReaderPool::instance()
     static ClipReaderPool pool;
     static bool registered = false;
     if (!registered) {
-        qRegisterMetaType<drift::TimeUs>("drift::TimeUs");
+        qRegisterMetaType<TonDron::TimeUs>("TonDron::TimeUs");
         qRegisterMetaType<Nv12Frame>("Nv12Frame");
         registered = true;
     }
@@ -66,9 +66,9 @@ ClipReaderWorker *ClipReaderPool::ensureWorker(std::map<QString, std::unique_ptr
     return it->second->worker;
 }
 
-void ClipReaderPool::setReadAheadUs(drift::TimeUs readAheadUs)
+void ClipReaderPool::setReadAheadUs(TonDron::TimeUs readAheadUs)
 {
-    m_readAheadUs.store(qMax<drift::TimeUs>(0, readAheadUs), std::memory_order_relaxed);
+    m_readAheadUs.store(qMax<TonDron::TimeUs>(0, readAheadUs), std::memory_order_relaxed);
 }
 
 void ClipReaderPool::warmVideoFrames(const QList<VideoRequest> &requests)
@@ -84,12 +84,12 @@ void ClipReaderPool::warmVideoFrames(const QList<VideoRequest> &requests)
         }
         // Prefer NV12 warm — matches the live-preview decode path.
         QMetaObject::invokeMethod(worker, "decodeVideoNv12", Qt::QueuedConnection,
-                                  Q_ARG(drift::TimeUs, request.sourceUs), Q_ARG(int, request.maxWidth),
+                                  Q_ARG(TonDron::TimeUs, request.sourceUs), Q_ARG(int, request.maxWidth),
                                   Q_ARG(int, request.maxHeight));
     }
 }
 
-QImage ClipReaderPool::readVideoFrame(const QString &path, drift::TimeUs sourceUs, int maxWidth,
+QImage ClipReaderPool::readVideoFrame(const QString &path, TonDron::TimeUs sourceUs, int maxWidth,
                                       int maxHeight)
 {
     if (path.isEmpty())
@@ -106,7 +106,7 @@ QImage ClipReaderPool::readVideoFrame(const QString &path, drift::TimeUs sourceU
 
     QImage frame;
     QMetaObject::invokeMethod(worker, "decodeVideo", Qt::BlockingQueuedConnection, Q_RETURN_ARG(QImage, frame),
-                              Q_ARG(drift::TimeUs, sourceUs), Q_ARG(int, maxWidth), Q_ARG(int, maxHeight));
+                              Q_ARG(TonDron::TimeUs, sourceUs), Q_ARG(int, maxWidth), Q_ARG(int, maxHeight));
 
     // Decode one frame beyond the current position while the caller composites
     // this one. The reader knows the source frame duration; the old code guessed
@@ -117,7 +117,7 @@ QImage ClipReaderPool::readVideoFrame(const QString &path, drift::TimeUs sourceU
     return frame;
 }
 
-Nv12Frame ClipReaderPool::readVideoFrameNv12(const QString &path, drift::TimeUs sourceUs, int maxWidth,
+Nv12Frame ClipReaderPool::readVideoFrameNv12(const QString &path, TonDron::TimeUs sourceUs, int maxWidth,
                                              int maxHeight)
 {
     if (path.isEmpty())
@@ -131,7 +131,7 @@ Nv12Frame ClipReaderPool::readVideoFrameNv12(const QString &path, drift::TimeUs 
 
     Nv12Frame frame;
     QMetaObject::invokeMethod(worker, "decodeVideoNv12", Qt::BlockingQueuedConnection,
-                              Q_RETURN_ARG(Nv12Frame, frame), Q_ARG(drift::TimeUs, sourceUs),
+                              Q_RETURN_ARG(Nv12Frame, frame), Q_ARG(TonDron::TimeUs, sourceUs),
                               Q_ARG(int, maxWidth), Q_ARG(int, maxHeight));
 
     worker->requestPrefetchNv12(maxWidth, maxHeight, m_readAheadUs.load(std::memory_order_relaxed));
@@ -139,7 +139,7 @@ Nv12Frame ClipReaderPool::readVideoFrameNv12(const QString &path, drift::TimeUs 
     return frame;
 }
 
-int ClipReaderPool::readAudioInterleaved(const QString &path, drift::TimeUs sourceStartUs, int sampleCount,
+int ClipReaderPool::readAudioInterleaved(const QString &path, TonDron::TimeUs sourceStartUs, int sampleCount,
                                          int outputSampleRate, float *interleavedStereoOut)
 {
     if (path.isEmpty() || !interleavedStereoOut || sampleCount <= 0)
@@ -153,7 +153,7 @@ int ClipReaderPool::readAudioInterleaved(const QString &path, drift::TimeUs sour
 
     int written = 0;
     QMetaObject::invokeMethod(worker, "decodeAudio", Qt::BlockingQueuedConnection, Q_RETURN_ARG(int, written),
-                              Q_ARG(drift::TimeUs, sourceStartUs), Q_ARG(int, sampleCount),
+                              Q_ARG(TonDron::TimeUs, sourceStartUs), Q_ARG(int, sampleCount),
                               Q_ARG(int, outputSampleRate), Q_ARG(float *, interleavedStereoOut));
     return written;
 }

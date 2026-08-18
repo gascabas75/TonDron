@@ -3,34 +3,34 @@
 #include <QString>
 
 // Where the Addon Manager fetches from. Both values are configured in CMakeLists.txt
-// (DRIFT_ADDON_INDEX_URL / DRIFT_ADDON_CLIENT_TOKEN) and injected as compile definitions — this
+// (TonDron_ADDON_INDEX_URL / TonDron_ADDON_CLIENT_TOKEN) and injected as compile definitions — this
 // header only reads them, so there is one place to change the service.
 //
-// The token is NOT a secret and is not treated as one: it ships inside every copy of Drift and
+// The token is NOT a secret and is not treated as one: it ships inside every copy of TonDron and
 // anyone can pull it out of the binary. Its job is to stop the bucket being crawled or hotlinked,
 // which would cost us operations for someone else's benefit. Rotate it by deploying a new Worker
 // secret and shipping a new build; old builds then fall back to whatever they have installed.
 
-// A translation unit built outside the `drift` target gets no service rather than a stale
+// A translation unit built outside the `TonDron` target gets no service rather than a stale
 // hardcoded one.
-#ifndef DRIFT_ADDON_INDEX_URL
-#define DRIFT_ADDON_INDEX_URL ""
+#ifndef TonDron_ADDON_INDEX_URL
+#define TonDron_ADDON_INDEX_URL ""
 #endif
-#ifndef DRIFT_ADDON_CLIENT_TOKEN
-#define DRIFT_ADDON_CLIENT_TOKEN ""
+#ifndef TonDron_ADDON_CLIENT_TOKEN
+#define TonDron_ADDON_CLIENT_TOKEN ""
 #endif
 
-namespace drift::addon {
+namespace TonDron::addon {
 
-inline const QString kIndexUrl = QStringLiteral(DRIFT_ADDON_INDEX_URL);
-inline const QString kClientToken = QStringLiteral(DRIFT_ADDON_CLIENT_TOKEN);
+inline const QString kIndexUrl = QStringLiteral(TonDron_ADDON_INDEX_URL);
+inline const QString kClientToken = QStringLiteral(TonDron_ADDON_CLIENT_TOKEN);
 
 // False when the build was configured with an empty index URL. The manager then lists nothing and
-// installs nothing; anything already installed, side-loaded, or pointed at by DRIFT_*_DIR still
+// installs nothing; anything already installed, side-loaded, or pointed at by TonDron_*_DIR still
 // works, since those paths never involve the service.
 inline bool addonServiceConfigured()
 {
     return !kIndexUrl.isEmpty();
 }
 
-} // namespace drift::addon
+} // namespace TonDron::addon

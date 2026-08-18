@@ -7,7 +7,7 @@
 #include <QString>
 #include <QVector>
 
-namespace drift {
+namespace TonDron {
 
 // Matte is a per-frame raster mask backed by a grayscale video, unlike the parametric shapes:
 // only `mattePath`, `matteSrcOffsetUs` and `invert` apply to it.
@@ -34,4 +34,4 @@ struct Mask
     TimeUs matteSrcOffsetUs = 0;
 };
 
-} // namespace drift
+} // namespace TonDron

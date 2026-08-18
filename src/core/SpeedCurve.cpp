@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -260,4 +260,4 @@ SpeedCurve SpeedCurve::flat(double speed)
     return curve;
 }
 
-} // namespace drift
+} // namespace TonDron

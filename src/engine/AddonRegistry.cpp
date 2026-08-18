@@ -10,7 +10,7 @@
 #include <QSaveFile>
 #include <QStandardPaths>
 
-namespace drift::addon {
+namespace TonDron::addon {
 namespace {
 
 constexpr int kRegistrySchema = 1;
@@ -231,4 +231,4 @@ bool forgetInstalledAddon(const QString &id, QString *error)
     return writeRegistryLocked(error);
 }
 
-} // namespace drift::addon
+} // namespace TonDron::addon

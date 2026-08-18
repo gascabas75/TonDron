@@ -6,7 +6,7 @@
 #include <memory>
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 // DeepFilterNet3 speech denoising on ONNX Runtime (soniqo/DeepFilterNet3-ONNX, a verified export
 // of the official v0.5.6 checkpoint).
@@ -54,4 +54,4 @@ private:
     std::unique_ptr<Impl> d;
 };
 
-} // namespace drift
+} // namespace TonDron

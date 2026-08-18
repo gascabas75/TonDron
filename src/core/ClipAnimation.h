@@ -6,7 +6,7 @@
 #include <QJsonObject>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 // CapCut-style body intro/outro for a whole clip (video/image/shape/text).
 // Fade is one kind among slide/zoom/pop — same duration + style (curve) as the rest.
@@ -65,4 +65,4 @@ ClipAnimSample evaluateClipAnimation(TimeUs timelineStart, TimeUs timelineDurati
                                      const ClipAnimation &animIn, const ClipAnimation &animOut,
                                      TimeUs timelineUs, double layoutW, double layoutH);
 
-} // namespace drift
+} // namespace TonDron

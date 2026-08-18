@@ -6,7 +6,7 @@
 
 #include <onnxruntime_cxx_api.h>
 
-// Loading ONNX Runtime, which Drift does not link.
+// Loading ONNX Runtime, which TonDron does not link.
 //
 // The runtime is an addon like any other bulky optional thing: the app ships headers only and
 // dlopens whichever build the user installed, so the CPU / CUDA / WebGPU decision is theirs and
@@ -18,7 +18,7 @@
 // returned true, including construction of an Ort::Env or Ort::MemoryInfo, because until then the
 // table pointer is null. That is why env() and cpuMemory() live here instead of being members of
 // the four model classes.
-namespace drift::ort {
+namespace TonDron::ort {
 
 // Addon kinds. "onnxruntime" is a complete runtime distribution and replaces the core;
 // "onnxruntime-ep" is a plugin execution provider library that layers onto whatever core is
@@ -76,7 +76,7 @@ QString activeVersion();
 QStringList selectableVariants();
 
 // The user's choice, from the "ort/variant" setting: "auto" (the default), "cpu", "cuda",
-// "webgpu", … DRIFT_ORT_EP overrides it, since it exists to investigate exactly this.
+// "webgpu", … TonDron_ORT_EP overrides it, since it exists to investigate exactly this.
 QString preferredVariant();
 void setPreferredVariant(const QString &variant);
 
@@ -89,4 +89,4 @@ bool variantExplicit();
 // not a plugin EP registered on this env. Requires the runtime to be loaded.
 QString pluginEpNameForVariant(const QString &variant);
 
-} // namespace drift::ort
+} // namespace TonDron::ort

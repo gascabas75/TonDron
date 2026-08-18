@@ -22,10 +22,10 @@
 #    include <dlfcn.h>
 #endif
 
-namespace drift::ort {
+namespace TonDron::ort {
 namespace {
 
-// The oldest OrtApi Drift will drive. Below this the table is missing too much of what the engine
+// The oldest OrtApi TonDron will drive. Below this the table is missing too much of what the engine
 // uses to be worth a compatibility story; above it, ONNX Runtime only ever appends to the table,
 // so a runtime slightly older than the headers is safe as long as nothing past its own version is
 // called — hence g_apiVersion being checked before the plugin EP calls.
@@ -108,7 +108,7 @@ std::optional<Candidate> inspect(const QString &root)
     candidate.libPath = lib;
 
     // runtime.json is what an addon uses to declare itself, and is deliberately optional: an
-    // upstream release extracted by hand and pointed at with DRIFT_ONNXRUNTIME_DIR has no such
+    // upstream release extracted by hand and pointed at with TonDron_ONNXRUNTIME_DIR has no such
     // file and still has to work, so the variant is derived from what is in the directory.
     const QJsonObject meta = readJson(QDir(root).filePath(QStringLiteral("runtime.json")));
     candidate.variant = meta.value(QStringLiteral("variant")).toString().trimmed().toLower();
@@ -125,7 +125,7 @@ QList<Candidate> candidates()
 {
     QList<Candidate> found;
     const QStringList roots = GpuPackageParse::defaultSearchPaths(
-        QStringLiteral("DRIFT_ONNXRUNTIME_DIR"), QStringLiteral("onnxruntime"),
+        QStringLiteral("TonDron_ONNXRUNTIME_DIR"), QStringLiteral("onnxruntime"),
         QString::fromLatin1(kRuntimeKind));
     for (const QString &root : roots) {
         if (const std::optional<Candidate> candidate = inspect(root))
@@ -206,7 +206,7 @@ bool ensureLoaded(QString *error)
     if (found.isEmpty()) {
         return fail(QStringLiteral(
             "No ONNX Runtime installed. Install one from the Addon Manager, or point "
-            "DRIFT_ONNXRUNTIME_DIR at an extracted onnxruntime release."));
+            "TonDron_ONNXRUNTIME_DIR at an extracted onnxruntime release."));
     }
 
     const Candidate *chosen = nullptr;
@@ -253,7 +253,7 @@ bool ensureLoaded(QString *error)
             g_apiVersion = version;
     }
     if (!api) {
-        return fail(QStringLiteral("%1 is ONNX Runtime %2, which is older than this build of Drift "
+        return fail(QStringLiteral("%1 is ONNX Runtime %2, which is older than this build of TonDron "
                                    "can drive. Update it from the Addon Manager.")
                         .arg(chosen->libPath, QString::fromUtf8(base->GetVersionString())));
     }
@@ -282,7 +282,7 @@ Ort::Env &env()
     // ensureLoaded() succeeded. Plugin EPs are registered against it here because registering the
     // same library twice is an error, and this is the only place that can happen once.
     static Ort::Env instance = [] {
-        Ort::Env created{ORT_LOGGING_LEVEL_ERROR, "drift"};
+        Ort::Env created{ORT_LOGGING_LEVEL_ERROR, "TonDron"};
         registerPluginEps(created);
         return created;
     }();
@@ -307,7 +307,7 @@ QList<PluginEp> installedPluginEps()
 {
     QList<PluginEp> eps;
     const QStringList roots = GpuPackageParse::defaultSearchPaths(
-        QStringLiteral("DRIFT_ONNXRUNTIME_EP_DIR"), QStringLiteral("onnxruntime-ep"),
+        QStringLiteral("TonDron_ONNXRUNTIME_EP_DIR"), QStringLiteral("onnxruntime-ep"),
         QString::fromLatin1(kPluginEpKind));
     for (const QString &root : roots) {
         const QJsonObject meta = readJson(QDir(root).filePath(QStringLiteral("ep.json")));
@@ -366,7 +366,7 @@ QStringList selectableVariants()
 
 QString preferredVariant()
 {
-    const QString override = QString::fromLocal8Bit(qgetenv("DRIFT_ORT_EP")).trimmed().toLower();
+    const QString override = QString::fromLocal8Bit(qgetenv("TonDron_ORT_EP")).trimmed().toLower();
     if (!override.isEmpty())
         return override;
     return QSettings()
@@ -396,4 +396,4 @@ QString pluginEpNameForVariant(const QString &variant)
     return {};
 }
 
-} // namespace drift::ort
+} // namespace TonDron::ort

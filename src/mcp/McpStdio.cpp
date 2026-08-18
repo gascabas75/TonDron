@@ -13,7 +13,7 @@
 #include <io.h>
 #endif
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 namespace {
 
 void writeStdout(const QByteArray &payload)
@@ -42,7 +42,7 @@ QByteArray postJson(quint16 port, const QString &token, const QByteArray &body, 
     if (!socket.waitForConnected(2000)) {
         if (error)
             *error = QStringLiteral(
-                "Could not connect to Drift. Is the editor open with Agent access enabled?");
+                "Could not connect to TonDron. Is the editor open with Agent access enabled?");
         return {};
     }
 
@@ -66,7 +66,7 @@ QByteArray postJson(quint16 port, const QString &token, const QByteArray &body, 
     const int sep = response.indexOf("\r\n\r\n");
     if (sep < 0) {
         if (error)
-            *error = QStringLiteral("Empty response from Drift MCP.");
+            *error = QStringLiteral("Empty response from TonDron MCP.");
         return {};
     }
     return response.mid(sep + 4);
@@ -159,4 +159,4 @@ int runStdioAttach()
     return 0;
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

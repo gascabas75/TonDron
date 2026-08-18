@@ -15,7 +15,7 @@ public:
     // FaceTrack::sampleAll(). Effects declaring "requires": "face" pick their slot from it.
     // Empty — or a slot with no face on this frame — leaves u_faceValid at 0, which every face
     // shader treats as pass-through.
-    static QImage applyEffects(const QImage &input, const QList<drift::Effect> &effects,
-                               drift::TimeUs timeUs = 0,
-                               const QList<drift::FaceAnchors> &faceSlots = {});
+    static QImage applyEffects(const QImage &input, const QList<TonDron::Effect> &effects,
+                               TonDron::TimeUs timeUs = 0,
+                               const QList<TonDron::FaceAnchors> &faceSlots = {});
 };

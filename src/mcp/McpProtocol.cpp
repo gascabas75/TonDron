@@ -2,11 +2,11 @@
 #include "mcp/McpCatalog.h"
 #include "mcp/McpJson.h"
 
-#ifndef DRIFT_VERSION
-#define DRIFT_VERSION "0.0.0"
+#ifndef TonDron_VERSION
+#define TonDron_VERSION "0.0.0"
 #endif
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 namespace {
 
 QJsonObject jsonRpcError(const QJsonValue &id, int code, const QString &message)
@@ -30,8 +30,8 @@ QJsonObject initializeResult()
         {QStringLiteral("protocolVersion"), QStringLiteral("2025-03-26")},
         {QStringLiteral("capabilities"), QJsonObject{{QStringLiteral("tools"), QJsonObject{}}}},
         {QStringLiteral("serverInfo"),
-         QJsonObject{{QStringLiteral("name"), QStringLiteral("drift")},
-                     {QStringLiteral("version"), QStringLiteral(DRIFT_VERSION)}}},
+         QJsonObject{{QStringLiteral("name"), QStringLiteral("TonDron")},
+                     {QStringLiteral("version"), QStringLiteral(TonDron_VERSION)}}},
         {QStringLiteral("instructions"),
          QStringLiteral(
              "Call catalog first, then toolbox({name}) for schemas, then apply({ops}) to mutate. "
@@ -119,4 +119,4 @@ QJsonValue handleJsonRpc(const QJsonValue &body, const QString &toolbox, const T
     return jsonRpcError(QJsonValue::Null, -32700, QStringLiteral("Parse error"));
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

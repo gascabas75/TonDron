@@ -5,7 +5,7 @@
 #include <QString>
 #include <QVector>
 
-namespace drift {
+namespace TonDron {
 
 // A vecN[] uniform carried through the parameter map. Only the engine produces these — the face
 // contour loops are the one thing too large to spell out as named scalars, and 128 points would
@@ -91,6 +91,6 @@ struct GpuEffectDefinition
     QString errorMessage;
 };
 
-} // namespace drift
+} // namespace TonDron
 
-Q_DECLARE_METATYPE(drift::GpuFloatArray)
+Q_DECLARE_METATYPE(TonDron::GpuFloatArray)

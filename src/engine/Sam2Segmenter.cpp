@@ -19,7 +19,7 @@
 #include <cmath>
 #include <deque>
 
-namespace drift {
+namespace TonDron {
 namespace {
 
 // Fixed by the export; constants.json restates them and is checked on load.
@@ -36,10 +36,10 @@ constexpr int kMemoryTokens = kNumMaskMem * kImageTokens + kPointerTokens;  // 2
 const char *const kFiles[] = {"vision_encoder.onnx", "mask_decoder.onnx", "memory_encoder.onnx",
                               "memory_attention.onnx", "pointer_tpos.onnx"};
 
-using drift::ort::cstrs;
-using drift::ort::elementCount;
-using drift::ort::ortPath;
-using drift::ort::sessionNames;
+using TonDron::ort::cstrs;
+using TonDron::ort::elementCount;
+using TonDron::ort::ortPath;
+using TonDron::ort::sessionNames;
 
 QDir graphDir(const QString &root)
 {
@@ -55,7 +55,7 @@ QDir graphDir(const QString &root)
 QString resolveSam2ModelDir()
 {
     const QStringList roots = GpuPackageParse::defaultSearchPaths(
-        QStringLiteral("DRIFT_SAM2_MODEL_DIR"), QStringLiteral("models/sam2"),
+        QStringLiteral("TonDron_SAM2_MODEL_DIR"), QStringLiteral("models/sam2"),
         QStringLiteral("sam2-model"));
 
     for (const QString &root : roots) {
@@ -175,12 +175,12 @@ bool Sam2Segmenter::Impl::ensureLoaded()
         // app is running, and latching here would make it need a restart. A model that is present
         // but fails to load is latched below, since retrying that just repeats the failure.
         error = QStringLiteral("SAM2 model not found. Place the sam2.1 video export in models/sam2 "
-                               "or set DRIFT_SAM2_MODEL_DIR.");
+                               "or set TonDron_SAM2_MODEL_DIR.");
         return false;
     }
     // The runtime is an addon too. Unlike the model it cannot be picked up mid-session — the
     // library is loaded once per process — which is why the Addon Manager asks for a restart.
-    if (!drift::ort::ensureLoaded(&error))
+    if (!TonDron::ort::ensureLoaded(&error))
         return false;
     loadAttempted = true;
 
@@ -192,8 +192,8 @@ bool Sam2Segmenter::Impl::ensureLoaded()
         // tokens x 4096 image tokens, fp32). Left alone, each of the five sessions builds its own
         // BFC arena and between them they reserve ~3.4 GB of a 4 GB card, so that allocation fails
         // even though the card looks nearly empty.
-        Ort::Env &ortEnv = drift::ort::env();
-        Ort::SessionOptions opts = drift::ort::defaultSessionOptions(ortEnv, "sam2", true);
+        Ort::Env &ortEnv = TonDron::ort::env();
+        Ort::SessionOptions opts = TonDron::ort::defaultSessionOptions(ortEnv, "sam2", true);
 
         const QDir dir = graphDir(modelDir);
         auto open = [&](const char *name) {
@@ -823,4 +823,4 @@ std::unique_ptr<Sam2Segmenter::Track> Sam2Segmenter::newTrack()
     return std::unique_ptr<Track>(new Track(d.get()));
 }
 
-} // namespace drift
+} // namespace TonDron

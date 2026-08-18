@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Window
-import Drift
+import TonDron
 import "assets"
 
 // Browsable audio-effect preset picker: category chips + card grid.
@@ -165,8 +165,8 @@ Column {
                         Drag.active: presetDrag.active
                         Drag.dragType: Drag.Automatic
                         Drag.supportedActions: Qt.CopyAction
-                        Drag.keys: ["application/x-drift-audio-effect"]
-                        Drag.mimeData: ({ "application/x-drift-audio-effect": presetCard.modelData.id })
+                        Drag.keys: ["application/x-TonDron-audio-effect"]
+                        Drag.mimeData: ({ "application/x-TonDron-audio-effect": presetCard.modelData.id })
                         Drag.hotSpot.x: width / 2
                         Drag.hotSpot.y: Theme.assetCardWidth / 2
 

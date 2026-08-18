@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Packaging copies every byte of source media into the bundle, so it is modal: the timeline must
 // not change under the writer.

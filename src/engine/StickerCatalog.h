@@ -43,6 +43,6 @@ QList<StickerEntry> stickers();
 void reloadStickerCatalog(const QStringList &packageRoots = {});
 
 // Projects saved before stickers became an addon store QRC paths like
-// ":/qt/qml/Drift/resources/stickers/grinning.png", which no longer resolve. Map one onto the
+// ":/qt/qml/TonDron/resources/stickers/grinning.png", which no longer resolve. Map one onto the
 // same-named file in an installed pack; returns empty when nothing matches.
 QString resolveLegacyStickerPath(const QString &qrcPath);

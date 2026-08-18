@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Shown after opening a project whose bundle names addons this machine does not have. The project
 // is already loaded — the effects those addons provide simply render as no-ops until installed.

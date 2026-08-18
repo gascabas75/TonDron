@@ -35,7 +35,7 @@
 class QOffscreenSurface;
 class QOpenGLContext;
 
-namespace drift::gl {
+namespace TonDron::gl {
 
 // A framebuffer plus its size. Owns the FBO; hand it back to GlRuntime with
 // releaseTarget() so it can be recycled rather than freed.
@@ -102,7 +102,7 @@ public:
     QOpenGLExtraFunctions *functions();
 
     // Compiled programs are cached by key + source signature.
-    CompiledEffect *compile(const QString &cacheKey, const drift::GpuEffectDefinition &gpu);
+    CompiledEffect *compile(const QString &cacheKey, const TonDron::GpuEffectDefinition &gpu);
 
     // Framebuffers are recycled by size: allocating a fresh FBO per effect per
     // frame churns GPU memory during steady-state playback.
@@ -194,14 +194,14 @@ GlTarget promoteNv12ToTarget(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QBy
                              int width, int height);
 
 void setPackageUniforms(QOpenGLShaderProgram *program, const QMap<QString, QVariant> &parameters,
-                        const QSize &resolution, drift::TimeUs timeUs, double progress);
+                        const QSize &resolution, TonDron::TimeUs timeUs, double progress);
 
 // Run every pass of one GPU package, reading from `sources` and returning a new
 // pooled target with the result. Nothing is read back to the CPU. Returns an
 // invalid target on failure (grace mode).
 GlTarget runPipeline(GlRuntime &rt, QOpenGLExtraFunctions *gl, const QString &cacheKey,
-                     const drift::GpuEffectDefinition &gpu, const std::vector<const GlTarget *> &sources,
-                     const QMap<QString, QVariant> &parameters, drift::TimeUs timeUs, double progress,
+                     const TonDron::GpuEffectDefinition &gpu, const std::vector<const GlTarget *> &sources,
+                     const QMap<QString, QVariant> &parameters, TonDron::TimeUs timeUs, double progress,
                      const QSize &canvasSize);
 
-} // namespace drift::gl
+} // namespace TonDron::gl

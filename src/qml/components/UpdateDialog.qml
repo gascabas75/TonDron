@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Opened from the badge in EditorHeader, never by itself — a dialog over the project someone just
 // launched to work on is an interruption, and the badge is already the notification.
@@ -34,7 +34,7 @@ ThemedDialog {
             width: parent.width
             size: "base"
             tone: "default"
-            text: qsTr("Drift %1 is available").arg(Updates.latestVersion)
+            text: qsTr("TonDron %1 is available").arg(Updates.latestVersion)
         }
 
         ThemedLabel {

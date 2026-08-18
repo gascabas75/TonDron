@@ -7,7 +7,7 @@
 #include <QString>
 #include <QStringList>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 
 inline QJsonObject ok(QJsonObject extra = {})
 {
@@ -115,4 +115,4 @@ inline QJsonObject textResult(const QJsonObject &payload, bool isError = false)
             {QStringLiteral("isError"), isError || payload.value(QStringLiteral("ok")).toBool(true) == false}};
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

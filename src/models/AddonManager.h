@@ -10,8 +10,8 @@
 
 class QNetworkAccessManager;
 
-// Downloads and installs addons. Lives in the app layer, not driftengine, so tools/ and tests/
-// keep working with no network stack — they read the registry (drift::addon::AddonRegistry) and
+// Downloads and installs addons. Lives in the app layer, not TonDronengine, so tools/ and tests/
+// keep working with no network stack — they read the registry (TonDron::addon::AddonRegistry) and
 // never write it.
 //
 // The remote index is the source of truth for what exists and at which version; installed.json is

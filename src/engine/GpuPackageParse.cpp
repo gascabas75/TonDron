@@ -21,12 +21,12 @@ void fail(QString *errorOut, const QString &message)
         *errorOut = message;
 }
 
-bool parsePassInput(const QJsonObject &obj, int maxSourceIndex, drift::GpuEffectPassInput *out,
+bool parsePassInput(const QJsonObject &obj, int maxSourceIndex, TonDron::GpuEffectPassInput *out,
                     QString *errorOut)
 {
     const QString type = obj.value(QStringLiteral("type")).toString();
     if (type == QLatin1String("source_texture")) {
-        out->type = drift::GpuEffectPassInput::Type::SourceTexture;
+        out->type = TonDron::GpuEffectPassInput::Type::SourceTexture;
         out->sourceIndex = obj.value(QStringLiteral("index")).toInt(0);
         if (out->sourceIndex < 0 || out->sourceIndex > maxSourceIndex) {
             fail(errorOut, QStringLiteral("source_texture index %1 out of range (0..%2)")
@@ -37,7 +37,7 @@ bool parsePassInput(const QJsonObject &obj, int maxSourceIndex, drift::GpuEffect
         return true;
     }
     if (type == QLatin1String("buffer")) {
-        out->type = drift::GpuEffectPassInput::Type::Buffer;
+        out->type = TonDron::GpuEffectPassInput::Type::Buffer;
         out->bufferId = obj.value(QStringLiteral("id")).toString();
         if (out->bufferId.isEmpty()) {
             fail(errorOut, QStringLiteral("buffer input missing id"));
@@ -46,7 +46,7 @@ bool parsePassInput(const QJsonObject &obj, int maxSourceIndex, drift::GpuEffect
         return true;
     }
     if (type == QLatin1String("texture")) {
-        out->type = drift::GpuEffectPassInput::Type::Texture;
+        out->type = TonDron::GpuEffectPassInput::Type::Texture;
         out->textureId = obj.value(QStringLiteral("id")).toString();
         if (out->textureId.isEmpty()) {
             fail(errorOut, QStringLiteral("texture input missing id"));
@@ -58,15 +58,15 @@ bool parsePassInput(const QJsonObject &obj, int maxSourceIndex, drift::GpuEffect
     return false;
 }
 
-bool parsePassOutput(const QJsonObject &obj, drift::GpuEffectPassOutput *out, QString *errorOut)
+bool parsePassOutput(const QJsonObject &obj, TonDron::GpuEffectPassOutput *out, QString *errorOut)
 {
     const QString type = obj.value(QStringLiteral("type")).toString();
     if (type == QLatin1String("canvas")) {
-        out->type = drift::GpuEffectPassOutput::Type::Canvas;
+        out->type = TonDron::GpuEffectPassOutput::Type::Canvas;
         return true;
     }
     if (type == QLatin1String("buffer")) {
-        out->type = drift::GpuEffectPassOutput::Type::Buffer;
+        out->type = TonDron::GpuEffectPassOutput::Type::Buffer;
         out->bufferId = obj.value(QStringLiteral("id")).toString();
         if (out->bufferId.isEmpty()) {
             fail(errorOut, QStringLiteral("buffer output missing id"));
@@ -113,12 +113,12 @@ QVariant jsonToVariant(const QJsonValue &value)
     return value.toVariant();
 }
 
-bool parseParameters(const QJsonArray &params, QList<drift::EffectParamSpec> *out, bool gpuBackend,
+bool parseParameters(const QJsonArray &params, QList<TonDron::EffectParamSpec> *out, bool gpuBackend,
                      QString *errorOut)
 {
     for (const QJsonValue &pv : params) {
         const QJsonObject p = pv.toObject();
-        drift::EffectParamSpec spec;
+        TonDron::EffectParamSpec spec;
         spec.key = p.value(QStringLiteral("identifier")).toString();
         if (spec.key.isEmpty())
             spec.key = p.value(QStringLiteral("key")).toString();
@@ -129,11 +129,11 @@ bool parseParameters(const QJsonArray &params, QList<drift::EffectParamSpec> *ou
             spec.label = spec.key;
         const QString type = p.value(QStringLiteral("type")).toString(QStringLiteral("float"));
         if (type == QLatin1String("bool") || type == QLatin1String("boolean"))
-            spec.type = drift::EffectParamType::Bool;
+            spec.type = TonDron::EffectParamType::Bool;
         else if (type == QLatin1String("color") || type == QLatin1String("colour"))
-            spec.type = drift::EffectParamType::Color;
+            spec.type = TonDron::EffectParamType::Color;
         else
-            spec.type = drift::EffectParamType::Float;
+            spec.type = TonDron::EffectParamType::Float;
         spec.min = p.value(QStringLiteral("minValue")).toDouble(p.value(QStringLiteral("min")).toDouble(0.0));
         spec.max = p.value(QStringLiteral("maxValue")).toDouble(p.value(QStringLiteral("max")).toDouble(1.0));
         spec.defaultValue =
@@ -143,7 +143,7 @@ bool parseParameters(const QJsonArray &params, QList<drift::EffectParamSpec> *ou
             fail(errorOut, QStringLiteral("parameter missing identifier"));
             return false;
         }
-        if (spec.type == drift::EffectParamType::Color) {
+        if (spec.type == TonDron::EffectParamType::Color) {
             QString hex = p.value(QStringLiteral("defaultValue")).toString();
             if (hex.isEmpty())
                 hex = p.value(QStringLiteral("default")).toString();
@@ -158,7 +158,7 @@ bool parseParameters(const QJsonArray &params, QList<drift::EffectParamSpec> *ou
             // wants transparency declares a separate opacity float.
             spec.defaultColorHex = color.name(QColor::HexRgb);
         }
-        if (gpuBackend && drift::isReservedGpuUniform(spec.key)) {
+        if (gpuBackend && TonDron::isReservedGpuUniform(spec.key)) {
             fail(errorOut,
                  QStringLiteral("parameter '%1' collides with reserved uniform").arg(spec.key));
             return false;
@@ -175,14 +175,14 @@ void parseFixedParams(const QJsonObject &obj, QMap<QString, QVariant> *out)
 }
 
 bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int maxSourceIndex,
-                     drift::GpuEffectDefinition *out, QString *errorOut)
+                     TonDron::GpuEffectDefinition *out, QString *errorOut)
 {
     const QJsonObject pipeline = root.value(QStringLiteral("pipeline")).toObject();
 
     const QJsonArray buffers = pipeline.value(QStringLiteral("intermediateBuffers")).toArray();
     for (const QJsonValue &bv : buffers) {
         const QJsonObject b = bv.toObject();
-        drift::GpuEffectBufferSpec buf;
+        TonDron::GpuEffectBufferSpec buf;
         buf.id = b.value(QStringLiteral("id")).toString();
         buf.scale = b.value(QStringLiteral("scale")).toDouble(1.0);
         if (buf.id.isEmpty()) {
@@ -197,13 +197,13 @@ bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int max
     }
 
     QSet<QString> bufferIds;
-    for (const drift::GpuEffectBufferSpec &b : out->intermediateBuffers)
+    for (const TonDron::GpuEffectBufferSpec &b : out->intermediateBuffers)
         bufferIds.insert(b.id);
 
     const QJsonArray textures = pipeline.value(QStringLiteral("textures")).toArray();
     for (const QJsonValue &tv : textures) {
         const QJsonObject t = tv.toObject();
-        drift::GpuEffectTextureSpec tex;
+        TonDron::GpuEffectTextureSpec tex;
         tex.id = t.value(QStringLiteral("id")).toString();
         tex.file = t.value(QStringLiteral("file")).toString();
         if (tex.id.isEmpty() || tex.file.isEmpty()) {
@@ -219,7 +219,7 @@ bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int max
     }
 
     QSet<QString> textureIds;
-    for (const drift::GpuEffectTextureSpec &t : out->textures)
+    for (const TonDron::GpuEffectTextureSpec &t : out->textures)
         textureIds.insert(t.id);
 
     const QJsonArray passes = pipeline.value(QStringLiteral("passes")).toArray();
@@ -231,7 +231,7 @@ bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int max
     int index = 0;
     for (const QJsonValue &pv : passes) {
         const QJsonObject p = pv.toObject();
-        drift::GpuEffectPass pass;
+        TonDron::GpuEffectPass pass;
         pass.passIndex = p.value(QStringLiteral("passIndex")).toInt(index);
         pass.fragmentShaderFile = p.value(QStringLiteral("fragmentShader")).toString();
         if (pass.fragmentShaderFile.isEmpty()) {
@@ -255,19 +255,19 @@ bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int max
 
         const QJsonArray inputs = p.value(QStringLiteral("inputs")).toArray();
         if (inputs.isEmpty()) {
-            pass.inputs.append(drift::GpuEffectPassInput{});
+            pass.inputs.append(TonDron::GpuEffectPassInput{});
         } else {
             for (const QJsonValue &iv : inputs) {
-                drift::GpuEffectPassInput input;
+                TonDron::GpuEffectPassInput input;
                 if (!parsePassInput(iv.toObject(), maxSourceIndex, &input, errorOut))
                     return false;
-                if (input.type == drift::GpuEffectPassInput::Type::Buffer
+                if (input.type == TonDron::GpuEffectPassInput::Type::Buffer
                     && !bufferIds.contains(input.bufferId)) {
                     fail(errorOut,
                          QStringLiteral("pass references unknown buffer '%1'").arg(input.bufferId));
                     return false;
                 }
-                if (input.type == drift::GpuEffectPassInput::Type::Texture
+                if (input.type == TonDron::GpuEffectPassInput::Type::Texture
                     && !textureIds.contains(input.textureId)) {
                     fail(errorOut,
                          QStringLiteral("pass references unknown texture '%1'").arg(input.textureId));
@@ -280,7 +280,7 @@ bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int max
         const QJsonObject outputObj = p.value(QStringLiteral("output")).toObject();
         if (outputObj.isEmpty()) {
             if (index == passes.size() - 1) {
-                pass.output.type = drift::GpuEffectPassOutput::Type::Canvas;
+                pass.output.type = TonDron::GpuEffectPassOutput::Type::Canvas;
             } else {
                 fail(errorOut, QStringLiteral("pass %1 missing output").arg(index));
                 return false;
@@ -289,7 +289,7 @@ bool loadGpuPipeline(const QJsonObject &root, const QString &packageDir, int max
             return false;
         }
 
-        if (pass.output.type == drift::GpuEffectPassOutput::Type::Buffer
+        if (pass.output.type == TonDron::GpuEffectPassOutput::Type::Buffer
             && !bufferIds.contains(pass.output.bufferId)) {
             fail(errorOut, QStringLiteral("pass output references unknown buffer '%1'")
                                .arg(pass.output.bufferId));
@@ -328,7 +328,7 @@ QStringList defaultSearchPaths(const QString &envVar, const QString &subdir,
     // Ahead of the bundled copy: effects and transitions ship with the build as a baseline, and an
     // installed addon of the same id is meant to supersede it.
     if (!addonKind.isEmpty())
-        roots.append(drift::addon::addonRootsForKind(addonKind));
+        roots.append(TonDron::addon::addonRootsForKind(addonKind));
 
     const QString appDir = QCoreApplication::applicationDirPath();
     if (!appDir.isEmpty()) {

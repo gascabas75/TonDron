@@ -30,7 +30,7 @@ struct EffectTemplateEntry;
 
 class QTimer;
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 class McpServer;
 }
 
@@ -53,7 +53,7 @@ class AppController : public QObject
     Q_PROPERTY(bool snapEnabled READ snapEnabled WRITE setSnapEnabled NOTIFY snapEnabledChanged)
     Q_PROPERTY(bool rippleEnabled READ rippleEnabled WRITE setRippleEnabled NOTIFY rippleEnabledChanged)
     Q_PROPERTY(bool allowClipOverlap READ allowClipOverlap WRITE setAllowClipOverlap NOTIFY allowClipOverlapChanged)
-  // Per-project UI prefs (serialized with the .drift file, not global QSettings).
+  // Per-project UI prefs (serialized with the .TonDron file, not global QSettings).
     Q_PROPERTY(bool mediaGridMode READ mediaGridMode WRITE setMediaGridMode NOTIFY mediaGridModeChanged)
     // App-wide theme preference, backed by QSettings("ui/darkMode"). Until the user
     // toggles once, darkModeOverridden is false and the UI follows the OS colour
@@ -73,7 +73,7 @@ class AppController : public QObject
     Q_PROPERTY(QString workspaceLayoutPreferred READ workspaceLayoutPreferred
                    NOTIFY workspaceLayoutPreferenceChanged)
     Q_PROPERTY(bool autoKeyEnabled READ autoKeyEnabled WRITE setAutoKeyEnabled NOTIFY autoKeyEnabledChanged)
-    // Opt-in: on launch, restore the last open project (saved .drift or unsaved recovery snapshot).
+    // Opt-in: on launch, restore the last open project (saved .TonDron or unsaved recovery snapshot).
     Q_PROPERTY(bool reopenLastProject READ reopenLastProject WRITE setReopenLastProject NOTIFY reopenLastProjectChanged)
     // Session-only localhost MCP for agents. Never persisted. Off at every launch.
     Q_PROPERTY(bool mcpEnabled READ mcpEnabled WRITE setMcpEnabled NOTIFY mcpRunningChanged)
@@ -86,7 +86,7 @@ class AppController : public QObject
     Q_PROPERTY(QString mcpClaudeCommand READ mcpClaudeCommand NOTIFY mcpRunningChanged)
     Q_PROPERTY(QString mcpStdioSnippet READ mcpStdioSnippet NOTIFY mcpRunningChanged)
     // App-wide interface language, QSettings("ui/language"). Empty means follow the OS locale.
-    // "en" is the source catalog (no .qm). Other codes match i18n/drift_<code>.qm.
+    // "en" is the source catalog (no .qm). Other codes match i18n/TonDron_<code>.qm.
     Q_PROPERTY(QString uiLanguage READ uiLanguage WRITE setUiLanguage NOTIFY uiLanguageChanged)
     Q_PROPERTY(QVariantList uiLanguages READ uiLanguages NOTIFY uiLanguageChanged)
     // The keyframe strip draws every animated property of the selected clip. This is the subset
@@ -209,8 +209,8 @@ public:
     TimelineModel *timelineModel() { return &m_timelineModel; }
     ClipListModel *clipListModel() { return &m_clipListModel; }
     PlaybackEngine *playback() { return &m_playback; }
-    drift::Project *project() { return &m_project; }
-    const drift::Project *project() const { return &m_project; }
+    TonDron::Project *project() { return &m_project; }
+    const TonDron::Project *project() const { return &m_project; }
 
     QVariantList tracks() const;
     double playheadSeconds() const;
@@ -765,7 +765,7 @@ public:
     void setBeatGridVisible(bool visible);
     bool onsetsVisible() const { return m_onsetsVisible; }
     void setOnsetsVisible(bool visible);
-    // Writes a .drift bundle keeping each asset's current storage mode, so a referencing project
+    // Writes a .TonDron bundle keeping each asset's current storage mode, so a referencing project
     // stays instant to save and a packaged one stays self-contained.
     Q_INVOKABLE void saveProject(const QUrl &url);
     // Same container, every source asset embedded. Runs off the GUI thread — it copies the media.
@@ -808,7 +808,7 @@ public:
     Q_INVOKABLE void cancelExport();
     Q_INVOKABLE QUrl fileUrl(const QString &path) const;
     Q_INVOKABLE QString imageUrl(const QString &path) const;
-    // Same as imageUrl but requests a single frame of a filmstrip strip (see DriftImageProvider).
+    // Same as imageUrl but requests a single frame of a filmstrip strip (see TonDronImageProvider).
     Q_INVOKABLE QString filmstripFrameUrl(const QString &path, int frame, int count) const;
     // Sharp on-demand frame for one filmstrip tile — see FilmstripTileCache. Empty until the
     // decode lands, at which point filmstripTileReady() fires for that source.
@@ -924,13 +924,13 @@ signals:
     void saveRequested();
 
 protected:
-    void pushProjectEdit(const drift::Project &before, const QString &text);
+    void pushProjectEdit(const TonDron::Project &before, const QString &text);
     void finishEdit(const QString &message);
     // Applies a finished replace probe as one undoable transaction, or reports why it cannot be.
-    void finalizeAssetReplace(const QString &assetId, const drift::MediaAsset &filled, bool ok);
+    void finalizeAssetReplace(const QString &assetId, const TonDron::MediaAsset &filled, bool ok);
     // Moves every clip bound to `assetId` onto the replacement media. Returns how many had a
     // source range that no longer fitted and had to be pulled back to it.
-    int rebindClipsToAsset(const QString &assetId, const drift::MediaAsset &asset);
+    int rebindClipsToAsset(const QString &assetId, const TonDron::MediaAsset &asset);
     // Keeps the keyframe strip's index-addressed hidden series in sync after an effect is removed.
     void dropKeyframeGraphPropertiesForEffect(int removedIndex);
     // Same idea after a reorder: fx.N.* indices move with the effect.
@@ -942,63 +942,63 @@ protected:
     void saveAssetFavorites(const QString &tabId);
     void applyEffectTemplateInternal(int trackIndex, int clipIndex, const EffectTemplateEntry &entry,
                                    const QString &mattePath = {},
-                                   drift::TimeUs matteSrcOffsetUs = 0);
+                                   TonDron::TimeUs matteSrcOffsetUs = 0);
     bool resolveTemplateApplyTarget(int *trackIndex, int *clipIndex) const;
-    bool beatAnalysisReadyForClip(const drift::Clip &clip, const QString &sync) const;
+    bool beatAnalysisReadyForClip(const TonDron::Clip &clip, const QString &sync) const;
     // Digest of everything the AudioMixer reads; a change means detected beats are stale.
     QByteArray audioLayoutFingerprint() const;
     // Single key lookup for the tangent editors; null when nothing sits at `atSeconds`.
-    drift::Keyframe<double> *keyframeAt(int trackIndex, int clipIndex, const QString &prop,
+    TonDron::Keyframe<double> *keyframeAt(int trackIndex, int clipIndex, const QString &prop,
                                         double atSeconds);
-    static void applyTangents(drift::Keyframe<double> &key, double inDx, double inDy, double outDx,
+    static void applyTangents(TonDron::Keyframe<double> &key, double inDx, double inDy, double outDx,
                               double outDy, bool corner);
     // Recollects m_beatSnapTargets from whichever layers are currently visible.
     void rebuildBeatSnapTargets();
     // Beat onsets plus project bookmarks — anything clips should magnet to when snap is on.
-    QList<drift::TimeUs> extraSnapTargets() const;
+    QList<TonDron::TimeUs> extraSnapTargets() const;
     void refreshSegmentationPreview();
     void runSegmentationSeed(int generation);
     void finalizeFaceDetection(const QString &clipId, const QString &trackPath,
-                               drift::TimeUs srcOffsetUs);
+                               TonDron::TimeUs srcOffsetUs);
     void finalizeSegmentation(const QString &clipId, const QString &mattePath,
-                              drift::TimeUs matteSrcOffsetUs, const QString &outputMode);
-    void finalizeGeneratedSubtitles(drift::TimeUs timelineStart, drift::TimeUs timelineDuration,
-                                    const QList<drift::SubtitleCue> &cues);
+                              TonDron::TimeUs matteSrcOffsetUs, const QString &outputMode);
+    void finalizeGeneratedSubtitles(TonDron::TimeUs timelineStart, TonDron::TimeUs timelineDuration,
+                                    const QList<TonDron::SubtitleCue> &cues);
     void finalizeDenoise(const QString &clipId, const QString &audioPath);
     // Shared body of the two denoise jobs: decodes [srcIn, srcIn + span) of `path` at the model's
     // rate, runs each channel through it, and writes the result. Runs on a worker thread.
     // `originalPathOut` is written only when non-empty, for the preview's A/B source.
-    bool renderDenoisedAudio(const QString &path, drift::TimeUs srcIn, drift::TimeUs span,
+    bool renderDenoisedAudio(const QString &path, TonDron::TimeUs srcIn, TonDron::TimeUs span,
                              const QString &outPath, const QString &originalPath,
                              double progressFrom, double progressTo, QString *errorOut);
     // Defaulted severity so the existing call sites, which report ordinary status,
     // stay unchanged; pass "error"/"warning" explicitly where a failure is reported.
     void setLastMessage(const QString &message,
                         const QString &severity = QStringLiteral("info"));
-    drift::TimeUs playheadUs() const { return m_playheadUs; }
-    void setPlayheadUs(drift::TimeUs us);
+    TonDron::TimeUs playheadUs() const { return m_playheadUs; }
+    void setPlayheadUs(TonDron::TimeUs us);
 
     // Stickers and emoji are both a PNG dropped on an image track at the playhead.
     void addImageOverlayClip(const QString &path, const QString &name, const QString &emoji,
                              double atSeconds, const QString &undoText);
 
-    QVariantMap clipToMap(const drift::Clip &clip) const;
-    int assetIndexForClip(const drift::Clip &clip) const;
-    drift::TimeUs clipDurationForAssetIndex(int assetIndex) const;
-    drift::TimeUs sourceDurationForClip(const drift::Clip &clip) const;
-    void startReverseRender(const QString &sourcePath, drift::TimeUs coverInUs,
-                            drift::TimeUs coverOutUs);
+    QVariantMap clipToMap(const TonDron::Clip &clip) const;
+    int assetIndexForClip(const TonDron::Clip &clip) const;
+    TonDron::TimeUs clipDurationForAssetIndex(int assetIndex) const;
+    TonDron::TimeUs sourceDurationForClip(const TonDron::Clip &clip) const;
+    void startReverseRender(const QString &sourcePath, TonDron::TimeUs coverInUs,
+                            TonDron::TimeUs coverOutUs);
     // Cached dense peaks for `path`, or nullptr while the off-thread decode is still running
     // (waveformReady is emitted when it lands).
     const MediaWaveform::Dense *densePeaksFor(const QString &path) const;
-    void applyRippleShift(drift::Track &track, int fromClipIndex, drift::TimeUs delta);
+    void applyRippleShift(TonDron::Track &track, int fromClipIndex, TonDron::TimeUs delta);
     void restoreFilmstripsAfterLoad();
     void normalizeSelection();
     bool isValidClipIndex(int trackIndex, int clipIndex) const;
 
     // Drops everything scoped to the outgoing project — clipboard, timeline-keyed caches, the
     // auxiliary-window sessions. Called by both newProject and applyProjectJson, before the
-    // document is replaced, so the two paths cannot drift apart again.
+    // document is replaced, so the two paths cannot TonDron apart again.
     void resetSessionState();
 
     QByteArray serializeProjectJson() const;
@@ -1006,8 +1006,8 @@ protected:
     // Shared by saveProject and packageProject. `embedSource` forces every source asset into the
     // bundle; otherwise each keeps whatever mode it had, tracked in m_embeddedSources. GUI thread
     // only — packageProject builds the request here and hands the finished copy to its worker.
-    drift::bundle::WriteRequest buildWriteRequest(bool embedSource) const;
-    void rememberEmbeddedSources(const QList<drift::bundle::MediaEntry> &media);
+    TonDron::bundle::WriteRequest buildWriteRequest(bool embedSource) const;
+    void rememberEmbeddedSources(const QList<TonDron::bundle::MediaEntry> &media);
     // Persist the save-picker folder and encode/scale choices for the next Export dialog.
     // Empty `outputPath` updates settings only and leaves lastExportFolder unchanged.
     void rememberExportChoice(const QString &outputPath, const QVariantMap &settings);
@@ -1019,7 +1019,7 @@ protected:
     // Effects and transitions render as no-ops when their package is absent, which is silent and
     // looks like the project is simply wrong. Called after a load to say so instead.
     void reportMissingCatalogEntries();
-    void reportMissingAddons(const QList<drift::bundle::AddonRef> &addons);
+    void reportMissingAddons(const QList<TonDron::bundle::AddonRef> &addons);
     void setDirty(bool dirty);
     void setCurrentProjectPath(const QString &path);
     void addRecentProject(const QString &path);
@@ -1035,10 +1035,10 @@ protected:
     // holds a bare pointer to it and may still be mid-composite at teardown.
     // Members are destroyed in reverse declaration order, so the project is
     // declared first and torn down last.
-    drift::Project m_project;
+    TonDron::Project m_project;
     PlaybackEngine m_playback;
     QUndoStack m_undoStack;
-    drift::TimeUs m_playheadUs = 0;
+    TonDron::TimeUs m_playheadUs = 0;
     bool m_playing = false;
     bool m_snapEnabled = true;
     bool m_rippleEnabled = false;
@@ -1069,8 +1069,8 @@ protected:
     QAtomicInt m_segmentCancel = 0;
     // Speed-curve session: the clip being retimed, the candidate ramp, and the player auditioning it.
     ClipPreviewPlayer m_speedCurvePlayer;
-    drift::Clip m_speedCurveClip;
-    drift::SpeedCurve m_speedCurve;
+    TonDron::Clip m_speedCurveClip;
+    TonDron::SpeedCurve m_speedCurve;
     int m_speedCurveTrack = -1;
     int m_speedCurveClipIndex = -1;
     int m_speedCurveRevision = 0;
@@ -1081,9 +1081,9 @@ protected:
     int m_fadeCurveClipIndex = -1;
     QString m_fadeCurveClipId;
     QString m_fadeCurveClipName;
-    drift::FadeShape m_fadeShape;
-    drift::FadeCurve m_fadeCurveBefore = drift::FadeCurve::Smooth;
-    drift::FadeShape m_fadeShapeBefore;
+    TonDron::FadeShape m_fadeShape;
+    TonDron::FadeCurve m_fadeCurveBefore = TonDron::FadeCurve::Smooth;
+    TonDron::FadeShape m_fadeShapeBefore;
     bool m_fadeCurveApplied = false;
 
     bool m_reverseRendering = false;
@@ -1124,7 +1124,7 @@ protected:
     bool m_segSeedRunning = false;
     int m_loadGeneration = 0; // bumped per loadProject; stale extracts are dropped
     QImage m_segFrame;
-    drift::Sam2Embedding m_segEmbedding;
+    TonDron::Sam2Embedding m_segEmbedding;
     QVariantList m_segPoints;
     int m_selectedTrack = -1;
     int m_selectedClip = -1;
@@ -1143,14 +1143,14 @@ protected:
     QString m_lastMessageSeverity = QStringLiteral("info");
     bool m_inlineTextEditing = false;
     bool m_previewDragActive = false;
-    drift::Project m_previewDragBefore;
+    TonDron::Project m_previewDragBefore;
     QString m_previewDragText;
     void emitPreviewFrame();
     void syncTextOverlaySkip();
     struct ClipboardItem
     {
-        drift::Clip clip;
-        drift::TrackType trackType = drift::TrackType::Video;
+        TonDron::Clip clip;
+        TonDron::TrackType trackType = TonDron::TrackType::Video;
     };
     QList<ClipboardItem> m_clipboard;
 
@@ -1187,7 +1187,7 @@ protected:
     std::optional<PendingEffectTemplate> m_pendingEffectTemplate;
     // Beats and onsets as snap targets, thinned so a dense onset list cannot make every
     // position on the timeline snap to something. Only the visible layers contribute.
-    QList<drift::TimeUs> m_beatSnapTargets;
+    QList<TonDron::TimeUs> m_beatSnapTargets;
 
     // Save state / autosave / crash recovery.
     QString m_currentProjectPath;
@@ -1198,10 +1198,10 @@ protected:
     // Launch layout picker / first-clip setup completed for this empty project.
     bool m_projectLayoutChosen = false;
 
-    std::unique_ptr<drift::mcp::McpServer> m_mcp;
+    std::unique_ptr<TonDron::mcp::McpServer> m_mcp;
     bool m_mcpUndoSuspended = false;
     int m_mcpBatchDepth = 0;
-    drift::Project m_mcpBatchBefore;
+    TonDron::Project m_mcpBatchBefore;
     int m_mcpEditRevision = 0;
     mutable QHash<QString, QPair<int, int>> m_mcpClipIndex;
     mutable int m_mcpClipIndexRevision = -1;

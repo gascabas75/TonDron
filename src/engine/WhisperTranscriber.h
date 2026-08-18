@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 struct WhisperResult
 {
@@ -56,4 +56,4 @@ private:
     std::unique_ptr<Impl> d;
 };
 
-} // namespace drift
+} // namespace TonDron

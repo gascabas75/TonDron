@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Shown on every launch while an autosave snapshot from the previous session
 // exists (crash or normal close with unsaved work). Restore reloads it; New

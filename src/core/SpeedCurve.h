@@ -6,7 +6,7 @@
 #include <QList>
 #include <QVector>
 
-namespace drift {
+namespace TonDron {
 
 // Speed ramps live in a wider range than the scalar speed slider: curves are where extreme
 // ramps belong. The floor must stay above zero — at 0 the clip would take forever to play.
@@ -95,4 +95,4 @@ private:
     QVector<double> m_cum;    // cumulative integral of 1/speed, in units of the source span
 };
 
-} // namespace drift
+} // namespace TonDron

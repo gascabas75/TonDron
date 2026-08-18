@@ -17,7 +17,7 @@ void ClipReaderWorker::closePath()
     m_reader.close();
 }
 
-QImage ClipReaderWorker::decodeVideo(drift::TimeUs sourceUs, int maxWidth, int maxHeight)
+QImage ClipReaderWorker::decodeVideo(TonDron::TimeUs sourceUs, int maxWidth, int maxHeight)
 {
     QMutexLocker lock(&m_mutex);
     QImage frame;
@@ -26,7 +26,7 @@ QImage ClipReaderWorker::decodeVideo(drift::TimeUs sourceUs, int maxWidth, int m
     return frame;
 }
 
-Nv12Frame ClipReaderWorker::decodeVideoNv12(drift::TimeUs sourceUs, int maxWidth, int maxHeight)
+Nv12Frame ClipReaderWorker::decodeVideoNv12(TonDron::TimeUs sourceUs, int maxWidth, int maxHeight)
 {
     QMutexLocker lock(&m_mutex);
     Nv12Frame frame;
@@ -35,7 +35,7 @@ Nv12Frame ClipReaderWorker::decodeVideoNv12(drift::TimeUs sourceUs, int maxWidth
     return frame;
 }
 
-int ClipReaderWorker::decodeAudio(drift::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
+int ClipReaderWorker::decodeAudio(TonDron::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
                                   float *interleavedStereoOut)
 {
     QMutexLocker lock(&m_mutex);
@@ -48,17 +48,17 @@ void ClipReaderWorker::prefetchNextVideo(int maxWidth, int maxHeight)
     m_reader.prefetchNextVideoFrame(maxWidth, maxHeight);
 }
 
-void ClipReaderWorker::requestPrefetchNv12(int maxWidth, int maxHeight, drift::TimeUs readAheadUs)
+void ClipReaderWorker::requestPrefetchNv12(int maxWidth, int maxHeight, TonDron::TimeUs readAheadUs)
 {
     if (!m_prefetchPending.testAndSetAcquire(0, 1))
         return;
 
     QMetaObject::invokeMethod(this, "prefetchNextVideoNv12", Qt::QueuedConnection,
                               Q_ARG(int, maxWidth), Q_ARG(int, maxHeight),
-                              Q_ARG(drift::TimeUs, readAheadUs));
+                              Q_ARG(TonDron::TimeUs, readAheadUs));
 }
 
-void ClipReaderWorker::prefetchNextVideoNv12(int maxWidth, int maxHeight, drift::TimeUs readAheadUs)
+void ClipReaderWorker::prefetchNextVideoNv12(int maxWidth, int maxHeight, TonDron::TimeUs readAheadUs)
 {
     m_prefetchPending.storeRelease(0);
 

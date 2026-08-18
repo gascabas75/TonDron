@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 QString fadeCurveToString(FadeCurve curve)
 {
@@ -166,4 +166,4 @@ FadeShape FadeShape::equalPowerPreset()
     return shape;
 }
 
-} // namespace drift
+} // namespace TonDron

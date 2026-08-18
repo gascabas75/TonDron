@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Basic style's default ScrollBar reads control.palette.dark/mid, which the platform
 // theme (e.g. KDE Breeze) populates independently of the QQC2 style. Override both

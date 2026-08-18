@@ -15,7 +15,7 @@
 #include <QSize>
 #include <QVariant>
 
-namespace drift {
+namespace TonDron {
 struct GpuEffectDefinition;
 }
 
@@ -31,18 +31,18 @@ struct GpuLayer
     QByteArray nv12;
     int nv12Width = 0;
     int nv12Height = 0;
-    QList<drift::Effect> effects;
-    drift::Mask mask;
+    QList<TonDron::Effect> effects;
+    TonDron::Mask mask;
     QImage matte; // MaskShape::Matte only: this frame's coverage map, decoded by FrameCompositor
     QRectF rect;             // destination rect on the canvas, in canvas pixels
     double rotation = 0.0;   // degrees, clockwise, about the rect centre
     bool flipH = false;
     bool flipV = false;
     double opacity = 1.0;
-    drift::TimeUs clipTimeUs = 0; // effect time base (relative to clip start)
+    TonDron::TimeUs clipTimeUs = 0; // effect time base (relative to clip start)
     // This frame's baked face anchors, one per tracked slot, sampled by FrameCompositor. Carried
     // by value: the scene outlives the cache lookup that produced them.
-    QList<drift::FaceAnchors> faceSlots;
+    QList<TonDron::FaceAnchors> faceSlots;
     bool valid = false;
 
     bool hasPixels() const { return !nv12.isEmpty() || !source.isNull(); }
@@ -53,17 +53,17 @@ struct GpuLayer
 struct GpuItem
 {
     bool isTransition = false;
-    drift::BlendMode blend = drift::BlendMode::Normal;
+    TonDron::BlendMode blend = TonDron::BlendMode::Normal;
 
     GpuLayer layer; // when !isTransition
 
     GpuLayer from; // when isTransition
     GpuLayer to;
     QString transitionKey;
-    const drift::GpuEffectDefinition *transitionGpu = nullptr;
+    const TonDron::GpuEffectDefinition *transitionGpu = nullptr;
     QMap<QString, QVariant> transitionParams;
     double progress = 0.0;
-    drift::TimeUs transitionTimeUs = 0;
+    TonDron::TimeUs transitionTimeUs = 0;
 };
 
 // Everything needed to render one composited frame, with no reference to the

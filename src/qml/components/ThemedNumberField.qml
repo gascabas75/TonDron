@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Numeric inspector field: arrow up/down nudges the value; commits on focus loss
 // or Enter. Avoid binding `text` to the model — set `value` from refresh logic

@@ -3,7 +3,7 @@
 #include <QCoreApplication>
 #include <algorithm>
 
-namespace drift {
+namespace TonDron {
 namespace {
 
 struct KindName
@@ -268,4 +268,4 @@ QList<ShapeCategory> shapeCategories()
     };
 }
 
-} // namespace drift
+} // namespace TonDron

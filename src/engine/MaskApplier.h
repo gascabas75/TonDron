@@ -4,7 +4,7 @@
 
 #include <QImage>
 
-namespace drift {
+namespace TonDron {
 
 // Grayscale8 coverage map for the mask, white where the frame shows through.
 // The GPU compositor uploads this as a texture and multiplies alpha in a shader,
@@ -13,4 +13,4 @@ QImage maskAlphaMap(const Mask &mask, int canvasWidth, int canvasHeight);
 
 QImage applyMask(const QImage &frame, const Mask &mask, int canvasWidth, int canvasHeight);
 
-} // namespace drift
+} // namespace TonDron

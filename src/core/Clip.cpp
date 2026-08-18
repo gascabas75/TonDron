@@ -1,6 +1,6 @@
 #include "Clip.h"
 
-namespace drift {
+namespace TonDron {
 
 QString clipTypeToString(ClipType type)
 {
@@ -74,4 +74,4 @@ BlendMode blendModeFromString(const QString &mode)
     return BlendMode::Normal;
 }
 
-} // namespace drift
+} // namespace TonDron

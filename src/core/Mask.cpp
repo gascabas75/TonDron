@@ -1,6 +1,6 @@
 #include "Mask.h"
 
-namespace drift {
+namespace TonDron {
 
 QString maskShapeToString(MaskShape shape)
 {
@@ -44,4 +44,4 @@ MaskShape maskShapeFromString(const QString &shape)
     return MaskShape::None;
 }
 
-} // namespace drift
+} // namespace TonDron

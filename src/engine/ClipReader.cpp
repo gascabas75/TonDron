@@ -48,7 +48,7 @@ int swsColorspaceFromFrame(const AVFrame *frame)
         return SWS_CS_ITU709;
     case AVCOL_SPC_UNSPECIFIED:
     default:
-        // Drift's SDR pipeline defaults to BT.709 when the bitstream is untagged.
+        // TonDron's SDR pipeline defaults to BT.709 when the bitstream is untagged.
         return SWS_CS_ITU709;
     }
 }
@@ -255,11 +255,11 @@ Nv12Frame frameToNv12(const AVFrame *frame, SwsContext *&sws, int targetWidth, i
     return out;
 }
 
-drift::TimeUs ptsToUs(const AVFrame *frame, const AVRational &timeBase)
+TonDron::TimeUs ptsToUs(const AVFrame *frame, const AVRational &timeBase)
 {
     if (!frame || frame->pts == AV_NOPTS_VALUE)
         return 0;
-    return av_rescale_q(frame->pts, timeBase, {1, drift::kUsPerSecond});
+    return av_rescale_q(frame->pts, timeBase, {1, TonDron::kUsPerSecond});
 }
 
 } // namespace
@@ -338,22 +338,22 @@ void ClipReader::applyDecodeSize(const QSize &size)
     m_nv12Cache.clear();
 }
 
-drift::TimeUs ClipReader::frameToleranceUs() const
+TonDron::TimeUs ClipReader::frameToleranceUs() const
 {
     // Half a source frame: the nearest-frame window. The old fixed 40 ms was
     // longer than a frame above ~25 fps, so it returned stale frames.
     if (m_sourceFrameDurationUs > 0)
-        return qMax<drift::TimeUs>(1, m_sourceFrameDurationUs / 2);
+        return qMax<TonDron::TimeUs>(1, m_sourceFrameDurationUs / 2);
     return 20'000;
 }
 
-bool ClipReader::lookupCachedFrame(drift::TimeUs sourceUs, QImage &out) const
+bool ClipReader::lookupCachedFrame(TonDron::TimeUs sourceUs, QImage &out) const
 {
-    const drift::TimeUs tolerance = frameToleranceUs();
-    drift::TimeUs bestDelta = tolerance + 1;
+    const TonDron::TimeUs tolerance = frameToleranceUs();
+    TonDron::TimeUs bestDelta = tolerance + 1;
     int bestIndex = -1;
     for (int i = 0; i < m_videoCache.size(); ++i) {
-        const drift::TimeUs delta = qAbs(m_videoCache.at(i).ptsUs - sourceUs);
+        const TonDron::TimeUs delta = qAbs(m_videoCache.at(i).ptsUs - sourceUs);
         if (delta <= tolerance && delta < bestDelta) {
             bestDelta = delta;
             bestIndex = i;
@@ -366,7 +366,7 @@ bool ClipReader::lookupCachedFrame(drift::TimeUs sourceUs, QImage &out) const
     return true;
 }
 
-void ClipReader::storeCachedFrame(drift::TimeUs ptsUs, const QImage &image)
+void ClipReader::storeCachedFrame(TonDron::TimeUs ptsUs, const QImage &image)
 {
     if (image.isNull())
         return;
@@ -383,13 +383,13 @@ void ClipReader::storeCachedFrame(drift::TimeUs ptsUs, const QImage &image)
         m_videoCache.removeLast();
 }
 
-bool ClipReader::lookupCachedNv12(drift::TimeUs sourceUs, Nv12Frame &out) const
+bool ClipReader::lookupCachedNv12(TonDron::TimeUs sourceUs, Nv12Frame &out) const
 {
-    const drift::TimeUs tolerance = frameToleranceUs();
-    drift::TimeUs bestDelta = tolerance + 1;
+    const TonDron::TimeUs tolerance = frameToleranceUs();
+    TonDron::TimeUs bestDelta = tolerance + 1;
     int bestIndex = -1;
     for (int i = 0; i < m_nv12Cache.size(); ++i) {
-        const drift::TimeUs delta = qAbs(m_nv12Cache.at(i).ptsUs - sourceUs);
+        const TonDron::TimeUs delta = qAbs(m_nv12Cache.at(i).ptsUs - sourceUs);
         if (delta <= tolerance && delta < bestDelta) {
             bestDelta = delta;
             bestIndex = i;
@@ -402,7 +402,7 @@ bool ClipReader::lookupCachedNv12(drift::TimeUs sourceUs, Nv12Frame &out) const
     return out.isValid();
 }
 
-void ClipReader::storeCachedNv12(drift::TimeUs ptsUs, const Nv12Frame &frame)
+void ClipReader::storeCachedNv12(TonDron::TimeUs ptsUs, const Nv12Frame &frame)
 {
     if (!frame.isValid())
         return;
@@ -446,10 +446,10 @@ void ClipReader::trimNv12Cache()
         // precisely the ones about to be shown. Frames behind the last requested
         // position go before any frame in front of it.
         int worst = 0;
-        drift::TimeUs worstRank = std::numeric_limits<drift::TimeUs>::min();
+        TonDron::TimeUs worstRank = std::numeric_limits<TonDron::TimeUs>::min();
         for (int i = 0; i < m_nv12Cache.size(); ++i) {
-            const drift::TimeUs delta = m_lastRequestedNv12Us - m_nv12Cache.at(i).ptsUs;
-            const drift::TimeUs rank = delta >= 0 ? delta + std::numeric_limits<qint32>::max() : -delta;
+            const TonDron::TimeUs delta = m_lastRequestedNv12Us - m_nv12Cache.at(i).ptsUs;
+            const TonDron::TimeUs rank = delta >= 0 ? delta + std::numeric_limits<qint32>::max() : -delta;
             if (rank > worstRank) {
                 worstRank = rank;
                 worst = i;
@@ -523,7 +523,7 @@ bool ClipReader::open(const QString &path)
         const AVRational rate = m_fmt->streams[m_videoStream]->avg_frame_rate;
         if (rate.num > 0 && rate.den > 0) {
             m_sourceFrameDurationUs =
-                static_cast<drift::TimeUs>(std::llround(drift::kUsPerSecond * double(rate.den) / rate.num));
+                static_cast<TonDron::TimeUs>(std::llround(TonDron::kUsPerSecond * double(rate.den) / rate.num));
         }
     }
 
@@ -603,12 +603,12 @@ bool ClipReader::tryOpenHardwareDecoder()
         return m_hwAccelActive;
 
     // Allow forcing software decode on broken VAAPI stacks.
-    if (qEnvironmentVariableIsSet("DRIFT_NO_VAAPI")) {
+    if (qEnvironmentVariableIsSet("TonDron_NO_VAAPI")) {
         m_hwAccelDisabled = true;
         return false;
     }
 
-    if (!qEnvironmentVariableIsSet("DRIFT_FORCE_VAAPI") && !hardwareDecodeIsWorthIt()) {
+    if (!qEnvironmentVariableIsSet("TonDron_FORCE_VAAPI") && !hardwareDecodeIsWorthIt()) {
         m_hwAccelDisabled = true;
         return false;
     }
@@ -900,7 +900,7 @@ bool ClipReader::ensureAudioDecoder()
     return true;
 }
 
-bool ClipReader::seekVideoStream(drift::TimeUs sourceUs)
+bool ClipReader::seekVideoStream(TonDron::TimeUs sourceUs)
 {
     if (!ensureVideoDecoder())
         return false;
@@ -917,7 +917,7 @@ bool ClipReader::seekVideoStream(drift::TimeUs sourceUs)
     return true;
 }
 
-bool ClipReader::seekAudioStream(drift::TimeUs sourceUs)
+bool ClipReader::seekAudioStream(TonDron::TimeUs sourceUs)
 {
     if (!ensureAudioDecoder())
         return false;
@@ -932,7 +932,7 @@ bool ClipReader::seekAudioStream(drift::TimeUs sourceUs)
     return true;
 }
 
-bool ClipReader::decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight,
+bool ClipReader::decodeVideoFrameAtOnce(TonDron::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight,
                                         bool *hwFailure)
 {
     if (hwFailure)
@@ -945,7 +945,7 @@ bool ClipReader::decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int
     if (lookupCachedFrame(sourceUs, out))
         return true;
 
-    const drift::TimeUs tolerance = frameToleranceUs();
+    const TonDron::TimeUs tolerance = frameToleranceUs();
     const bool needSeek = !m_videoPositioned || sourceUs < m_lastVideoPtsUs - tolerance
                           || sourceUs - m_lastVideoPtsUs > kForwardSeekThresholdUs;
     if (needSeek && !seekVideoStream(sourceUs))
@@ -962,8 +962,8 @@ bool ClipReader::decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int
     }
 
     const AVRational timeBase = m_fmt->streams[m_videoStream]->time_base;
-    drift::TimeUs bestDelta = INT64_MAX;
-    drift::TimeUs bestPtsUs = 0;
+    TonDron::TimeUs bestDelta = INT64_MAX;
+    TonDron::TimeUs bestPtsUs = 0;
     bool found = false;
     bool done = false;
     bool sawHwFailure = false;
@@ -991,9 +991,9 @@ bool ClipReader::decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int
                 break;
             }
 
-            const drift::TimeUs ptsUs = ptsToUs(frame, timeBase);
+            const TonDron::TimeUs ptsUs = ptsToUs(frame, timeBase);
             m_lastVideoPtsUs = ptsUs;
-            const drift::TimeUs delta = qAbs(ptsUs - sourceUs);
+            const TonDron::TimeUs delta = qAbs(ptsUs - sourceUs);
             // Keep a reference to the best frame and convert only once, after the
             // loop. Converting every frame between the keyframe and the target was
             // an sws_scale + full copy per frame of the GOP, all but one discarded.
@@ -1091,7 +1091,7 @@ bool ClipReader::decodeVideoFrameAtOnce(drift::TimeUs sourceUs, QImage &out, int
     return false;
 }
 
-bool ClipReader::readVideoFrameAt(drift::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight)
+bool ClipReader::readVideoFrameAt(TonDron::TimeUs sourceUs, QImage &out, int maxWidth, int maxHeight)
 {
     bool hwFailure = false;
     if (decodeVideoFrameAtOnce(sourceUs, out, maxWidth, maxHeight, &hwFailure))
@@ -1108,7 +1108,7 @@ bool ClipReader::readVideoFrameAt(drift::TimeUs sourceUs, QImage &out, int maxWi
     return decodeVideoFrameAtOnce(sourceUs, out, maxWidth, maxHeight, nullptr);
 }
 
-bool ClipReader::decodeVideoFrameAtOnceNv12(drift::TimeUs sourceUs, Nv12Frame &out, int maxWidth,
+bool ClipReader::decodeVideoFrameAtOnceNv12(TonDron::TimeUs sourceUs, Nv12Frame &out, int maxWidth,
                                             int maxHeight, bool *hwFailure)
 {
     if (hwFailure)
@@ -1121,7 +1121,7 @@ bool ClipReader::decodeVideoFrameAtOnceNv12(drift::TimeUs sourceUs, Nv12Frame &o
     if (lookupCachedNv12(sourceUs, out))
         return true;
 
-    const drift::TimeUs tolerance = frameToleranceUs();
+    const TonDron::TimeUs tolerance = frameToleranceUs();
     const bool needSeek = !m_videoPositioned || sourceUs < m_lastVideoPtsUs - tolerance
                           || sourceUs - m_lastVideoPtsUs > kForwardSeekThresholdUs;
     if (needSeek && !seekVideoStream(sourceUs))
@@ -1138,8 +1138,8 @@ bool ClipReader::decodeVideoFrameAtOnceNv12(drift::TimeUs sourceUs, Nv12Frame &o
     }
 
     const AVRational timeBase = m_fmt->streams[m_videoStream]->time_base;
-    drift::TimeUs bestDelta = INT64_MAX;
-    drift::TimeUs bestPtsUs = 0;
+    TonDron::TimeUs bestDelta = INT64_MAX;
+    TonDron::TimeUs bestPtsUs = 0;
     bool found = false;
     bool done = false;
     bool sawHwFailure = false;
@@ -1163,9 +1163,9 @@ bool ClipReader::decodeVideoFrameAtOnceNv12(drift::TimeUs sourceUs, Nv12Frame &o
                 break;
             }
 
-            const drift::TimeUs ptsUs = ptsToUs(frame, timeBase);
+            const TonDron::TimeUs ptsUs = ptsToUs(frame, timeBase);
             m_lastVideoPtsUs = ptsUs;
-            const drift::TimeUs delta = qAbs(ptsUs - sourceUs);
+            const TonDron::TimeUs delta = qAbs(ptsUs - sourceUs);
             if (delta < bestDelta) {
                 bestDelta = delta;
                 bestPtsUs = ptsUs;
@@ -1253,7 +1253,7 @@ bool ClipReader::decodeVideoFrameAtOnceNv12(drift::TimeUs sourceUs, Nv12Frame &o
     return false;
 }
 
-bool ClipReader::readVideoFrameAtNv12(drift::TimeUs sourceUs, Nv12Frame &out, int maxWidth, int maxHeight)
+bool ClipReader::readVideoFrameAtNv12(TonDron::TimeUs sourceUs, Nv12Frame &out, int maxWidth, int maxHeight)
 {
     if (!m_prefetching)
         m_lastRequestedNv12Us = sourceUs;
@@ -1280,11 +1280,11 @@ void ClipReader::prefetchNextVideoFrame(int maxWidth, int maxHeight)
     readVideoFrameAt(m_lastVideoPtsUs + m_sourceFrameDurationUs, ignored, maxWidth, maxHeight);
 }
 
-bool ClipReader::prefetchNextVideoFrameNv12(int maxWidth, int maxHeight, drift::TimeUs readAheadUs)
+bool ClipReader::prefetchNextVideoFrameNv12(int maxWidth, int maxHeight, TonDron::TimeUs readAheadUs)
 {
     // Sticky: the caller passes the current depth on every prefetch, so dropping
     // to 0 (playback stopped) shrinks the cache back on the next call.
-    m_readAheadUs = qMax<drift::TimeUs>(0, readAheadUs);
+    m_readAheadUs = qMax<TonDron::TimeUs>(0, readAheadUs);
     trimNv12Cache();
 
     if (!m_videoPositioned || m_sourceFrameDurationUs <= 0)
@@ -1294,7 +1294,7 @@ bool ClipReader::prefetchNextVideoFrameNv12(int maxWidth, int maxHeight, drift::
     // where it is, so walking by decoder position alone would ask for the same
     // frame forever once the walk reaches an earlier run's frames — which is
     // exactly what a backward seek into a buffered region sets up.
-    drift::TimeUs target = m_lastVideoPtsUs + m_sourceFrameDurationUs;
+    TonDron::TimeUs target = m_lastVideoPtsUs + m_sourceFrameDurationUs;
     Nv12Frame cached;
     while (target - m_lastRequestedNv12Us < m_readAheadUs && lookupCachedNv12(target, cached))
         target += m_sourceFrameDurationUs;
@@ -1310,7 +1310,7 @@ bool ClipReader::prefetchNextVideoFrameNv12(int maxWidth, int maxHeight, drift::
     return decoded && wantsMoreNv12ReadAhead();
 }
 
-int ClipReader::readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
+int ClipReader::readAudioInterleaved(TonDron::TimeUs sourceStartUs, int sampleCount, int outputSampleRate,
                                      float *interleavedStereoOut)
 {
     if (!interleavedStereoOut || sampleCount <= 0 || outputSampleRate <= 0)
@@ -1386,11 +1386,11 @@ int ClipReader::readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCoun
         }
 
         if (alignToStart) {
-            const drift::TimeUs framePtsUs = ptsToUs(frame, timeBase);
+            const TonDron::TimeUs framePtsUs = ptsToUs(frame, timeBase);
             m_audioNextPtsUs = framePtsUs;
             if (sourceStartUs > framePtsUs)
                 pendingDrop = static_cast<int>(((sourceStartUs - framePtsUs) * outputSampleRate)
-                                               / drift::kUsPerSecond);
+                                               / TonDron::kUsPerSecond);
             alignToStart = false;
         }
 
@@ -1407,7 +1407,7 @@ int ClipReader::readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCoun
             const int drop = qMin(pendingDrop, converted);
             offset = drop;
             pendingDrop -= drop;
-            m_audioNextPtsUs += static_cast<drift::TimeUs>(drop) * drift::kUsPerSecond / outputSampleRate;
+            m_audioNextPtsUs += static_cast<TonDron::TimeUs>(drop) * TonDron::kUsPerSecond / outputSampleRate;
         }
         for (int i = offset * 2; i < converted * 2; ++i)
             m_audioLeftover.append(scratch[i]);
@@ -1422,7 +1422,7 @@ int ClipReader::readAudioInterleaved(drift::TimeUs sourceStartUs, int sampleCoun
         std::memcpy(interleavedStereoOut, m_audioLeftover.constData(),
                     static_cast<size_t>(outFrames) * 2 * sizeof(float));
         m_audioLeftover.remove(0, outFrames * 2);
-        m_audioNextPtsUs += static_cast<drift::TimeUs>(outFrames) * drift::kUsPerSecond / outputSampleRate;
+        m_audioNextPtsUs += static_cast<TonDron::TimeUs>(outFrames) * TonDron::kUsPerSecond / outputSampleRate;
     }
     return outFrames;
 }

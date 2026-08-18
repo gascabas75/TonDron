@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Compact style-pack selector for the properties Text tab: shows the active pack
 // and opens a popup grid to switch. Hand-edited styles (empty packId) show as Custom.

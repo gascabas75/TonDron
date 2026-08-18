@@ -7,7 +7,7 @@
 #include <QString>
 #include <QVariant>
 
-namespace drift {
+namespace TonDron {
 
 // Per-clip libavfilter effect with named parameters.
 struct Effect
@@ -38,4 +38,4 @@ struct Effect
     Effect resolvedAt(TimeUs clipTimeUs) const;
 };
 
-} // namespace drift
+} // namespace TonDron

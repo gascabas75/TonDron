@@ -7,7 +7,7 @@ TimelineModel::TimelineModel(QObject *parent)
 {
 }
 
-void TimelineModel::setProject(drift::Project *project)
+void TimelineModel::setProject(TonDron::Project *project)
 {
     m_project = project;
     refresh();
@@ -31,10 +31,10 @@ QVariant TimelineModel::data(const QModelIndex &index, int role) const
     if (!m_project || !index.isValid() || index.row() < 0 || index.row() >= m_project->tracks().size())
         return {};
 
-    const drift::Track &track = m_project->tracks().at(index.row());
+    const TonDron::Track &track = m_project->tracks().at(index.row());
     switch (role) {
     case TypeRole:
-        return drift::trackTypeToString(track.type);
+        return TonDron::trackTypeToString(track.type);
     case MutedRole:
         return track.muted;
     case HiddenRole:

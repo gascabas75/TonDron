@@ -45,4 +45,4 @@ void reloadFontCatalog(const QStringList &packageRoots = {});
 
 // Resolve a style to a concrete face at pixelSizePx. Falls through to the system font database for
 // families that are not in the catalog, so projects written before the bundle still render.
-QFont fontForStyle(const drift::TextStyle &style, int pixelSizePx);
+QFont fontForStyle(const TonDron::TextStyle &style, int pixelSizePx);

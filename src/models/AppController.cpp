@@ -206,10 +206,10 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
 
     m_undoStack.setUndoLimit(kMaxUndoSteps);
 
-    m_mcp = std::make_unique<drift::mcp::McpServer>(this);
-    connect(m_mcp.get(), &drift::mcp::McpServer::runningChanged, this,
+    m_mcp = std::make_unique<TonDron::mcp::McpServer>(this);
+    connect(m_mcp.get(), &TonDron::mcp::McpServer::runningChanged, this,
             &AppController::mcpRunningChanged);
-    connect(m_mcp.get(), &drift::mcp::McpServer::errorChanged, this, &AppController::mcpErrorChanged);
+    connect(m_mcp.get(), &TonDron::mcp::McpServer::errorChanged, this, &AppController::mcpErrorChanged);
     connect(&m_undoStack, &QUndoStack::indexChanged, this, &AppController::undoStackChanged);
     connect(&m_undoStack, &QUndoStack::indexChanged, this, [this] {
         m_timelineModel.refresh();
@@ -248,7 +248,7 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
     connect(&m_playback, &PlaybackEngine::playheadUsChanged, this, [this](quint64 us) {
         if (!m_playing)
             return;
-        const drift::TimeUs newUs = static_cast<drift::TimeUs>(us);
+        const TonDron::TimeUs newUs = static_cast<TonDron::TimeUs>(us);
         if (m_playheadUs == newUs)
             return;
         m_playheadUs = newUs;
@@ -314,7 +314,7 @@ AppController::AppController(AssetLibrary *assetLibrary, QObject *parent)
     });
     m_autosaveTimer->start();
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
-        // Remember the open project so opt-in reopen can load a clean .drift next launch.
+        // Remember the open project so opt-in reopen can load a clean .TonDron next launch.
         QSettings().setValue(QStringLiteral("lastSessionPath"), m_currentProjectPath);
         if (m_dirty)
             writeRecoveryFile();
@@ -339,7 +339,7 @@ void AppController::sweepExtractionDirs()
     for (const QVariant &entry : recentProjects()) {
         const QString path = entry.toMap().value(QStringLiteral("path")).toString();
         QString error;
-        if (const auto info = drift::bundle::readManifest(path, &error))
+        if (const auto info = TonDron::bundle::readManifest(path, &error))
             live.insert(info->projectId);
     }
 
@@ -363,11 +363,11 @@ bool faceTrackHasContours(const QString &path)
 {
     if (path.isEmpty())
         return false;
-    const auto track = drift::loadFaceTrackCached(path);
+    const auto track = TonDron::loadFaceTrackCached(path);
     if (!track)
         return false;
-    for (const drift::FaceTrackFrame &frame : track->frames) {
-        for (const drift::FaceAnchors &face : frame.faces) {
+    for (const TonDron::FaceTrackFrame &frame : track->frames) {
+        for (const TonDron::FaceAnchors &face : frame.faces) {
             if (face.valid)
                 return face.hasContours;
         }
@@ -375,23 +375,23 @@ bool faceTrackHasContours(const QString &path)
     return false;
 }
 
-QVariantMap transitionToMap(const drift::Track &track, const drift::Transition &t);
-QVariantMap maskToMap(const drift::Mask &m);
-drift::Mask maskFromMap(const QVariantMap &m);
+QVariantMap transitionToMap(const TonDron::Track &track, const TonDron::Transition &t);
+QVariantMap maskToMap(const TonDron::Mask &m);
+TonDron::Mask maskFromMap(const QVariantMap &m);
 
-int findTransitionPartnerIndex(const drift::Track &track, int fromIndex)
+int findTransitionPartnerIndex(const TonDron::Track &track, int fromIndex)
 {
     if (fromIndex < 0 || fromIndex >= track.clips.size())
         return -1;
 
-    const drift::Clip &fromClip = track.clips.at(fromIndex);
+    const TonDron::Clip &fromClip = track.clips.at(fromIndex);
     int best = -1;
-    drift::TimeUs bestStart = std::numeric_limits<drift::TimeUs>::max();
+    TonDron::TimeUs bestStart = std::numeric_limits<TonDron::TimeUs>::max();
     for (int i = 0; i < track.clips.size(); ++i) {
         if (i == fromIndex)
             continue;
-        const drift::Clip &candidate = track.clips.at(i);
-        if (!drift::clipsEligibleForTransition(fromClip, candidate))
+        const TonDron::Clip &candidate = track.clips.at(i);
+        if (!TonDron::clipsEligibleForTransition(fromClip, candidate))
             continue;
         if (candidate.timelineStart < bestStart) {
             bestStart = candidate.timelineStart;
@@ -401,15 +401,15 @@ int findTransitionPartnerIndex(const drift::Track &track, int fromIndex)
     return best;
 }
 
-bool trackAllowsTransitions(drift::TrackType type)
+bool trackAllowsTransitions(TonDron::TrackType type)
 {
-    return type == drift::TrackType::Video || type == drift::TrackType::Shape
-           || type == drift::TrackType::Text;
+    return type == TonDron::TrackType::Video || type == TonDron::TrackType::Shape
+           || type == TonDron::TrackType::Text;
 }
 
-void syncOverlapTransitions(drift::Project &project)
+void syncOverlapTransitions(TonDron::Project &project)
 {
-    for (drift::Track &track : project.tracks()) {
+    for (TonDron::Track &track : project.tracks()) {
         if (!trackAllowsTransitions(track.type))
             continue;
 
@@ -418,8 +418,8 @@ void syncOverlapTransitions(drift::Project &project)
         for (int i = 0; i < track.clips.size(); ++i)
             order.append(i);
         std::sort(order.begin(), order.end(), [&track](int a, int b) {
-            const drift::Clip &ca = track.clips.at(a);
-            const drift::Clip &cb = track.clips.at(b);
+            const TonDron::Clip &ca = track.clips.at(a);
+            const TonDron::Clip &cb = track.clips.at(b);
             if (ca.timelineStart != cb.timelineStart)
                 return ca.timelineStart < cb.timelineStart;
             return ca.id < cb.id;
@@ -428,17 +428,17 @@ void syncOverlapTransitions(drift::Project &project)
         for (int i = 0; i + 1 < order.size(); ++i) {
             const int fromIndex = order.at(i);
             const int toIndex = order.at(i + 1);
-            const drift::Clip &fromClip = track.clips.at(fromIndex);
-            const drift::Clip &toClip = track.clips.at(toIndex);
-            if (!drift::clipsPhysicallyOverlap(fromClip, toClip))
+            const TonDron::Clip &fromClip = track.clips.at(fromIndex);
+            const TonDron::Clip &toClip = track.clips.at(toIndex);
+            if (!TonDron::clipsPhysicallyOverlap(fromClip, toClip))
                 continue;
 
-            const drift::TimeUs overlapUs = drift::physicalOverlapDurationUs(fromClip, toClip);
-            if (overlapUs < drift::secondsToUs(0.05))
+            const TonDron::TimeUs overlapUs = TonDron::physicalOverlapDurationUs(fromClip, toClip);
+            if (overlapUs < TonDron::secondsToUs(0.05))
                 continue;
 
-            drift::Transition *existing = nullptr;
-            for (drift::Transition &transition : track.transitions) {
+            TonDron::Transition *existing = nullptr;
+            for (TonDron::Transition &transition : track.transitions) {
                 if (transition.fromClipId == fromClip.id && transition.toClipId == toClip.id) {
                     existing = &transition;
                     break;
@@ -450,7 +450,7 @@ void syncOverlapTransitions(drift::Project &project)
                 continue;
             }
 
-            drift::Transition transition;
+            TonDron::Transition transition;
             transition.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
             transition.fromClipId = fromClip.id;
             transition.toClipId = toClip.id;
@@ -460,10 +460,10 @@ void syncOverlapTransitions(drift::Project &project)
         }
 
         for (int i = track.transitions.size() - 1; i >= 0; --i) {
-            const drift::Transition &transition = track.transitions.at(i);
-            const drift::Clip *fromClip = drift::clipById(track, transition.fromClipId);
-            const drift::Clip *toClip = drift::clipById(track, transition.toClipId);
-            if (!fromClip || !toClip || !drift::clipsEligibleForTransition(*fromClip, *toClip))
+            const TonDron::Transition &transition = track.transitions.at(i);
+            const TonDron::Clip *fromClip = TonDron::clipById(track, transition.fromClipId);
+            const TonDron::Clip *toClip = TonDron::clipById(track, transition.toClipId);
+            if (!fromClip || !toClip || !TonDron::clipsEligibleForTransition(*fromClip, *toClip))
                 track.transitions.removeAt(i);
         }
     }
@@ -476,20 +476,20 @@ QVariantList AppController::tracks() const
     QVariantList result;
     result.reserve(m_project.tracks().size());
 
-    for (const drift::Track &track : m_project.tracks()) {
+    for (const TonDron::Track &track : m_project.tracks()) {
         QVariantList clips;
         clips.reserve(track.clips.size());
 
-        for (const drift::Clip &clip : track.clips)
+        for (const TonDron::Clip &clip : track.clips)
             clips.append(clipToMap(clip));
 
         QVariantList transitions;
         transitions.reserve(track.transitions.size());
-        for (const drift::Transition &transition : track.transitions)
+        for (const TonDron::Transition &transition : track.transitions)
             transitions.append(transitionToMap(track, transition));
 
         result.append(QVariantMap{
-            {QStringLiteral("type"), drift::trackTypeToString(track.type)},
+            {QStringLiteral("type"), TonDron::trackTypeToString(track.type)},
             {QStringLiteral("clips"), clips},
             {QStringLiteral("transitions"), transitions},
             {QStringLiteral("muted"), track.muted},
@@ -504,37 +504,37 @@ QVariantList AppController::tracks() const
 
 namespace {
 
-void applyTextAnimationPatch(drift::TextAnimation *anim, const QVariantMap &m)
+void applyTextAnimationPatch(TonDron::TextAnimation *anim, const QVariantMap &m)
 {
     if (m.isEmpty())
         return;
     if (m.contains(QStringLiteral("kind")))
-        anim->kind = drift::textAnimKindFromString(m.value(QStringLiteral("kind")).toString());
+        anim->kind = TonDron::textAnimKindFromString(m.value(QStringLiteral("kind")).toString());
     if (m.contains(QStringLiteral("duration")))
-        anim->durationUs = drift::secondsToUs(qBound(0.0, m.value(QStringLiteral("duration")).toDouble(), 10.0));
+        anim->durationUs = TonDron::secondsToUs(qBound(0.0, m.value(QStringLiteral("duration")).toDouble(), 10.0));
     if (m.contains(QStringLiteral("ease")))
-        anim->ease = drift::textEaseFromString(m.value(QStringLiteral("ease")).toString());
+        anim->ease = TonDron::textEaseFromString(m.value(QStringLiteral("ease")).toString());
     if (m.contains(QStringLiteral("unit")))
-        anim->unit = drift::textAnimUnitFromString(m.value(QStringLiteral("unit")).toString());
+        anim->unit = TonDron::textAnimUnitFromString(m.value(QStringLiteral("unit")).toString());
     if (m.contains(QStringLiteral("stagger")))
-        anim->staggerUs = drift::secondsToUs(qBound(0.0, m.value(QStringLiteral("stagger")).toDouble(), 2.0));
+        anim->staggerUs = TonDron::secondsToUs(qBound(0.0, m.value(QStringLiteral("stagger")).toDouble(), 2.0));
     if (m.contains(QStringLiteral("order")))
-        anim->order = drift::textAnimOrderFromString(m.value(QStringLiteral("order")).toString());
+        anim->order = TonDron::textAnimOrderFromString(m.value(QStringLiteral("order")).toString());
 }
 
-QVariantMap textAnimationToMap(const drift::TextAnimation &a)
+QVariantMap textAnimationToMap(const TonDron::TextAnimation &a)
 {
     return {
-        {QStringLiteral("kind"), drift::textAnimKindToString(a.kind)},
-        {QStringLiteral("duration"), drift::usToSeconds(a.durationUs)},
-        {QStringLiteral("ease"), drift::textEaseToString(a.ease)},
-        {QStringLiteral("unit"), drift::textAnimUnitToString(a.unit)},
-        {QStringLiteral("stagger"), drift::usToSeconds(a.staggerUs)},
-        {QStringLiteral("order"), drift::textAnimOrderToString(a.order)},
+        {QStringLiteral("kind"), TonDron::textAnimKindToString(a.kind)},
+        {QStringLiteral("duration"), TonDron::usToSeconds(a.durationUs)},
+        {QStringLiteral("ease"), TonDron::textEaseToString(a.ease)},
+        {QStringLiteral("unit"), TonDron::textAnimUnitToString(a.unit)},
+        {QStringLiteral("stagger"), TonDron::usToSeconds(a.staggerUs)},
+        {QStringLiteral("order"), TonDron::textAnimOrderToString(a.order)},
     };
 }
 
-QVariantMap textHighlightToMap(const drift::TextHighlight &h)
+QVariantMap textHighlightToMap(const TonDron::TextHighlight &h)
 {
     return {
         {QStringLiteral("enabled"), h.enabled},
@@ -544,7 +544,7 @@ QVariantMap textHighlightToMap(const drift::TextHighlight &h)
     };
 }
 
-void applyTextHighlightPatch(drift::TextHighlight *highlight, const QVariantMap &m)
+void applyTextHighlightPatch(TonDron::TextHighlight *highlight, const QVariantMap &m)
 {
     if (m.contains(QStringLiteral("enabled")))
         highlight->enabled = m.value(QStringLiteral("enabled")).toBool();
@@ -556,10 +556,10 @@ void applyTextHighlightPatch(drift::TextHighlight *highlight, const QVariantMap 
         highlight->radius = qMax(0.0, m.value(QStringLiteral("radius")).toDouble());
 }
 
-QVariantMap wordAccentToMap(const drift::WordAccent &a)
+QVariantMap wordAccentToMap(const TonDron::WordAccent &a)
 {
     return {
-        {QStringLiteral("rule"), drift::wordAccentRuleToString(a.rule)},
+        {QStringLiteral("rule"), TonDron::wordAccentRuleToString(a.rule)},
         {QStringLiteral("n"), a.n},
         {QStringLiteral("phase"), a.phase},
         {QStringLiteral("colorEnabled"), a.colorEnabled},
@@ -572,10 +572,10 @@ QVariantMap wordAccentToMap(const drift::WordAccent &a)
     };
 }
 
-void applyWordAccentPatch(drift::WordAccent *accent, const QVariantMap &m)
+void applyWordAccentPatch(TonDron::WordAccent *accent, const QVariantMap &m)
 {
     if (m.contains(QStringLiteral("rule")))
-        accent->rule = drift::wordAccentRuleFromString(m.value(QStringLiteral("rule")).toString());
+        accent->rule = TonDron::wordAccentRuleFromString(m.value(QStringLiteral("rule")).toString());
     if (m.contains(QStringLiteral("n")))
         accent->n = qBound(1, m.value(QStringLiteral("n")).toInt(), 16);
     if (m.contains(QStringLiteral("phase")))
@@ -595,7 +595,7 @@ void applyWordAccentPatch(drift::WordAccent *accent, const QVariantMap &m)
     applyTextHighlightPatch(&accent->highlight, m.value(QStringLiteral("highlight")).toMap());
 }
 
-QVariantMap textStyleToMap(const drift::TextStyle &s)
+QVariantMap textStyleToMap(const TonDron::TextStyle &s)
 {
     return {
         {QStringLiteral("packId"), s.packId},
@@ -604,8 +604,8 @@ QVariantMap textStyleToMap(const drift::TextStyle &s)
         {QStringLiteral("fontWeight"), s.fontWeight},
         {QStringLiteral("italic"), s.italic},
         {QStringLiteral("color"), s.color.name(QColor::HexArgb)},
-        {QStringLiteral("align"), drift::textAlignToString(s.align)},
-        {QStringLiteral("valign"), drift::textVAlignToString(s.valign)},
+        {QStringLiteral("align"), TonDron::textAlignToString(s.align)},
+        {QStringLiteral("valign"), TonDron::textVAlignToString(s.valign)},
         {QStringLiteral("wordWrap"), s.wordWrap},
         {QStringLiteral("lineHeight"), s.lineHeight},
         {QStringLiteral("letterSpacing"), s.letterSpacing},
@@ -637,48 +637,48 @@ QVariantMap textStyleToMap(const drift::TextStyle &s)
     };
 }
 
-QVariantList subtitleCuesToMap(const QList<drift::SubtitleCue> &cues)
+QVariantList subtitleCuesToMap(const QList<TonDron::SubtitleCue> &cues)
 {
     QVariantList out;
-    for (const drift::SubtitleCue &cue : cues) {
+    for (const TonDron::SubtitleCue &cue : cues) {
         out.append(QVariantMap{
-            {QStringLiteral("start"), drift::usToSeconds(cue.startUs)},
-            {QStringLiteral("end"), drift::usToSeconds(cue.endUs)},
+            {QStringLiteral("start"), TonDron::usToSeconds(cue.startUs)},
+            {QStringLiteral("end"), TonDron::usToSeconds(cue.endUs)},
             {QStringLiteral("text"), cue.text},
         });
     }
     return out;
 }
 
-QList<drift::SubtitleCue> subtitleCuesFromMap(const QVariantList &list)
+QList<TonDron::SubtitleCue> subtitleCuesFromMap(const QVariantList &list)
 {
-    QList<drift::SubtitleCue> cues;
+    QList<TonDron::SubtitleCue> cues;
     cues.reserve(list.size());
     for (const QVariant &value : list) {
         const QVariantMap map = value.toMap();
-        drift::SubtitleCue cue;
-        cue.startUs = drift::secondsToUs(map.value(QStringLiteral("start")).toDouble());
-        cue.endUs = drift::secondsToUs(map.value(QStringLiteral("end")).toDouble());
+        TonDron::SubtitleCue cue;
+        cue.startUs = TonDron::secondsToUs(map.value(QStringLiteral("start")).toDouble());
+        cue.endUs = TonDron::secondsToUs(map.value(QStringLiteral("end")).toDouble());
         cue.text = map.value(QStringLiteral("text")).toString();
         cues.append(cue);
     }
-    drift::sortSubtitleCues(cues);
+    TonDron::sortSubtitleCues(cues);
     return cues;
 }
 
-constexpr drift::TimeUs kDefaultSubtitleCueDurationUs = 3 * drift::kUsPerSecond;
+constexpr TonDron::TimeUs kDefaultSubtitleCueDurationUs = 3 * TonDron::kUsPerSecond;
 
-QVariantMap shapeStyleToMap(const drift::ShapeStyle &s)
+QVariantMap shapeStyleToMap(const TonDron::ShapeStyle &s)
 {
     return {
-        {QStringLiteral("kind"), drift::shapeKindToString(s.kind)},
-        {QStringLiteral("fillKind"), drift::shapeFillKindToString(s.fillKind)},
+        {QStringLiteral("kind"), TonDron::shapeKindToString(s.kind)},
+        {QStringLiteral("fillKind"), TonDron::shapeFillKindToString(s.fillKind)},
         {QStringLiteral("fill"), s.fill.name(QColor::HexArgb)},
         {QStringLiteral("fillSecondary"), s.fillSecondary.name(QColor::HexArgb)},
         {QStringLiteral("gradientAngle"), s.gradientAngle},
         {QStringLiteral("stroke"), s.stroke.name(QColor::HexArgb)},
         {QStringLiteral("strokeWidth"), s.strokeWidth},
-        {QStringLiteral("strokeStyle"), drift::shapeStrokeStyleToString(s.strokeStyle)},
+        {QStringLiteral("strokeStyle"), TonDron::shapeStrokeStyleToString(s.strokeStyle)},
         {QStringLiteral("cornerRadius"), s.cornerRadius},
         {QStringLiteral("points"), s.points},
         {QStringLiteral("innerRatio"), s.innerRatio},
@@ -689,14 +689,14 @@ QVariantMap shapeStyleToMap(const drift::ShapeStyle &s)
     };
 }
 
-QVariantMap maskToMap(const drift::Mask &m)
+QVariantMap maskToMap(const TonDron::Mask &m)
 {
     QVariantList points;
     for (const QPointF &pt : m.points)
         points.append(QVariantList{pt.x(), pt.y()});
 
     return {
-        {QStringLiteral("shape"), drift::maskShapeToString(m.shape)},
+        {QStringLiteral("shape"), TonDron::maskShapeToString(m.shape)},
         {QStringLiteral("x"), m.x},
         {QStringLiteral("y"), m.y},
         {QStringLiteral("w"), m.w},
@@ -708,10 +708,10 @@ QVariantMap maskToMap(const drift::Mask &m)
     };
 }
 
-drift::Mask maskFromMap(const QVariantMap &m)
+TonDron::Mask maskFromMap(const QVariantMap &m)
 {
-    drift::Mask mask;
-    mask.shape = drift::maskShapeFromString(m.value(QStringLiteral("shape")).toString());
+    TonDron::Mask mask;
+    mask.shape = TonDron::maskShapeFromString(m.value(QStringLiteral("shape")).toString());
     mask.x = m.value(QStringLiteral("x"), mask.x).toDouble();
     mask.y = m.value(QStringLiteral("y"), mask.y).toDouble();
     mask.w = m.value(QStringLiteral("w"), mask.w).toDouble();
@@ -728,15 +728,15 @@ drift::Mask maskFromMap(const QVariantMap &m)
     return mask;
 }
 
-QVariantMap transitionToMap(const drift::Track &track, const drift::Transition &t)
+QVariantMap transitionToMap(const TonDron::Track &track, const TonDron::Transition &t)
 {
-    drift::TimeUs startUs = 0;
-    drift::TimeUs endUs = 0;
-    const bool hasWindow = drift::transitionWindow(track, t, startUs, endUs);
-    const drift::Clip *fromClip = drift::clipById(track, t.fromClipId);
-    const drift::Clip *toClip = drift::clipById(track, t.toClipId);
-    const bool overlapping = fromClip && toClip && drift::clipsPhysicallyOverlap(*fromClip, *toClip);
-    const drift::TimeUs durationUs = hasWindow ? (endUs - startUs) : t.durationUs;
+    TonDron::TimeUs startUs = 0;
+    TonDron::TimeUs endUs = 0;
+    const bool hasWindow = TonDron::transitionWindow(track, t, startUs, endUs);
+    const TonDron::Clip *fromClip = TonDron::clipById(track, t.fromClipId);
+    const TonDron::Clip *toClip = TonDron::clipById(track, t.toClipId);
+    const bool overlapping = fromClip && toClip && TonDron::clipsPhysicallyOverlap(*fromClip, *toClip);
+    const TonDron::TimeUs durationUs = hasWindow ? (endUs - startUs) : t.durationUs;
 
     const TransitionPresetEntry *def = transitionDefForId(t.kindId);
 
@@ -744,7 +744,7 @@ QVariantMap transitionToMap(const drift::Track &track, const drift::Transition &
     QVariantList params;
     if (def) {
         const QMap<QString, QVariant> resolved = resolvedTransitionParameters(t, *def);
-        for (const drift::EffectParamSpec &p : def->meta.parameters) {
+        for (const TonDron::EffectParamSpec &p : def->meta.parameters) {
             params.append(QVariantMap{
                 {QStringLiteral("key"), p.key},
                 {QStringLiteral("label"), p.label},
@@ -763,53 +763,53 @@ QVariantMap transitionToMap(const drift::Track &track, const drift::Transition &
         {QStringLiteral("fromClipId"), t.fromClipId},
         {QStringLiteral("toClipId"), t.toClipId},
         {QStringLiteral("kind"), t.kindId},
-        {QStringLiteral("duration"), drift::usToSeconds(durationUs)},
-        {QStringLiteral("start"), hasWindow ? drift::usToSeconds(startUs) : 0.0},
-        {QStringLiteral("end"), hasWindow ? drift::usToSeconds(endUs) : 0.0},
+        {QStringLiteral("duration"), TonDron::usToSeconds(durationUs)},
+        {QStringLiteral("start"), hasWindow ? TonDron::usToSeconds(startUs) : 0.0},
+        {QStringLiteral("end"), hasWindow ? TonDron::usToSeconds(endUs) : 0.0},
         {QStringLiteral("overlapping"), overlapping},
         {QStringLiteral("label"), def ? def->meta.displayName : t.kindId},
         {QStringLiteral("params"), params},
     };
 }
 
-bool isSyntheticTimelineClip(drift::ClipType type)
+bool isSyntheticTimelineClip(TonDron::ClipType type)
 {
-    return type == drift::ClipType::Text || type == drift::ClipType::Subtitle
-           || type == drift::ClipType::Shape || type == drift::ClipType::Image;
+    return type == TonDron::ClipType::Text || type == TonDron::ClipType::Subtitle
+           || type == TonDron::ClipType::Shape || type == TonDron::ClipType::Image;
 }
 
-drift::TimeUs syntheticClipMaxDurationUs()
+TonDron::TimeUs syntheticClipMaxDurationUs()
 {
-    return drift::secondsToUs(300.0);
+    return TonDron::secondsToUs(300.0);
 }
 
-void syncSyntheticSourceRange(drift::Clip &clip)
+void syncSyntheticSourceRange(TonDron::Clip &clip)
 {
     clip.srcIn = 0;
     clip.srcOut = qMin(clip.sourceSpanUs(), syntheticClipMaxDurationUs());
 }
 
-bool clipAcceptsPreviewTransform(const drift::Clip &clip)
+bool clipAcceptsPreviewTransform(const TonDron::Clip &clip)
 {
-    return clip.type == drift::ClipType::Shape || clip.type == drift::ClipType::Image
-           || clip.type == drift::ClipType::Text || clip.type == drift::ClipType::Subtitle
-           || clip.type == drift::ClipType::Video;
+    return clip.type == TonDron::ClipType::Shape || clip.type == TonDron::ClipType::Image
+           || clip.type == TonDron::ClipType::Text || clip.type == TonDron::ClipType::Subtitle
+           || clip.type == TonDron::ClipType::Video;
 }
 
-double clipTransformValue(const drift::KeyframeTrack<double> &track, drift::TimeUs relative, double defaultValue)
+double clipTransformValue(const TonDron::KeyframeTrack<double> &track, TonDron::TimeUs relative, double defaultValue)
 {
     if (track.isEmpty())
         return defaultValue;
     return track.evaluateAt(relative);
 }
 
-drift::ShapeStyle shapeStyleForKind(const QString &shapeId)
+TonDron::ShapeStyle shapeStyleForKind(const QString &shapeId)
 {
-    if (const drift::ShapeCatalogEntry *entry = drift::shapeCatalogEntry(shapeId))
+    if (const TonDron::ShapeCatalogEntry *entry = TonDron::shapeCatalogEntry(shapeId))
         return entry->style;
 
-    drift::ShapeStyle style;
-    style.kind = drift::shapeKindFromString(shapeId);
+    TonDron::ShapeStyle style;
+    style.kind = TonDron::shapeKindFromString(shapeId);
     return style;
 }
 
@@ -832,7 +832,7 @@ bool parseEffectProp(const QString &prop, int *effectIndex, QString *paramKey)
     return true;
 }
 
-drift::KeyframeTrack<double> *transformTrackForProp(drift::Clip &clip, const QString &prop)
+TonDron::KeyframeTrack<double> *transformTrackForProp(TonDron::Clip &clip, const QString &prop)
 {
     if (prop == QStringLiteral("opacity"))
         return &clip.opacity;
@@ -853,7 +853,7 @@ drift::KeyframeTrack<double> *transformTrackForProp(drift::Clip &clip, const QSt
 
 // createIfMissing must stay false on read paths: an effect param's track is created lazily, and
 // QMap::operator[] would otherwise insert an empty one into the project behind a const accessor.
-drift::KeyframeTrack<double> *keyframeTrackForProp(drift::Clip &clip, const QString &prop,
+TonDron::KeyframeTrack<double> *keyframeTrackForProp(TonDron::Clip &clip, const QString &prop,
                                                    bool createIfMissing)
 {
     int effectIndex = -1;
@@ -864,13 +864,13 @@ drift::KeyframeTrack<double> *keyframeTrackForProp(drift::Clip &clip, const QStr
     if (effectIndex >= clip.effects.size())
         return nullptr;
 
-    drift::Effect &effect = clip.effects[effectIndex];
+    TonDron::Effect &effect = clip.effects[effectIndex];
 
     // Colour params are not animatable: the track type is double all the way down. Refusing here
     // as well as withholding the `prop` in effectToMap means a hand-edited project cannot conjure
     // one either.
     if (const EffectPresetEntry *def = effectDefForId(effect.catalogId)) {
-        for (const drift::EffectParamSpec &spec : def->meta.parameters) {
+        for (const TonDron::EffectParamSpec &spec : def->meta.parameters) {
             if (spec.key == paramKey && spec.isColor())
                 return nullptr;
         }
@@ -882,9 +882,9 @@ drift::KeyframeTrack<double> *keyframeTrackForProp(drift::Clip &clip, const QStr
     return it == effect.paramKeyframes.end() ? nullptr : &it.value();
 }
 
-const drift::KeyframeTrack<double> *keyframeTrackForProp(const drift::Clip &clip, const QString &prop)
+const TonDron::KeyframeTrack<double> *keyframeTrackForProp(const TonDron::Clip &clip, const QString &prop)
 {
-    return keyframeTrackForProp(const_cast<drift::Clip &>(clip), prop, /*createIfMissing=*/false);
+    return keyframeTrackForProp(const_cast<TonDron::Clip &>(clip), prop, /*createIfMissing=*/false);
 }
 
 // Well-formed enough to keep in the keyframe-strip selection. Effect params can't be validated
@@ -895,7 +895,7 @@ bool isKnownKeyframeProp(const QString &prop)
     QString paramKey;
     if (parseEffectProp(prop, &effectIndex, &paramKey))
         return true;
-    drift::Clip probe;
+    TonDron::Clip probe;
     return transformTrackForProp(probe, prop) != nullptr;
 }
 
@@ -908,13 +908,13 @@ QString normalizeKeyframeProp(const QString &prop)
     return trimmed.startsWith(QLatin1String("fx.")) ? trimmed : trimmed.toLower();
 }
 
-constexpr drift::TimeUs kKeyframeToleranceUs = drift::kUsPerSecond / 30;
+constexpr TonDron::TimeUs kKeyframeToleranceUs = TonDron::kUsPerSecond / 30;
 
 // force=true (diamond click) always writes. Otherwise auto-key or an existing
 // key at/near the playhead is required. Empty tracks get a constant key at 0
 // when auto-key is off so static layout edits still work; a track with a single
 // key retargets that key from anywhere so single-keyframe clips still edit freely.
-bool writeKeyframeValue(drift::KeyframeTrack<double> &track, drift::TimeUs relative, double value,
+bool writeKeyframeValue(TonDron::KeyframeTrack<double> &track, TonDron::TimeUs relative, double value,
                         bool autoKey, bool force)
 {
     // With the animation switched off the property reads as its first key, so that is the key an
@@ -935,7 +935,7 @@ bool writeKeyframeValue(drift::KeyframeTrack<double> &track, drift::TimeUs relat
         track.setKeyframe(track.keyframes().firstKey(), value);
         return true;
     }
-    const drift::TimeUs nearest = track.nearestKeyframe(relative, kKeyframeToleranceUs);
+    const TonDron::TimeUs nearest = track.nearestKeyframe(relative, kKeyframeToleranceUs);
     if (nearest < 0)
         return false;
     track.setKeyframe(nearest, value);
@@ -951,20 +951,20 @@ bool writeKeyframeValue(drift::KeyframeTrack<double> &track, drift::TimeUs relat
 // diamond click (force) or with auto-key on; otherwise the write lands on the static value. Keyed
 // params mirror into the static value too, so deleting the last key leaves the param where the
 // user last put it rather than snapping back to the catalog default.
-bool writeClipPropValue(drift::Clip &clip, const QString &prop, drift::TimeUs relative, double value,
+bool writeClipPropValue(TonDron::Clip &clip, const QString &prop, TonDron::TimeUs relative, double value,
                         bool autoKey, bool force)
 {
     int effectIndex = -1;
     QString paramKey;
     if (!parseEffectProp(prop, &effectIndex, &paramKey)) {
-        drift::KeyframeTrack<double> *kt = transformTrackForProp(clip, prop);
+        TonDron::KeyframeTrack<double> *kt = transformTrackForProp(clip, prop);
         return kt && writeKeyframeValue(*kt, relative, value, autoKey, force);
     }
 
     if (effectIndex >= clip.effects.size())
         return false;
 
-    drift::Effect &effect = clip.effects[effectIndex];
+    TonDron::Effect &effect = clip.effects[effectIndex];
     const auto existing = effect.paramKeyframes.constFind(paramKey);
     const bool keyed = existing != effect.paramKeyframes.constEnd() && !existing->isEmpty();
     if (!keyed && !force && !autoKey) {
@@ -977,30 +977,30 @@ bool writeClipPropValue(drift::Clip &clip, const QString &prop, drift::TimeUs re
     return true;
 }
 
-QVariantList keyframeListToVariant(const drift::KeyframeTrack<double> &track, drift::TimeUs timelineStart)
+QVariantList keyframeListToVariant(const TonDron::KeyframeTrack<double> &track, TonDron::TimeUs timelineStart)
 {
     QVariantList out;
     for (auto it = track.keyframes().constBegin(); it != track.keyframes().constEnd(); ++it) {
-        const drift::Keyframe<double> &key = it.value();
+        const TonDron::Keyframe<double> &key = it.value();
         // Handle dx reaches QML in seconds, matching `seconds`, so the curve editor can work
         // in one unit throughout instead of converting on every drag.
         out.append(QVariantMap{
-            {QStringLiteral("seconds"), drift::usToSeconds(timelineStart + it.key())},
+            {QStringLiteral("seconds"), TonDron::usToSeconds(timelineStart + it.key())},
             {QStringLiteral("value"), key.value},
-            {QStringLiteral("inDx"), drift::usToSeconds(static_cast<drift::TimeUs>(key.inDx))},
+            {QStringLiteral("inDx"), TonDron::usToSeconds(static_cast<TonDron::TimeUs>(key.inDx))},
             {QStringLiteral("inDy"), key.inDy},
-            {QStringLiteral("outDx"), drift::usToSeconds(static_cast<drift::TimeUs>(key.outDx))},
+            {QStringLiteral("outDx"), TonDron::usToSeconds(static_cast<TonDron::TimeUs>(key.outDx))},
             {QStringLiteral("outDy"), key.outDy},
             {QStringLiteral("corner"), key.corner},
             {QStringLiteral("hold"), key.hold},
-            {QStringLiteral("easing"), drift::interpolationToString(track.easingAt(it.key()))},
+            {QStringLiteral("easing"), TonDron::interpolationToString(track.easingAt(it.key()))},
             {QStringLiteral("custom"), track.hasCustomTangents(it.key())},
         });
     }
     return out;
 }
 
-QVariantMap keyframeTrackToMap(const drift::KeyframeTrack<double> &track, drift::TimeUs timelineStart)
+QVariantMap keyframeTrackToMap(const TonDron::KeyframeTrack<double> &track, TonDron::TimeUs timelineStart)
 {
     // `interpolation` is per-key now and travels inside each point; the map keeps its shape so
     // the inspector's bindings do not all have to change at once.
@@ -1011,12 +1011,12 @@ QVariantMap keyframeTrackToMap(const drift::KeyframeTrack<double> &track, drift:
 
 // `effectIndex` and `timelineStart` are only needed to describe the params' keyframe tracks: the
 // inspector addresses them as "fx.<index>.<key>", and key times are reported on the timeline.
-QVariantMap effectToMap(const drift::Effect &effect, int effectIndex, drift::TimeUs timelineStart)
+QVariantMap effectToMap(const TonDron::Effect &effect, int effectIndex, TonDron::TimeUs timelineStart)
 {
     const EffectPresetEntry *def = effectDefForId(effect.catalogId);
     QVariantList params;
     if (def) {
-        for (const drift::EffectParamSpec &paramDef : def->meta.parameters) {
+        for (const TonDron::EffectParamSpec &paramDef : def->meta.parameters) {
             QVariant value = effect.parameters.value(paramDef.key);
             if (!value.isValid())
                 value = paramDef.defaultVariant();
@@ -1055,12 +1055,12 @@ QVariantMap effectToMap(const drift::Effect &effect, int effectIndex, drift::Tim
 }
 
 // Audio effects use the same per-instance shape as video effects, but read from the audio catalog.
-QVariantMap audioEffectToMap(const drift::Effect &effect)
+QVariantMap audioEffectToMap(const TonDron::Effect &effect)
 {
     const AudioEffectEntry *def = audioEffectDefForId(effect.catalogId);
     QVariantList params;
     if (def) {
-        for (const drift::EffectParamSpec &paramDef : def->parameters) {
+        for (const TonDron::EffectParamSpec &paramDef : def->parameters) {
             QVariant value = effect.parameters.value(paramDef.key);
             if (!value.isValid()) {
                 value = paramDef.defaultVariant();
@@ -1087,7 +1087,7 @@ QVariantMap audioEffectToMap(const drift::Effect &effect)
     };
 }
 
-QVariantMap keyframesToMap(const drift::Clip &clip)
+QVariantMap keyframesToMap(const TonDron::Clip &clip)
 {
     return {
         {QStringLiteral("opacity"), keyframeTrackToMap(clip.opacity, clip.timelineStart)},
@@ -1104,17 +1104,17 @@ QVariantMap keyframesToMap(const drift::Clip &clip)
 // sliding against the picture. Both clips cover the same source range, so each key is carried
 // across through the moment of source it was sitting on.
 template<typename T>
-void remapKeyframeTrack(drift::KeyframeTrack<T> &dst, const drift::KeyframeTrack<T> &src,
-                        const drift::Clip &from, const drift::Clip &to)
+void remapKeyframeTrack(TonDron::KeyframeTrack<T> &dst, const TonDron::KeyframeTrack<T> &src,
+                        const TonDron::Clip &from, const TonDron::Clip &to)
 {
     if (src.isEmpty())
         return;
 
-    const drift::TimeUs span = from.srcOut - from.srcIn;
-    drift::KeyframeTrack<T> out;
+    const TonDron::TimeUs span = from.srcOut - from.srcIn;
+    TonDron::KeyframeTrack<T> out;
     // Tangents travel inside each key, so remapping the times carries the shape with them.
     for (auto it = src.keyframes().constBegin(); it != src.keyframes().constEnd(); ++it) {
-        const drift::TimeUs sourceOffset =
+        const TonDron::TimeUs sourceOffset =
             from.hasSpeedCurve() ? from.speedCurve.sourceOffsetForTimelineOffset(it.key(), span)
                                  : from.sourceDeltaForTimelineDelta(it.key());
         out.setKeyframe(to.speedCurve.timelineOffsetForSourceOffset(sourceOffset, span), it.value());
@@ -1128,21 +1128,21 @@ void remapKeyframeTrack(drift::KeyframeTrack<T> &dst, const drift::KeyframeTrack
 // to be re-derived afterwards (syncDurationFromSpeedCurve) rather than simply shifted by delta.
 // Extending past an edge is outside anything the curve describes, so the rate at that end stands
 // in for it.
-drift::TimeUs trimSourceDelta(const drift::Clip &clip, drift::TimeUs delta, bool extending,
+TonDron::TimeUs trimSourceDelta(const TonDron::Clip &clip, TonDron::TimeUs delta, bool extending,
                               bool atTail)
 {
     if (!clip.hasSpeedCurve())
         return clip.sourceDeltaForTimelineDelta(delta);
 
-    const drift::TimeUs span = clip.srcOut - clip.srcIn;
+    const TonDron::TimeUs span = clip.srcOut - clip.srcIn;
     if (extending) {
         const double edgeSpeed = clip.speedCurve.speedAt(atTail ? 1.0 : 0.0);
-        return static_cast<drift::TimeUs>(llround(static_cast<double>(delta) * edgeSpeed));
+        return static_cast<TonDron::TimeUs>(llround(static_cast<double>(delta) * edgeSpeed));
     }
     return clip.speedCurve.sourceOffsetForTimelineOffset(delta, span);
 }
 
-void remapKeyframesForRetime(drift::Clip &dst, const drift::Clip &src)
+void remapKeyframesForRetime(TonDron::Clip &dst, const TonDron::Clip &src)
 {
     remapKeyframeTrack(dst.opacity, src.opacity, src, dst);
     remapKeyframeTrack(dst.transformX, src.transformX, src, dst);
@@ -1153,13 +1153,13 @@ void remapKeyframesForRetime(drift::Clip &dst, const drift::Clip &src)
     remapKeyframeTrack(dst.volume, src.volume, src, dst);
 
     for (int i = 0; i < dst.effects.size() && i < src.effects.size(); ++i) {
-        const QMap<QString, drift::KeyframeTrack<double>> &srcParams = src.effects.at(i).paramKeyframes;
+        const QMap<QString, TonDron::KeyframeTrack<double>> &srcParams = src.effects.at(i).paramKeyframes;
         for (auto it = srcParams.constBegin(); it != srcParams.constEnd(); ++it)
             remapKeyframeTrack(dst.effects[i].paramKeyframes[it.key()], it.value(), src, dst);
     }
 }
 
-void setClipLayoutPixels(drift::Clip &clip, double x, double y, double w, double h)
+void setClipLayoutPixels(TonDron::Clip &clip, double x, double y, double w, double h)
 {
     clip.transformX = {};
     clip.transformY = {};
@@ -1171,7 +1171,7 @@ void setClipLayoutPixels(drift::Clip &clip, double x, double y, double w, double
     clip.transformH.setKeyframe(0, qMax(1.0, h));
 }
 
-void fitClipLayoutToCanvas(drift::Clip &clip, int mediaW, int mediaH, int canvasW, int canvasH)
+void fitClipLayoutToCanvas(TonDron::Clip &clip, int mediaW, int mediaH, int canvasW, int canvasH)
 {
     canvasW = qMax(1, canvasW);
     canvasH = qMax(1, canvasH);
@@ -1183,7 +1183,7 @@ void fitClipLayoutToCanvas(drift::Clip &clip, int mediaW, int mediaH, int canvas
     setClipLayoutPixels(clip, 0, 0, mediaW * scale, mediaH * scale);
 }
 
-void applyAssetLayout(drift::Clip &clip, const QVariantMap &asset, int canvasW, int canvasH)
+void applyAssetLayout(TonDron::Clip &clip, const QVariantMap &asset, int canvasW, int canvasH)
 {
     int mediaW = asset.value(QStringLiteral("width")).toInt();
     int mediaH = asset.value(QStringLiteral("height")).toInt();
@@ -1195,11 +1195,11 @@ void applyAssetLayout(drift::Clip &clip, const QVariantMap &asset, int canvasW, 
 
 // shapeAspect is the catalog's default width/height for the shape being added; a square shape must
 // get a square box, since every shape now simply fills its layout rect.
-void applyDefaultVisualLayout(drift::Clip &clip, int canvasW, int canvasH, double shapeAspect = 1.6)
+void applyDefaultVisualLayout(TonDron::Clip &clip, int canvasW, int canvasH, double shapeAspect = 1.6)
 {
     canvasW = qMax(1, canvasW);
     canvasH = qMax(1, canvasH);
-    if (clip.type == drift::ClipType::Shape) {
+    if (clip.type == TonDron::ClipType::Shape) {
         const double aspect = shapeAspect > 0.01 ? shapeAspect : 1.6;
         double h = canvasH * 0.30;
         double w = h * aspect;
@@ -1210,11 +1210,11 @@ void applyDefaultVisualLayout(drift::Clip &clip, int canvasW, int canvasH, doubl
         setClipLayoutPixels(clip, 0, 0, w, h);
         return;
     }
-    if (clip.type == drift::ClipType::Text) {
+    if (clip.type == TonDron::ClipType::Text) {
         setClipLayoutPixels(clip, 0, canvasH * 0.35, canvasW, canvasH * 0.30);
         return;
     }
-    if (clip.type == drift::ClipType::Subtitle) {
+    if (clip.type == TonDron::ClipType::Subtitle) {
         setClipLayoutPixels(clip, 0, canvasH * 0.78, canvasW, canvasH * 0.18);
         return;
     }
@@ -1223,9 +1223,9 @@ void applyDefaultVisualLayout(drift::Clip &clip, int canvasW, int canvasH, doubl
     setClipLayoutPixels(clip, 0, 0, side, side);
 }
 
-bool assetHasAudioStreams(const drift::Project &project, AssetLibrary *library, const QString &assetId)
+bool assetHasAudioStreams(const TonDron::Project &project, AssetLibrary *library, const QString &assetId)
 {
-    const drift::MediaAsset *asset = project.asset(assetId);
+    const TonDron::MediaAsset *asset = project.asset(assetId);
     if (!asset)
         return false;
 
@@ -1238,20 +1238,20 @@ bool assetHasAudioStreams(const drift::Project &project, AssetLibrary *library, 
     return false;
 }
 
-bool clipHasEmbeddedAudio(const drift::Project &project, AssetLibrary *library, const drift::Clip &clip)
+bool clipHasEmbeddedAudio(const TonDron::Project &project, AssetLibrary *library, const TonDron::Clip &clip)
 {
-    if (clip.type != drift::ClipType::Video || clip.suppressEmbeddedAudio || clip.path.isEmpty())
+    if (clip.type != TonDron::ClipType::Video || clip.suppressEmbeddedAudio || clip.path.isEmpty())
         return false;
     return assetHasAudioStreams(project, library, clip.assetId);
 }
 
-drift::Clip makeAudioCompanionFromVideo(const drift::Clip &videoClip, const QString &linkId = {})
+TonDron::Clip makeAudioCompanionFromVideo(const TonDron::Clip &videoClip, const QString &linkId = {})
 {
-    drift::Clip audio;
+    TonDron::Clip audio;
     audio.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     audio.linkId = linkId;
     audio.assetId = videoClip.assetId;
-    audio.type = drift::ClipType::Audio;
+    audio.type = TonDron::ClipType::Audio;
     audio.name = videoClip.name;
     audio.path = videoClip.path;
     audio.timelineStart = videoClip.timelineStart;
@@ -1271,7 +1271,7 @@ drift::Clip makeAudioCompanionFromVideo(const drift::Clip &videoClip, const QStr
 // Split embedded audio onto the audio track (video keeps picture only).
 // CapCut-style: the new audio clip stays linked to the video so they move together
 // until the user explicitly unlinks.
-bool detachEmbeddedAudioFromVideo(drift::Project &project, AssetLibrary *library, drift::Clip &videoClip)
+bool detachEmbeddedAudioFromVideo(TonDron::Project &project, AssetLibrary *library, TonDron::Clip &videoClip)
 {
     if (!clipHasEmbeddedAudio(project, library, videoClip))
         return false;
@@ -1282,22 +1282,22 @@ bool detachEmbeddedAudioFromVideo(drift::Project &project, AssetLibrary *library
     videoClip.linkId = linkId;
     videoClip.suppressEmbeddedAudio = true;
 
-    const int audioTrack = drift::ensureTrackForClipType(project, drift::ClipType::Audio, false);
+    const int audioTrack = TonDron::ensureTrackForClipType(project, TonDron::ClipType::Audio, false);
     project.tracks()[audioTrack].clips.append(makeAudioCompanionFromVideo(videoClip, linkId));
     return true;
 }
 
-QList<QPair<int, int>> selectionWithLinkedPartners(const drift::Project &project, int trackIndex, int clipIndex)
+QList<QPair<int, int>> selectionWithLinkedPartners(const TonDron::Project &project, int trackIndex, int clipIndex)
 {
     QList<QPair<int, int>> pairs;
     if (trackIndex < 0 || trackIndex >= project.tracks().size())
         return pairs;
-    const drift::Track &track = project.tracks().at(trackIndex);
+    const TonDron::Track &track = project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return pairs;
 
     pairs.append(qMakePair(trackIndex, clipIndex));
-    for (const drift::ClipRef &ref : drift::linkedPartners(project, track.clips.at(clipIndex))) {
+    for (const TonDron::ClipRef &ref : TonDron::linkedPartners(project, track.clips.at(clipIndex))) {
         const QPair<int, int> linked(ref.trackIndex, ref.clipIndex);
         if (!pairs.contains(linked))
             pairs.append(linked);
@@ -1305,57 +1305,57 @@ QList<QPair<int, int>> selectionWithLinkedPartners(const drift::Project &project
     return pairs;
 }
 
-void syncLinkedPartnersFrom(drift::Project &project, const drift::Clip &source,
+void syncLinkedPartnersFrom(TonDron::Project &project, const TonDron::Clip &source,
                             const QSet<QString> &skipClipIds = {})
 {
-    for (const drift::ClipRef &ref : drift::linkedPartners(project, source)) {
-        const drift::Clip &partner = project.tracks().at(ref.trackIndex).clips.at(ref.clipIndex);
+    for (const TonDron::ClipRef &ref : TonDron::linkedPartners(project, source)) {
+        const TonDron::Clip &partner = project.tracks().at(ref.trackIndex).clips.at(ref.clipIndex);
         if (skipClipIds.contains(partner.id))
             continue;
-        drift::syncLinkedTiming(project.tracks()[ref.trackIndex].clips[ref.clipIndex], source);
+        TonDron::syncLinkedTiming(project.tracks()[ref.trackIndex].clips[ref.clipIndex], source);
     }
 }
 
-void splitLinkedPartnerAt(drift::Project &project, const drift::Clip &sourceHead, drift::TimeUs playheadUs,
+void splitLinkedPartnerAt(TonDron::Project &project, const TonDron::Clip &sourceHead, TonDron::TimeUs playheadUs,
                           const QString &tailLinkId)
 {
     if (sourceHead.linkId.isEmpty())
         return;
 
-    for (const drift::ClipRef &ref : drift::linkedPartners(project, sourceHead)) {
-        drift::Track &track = project.tracks()[ref.trackIndex];
+    for (const TonDron::ClipRef &ref : TonDron::linkedPartners(project, sourceHead)) {
+        TonDron::Track &track = project.tracks()[ref.trackIndex];
         if (ref.clipIndex < 0 || ref.clipIndex >= track.clips.size())
             continue;
 
-        drift::Clip &partner = track.clips[ref.clipIndex];
+        TonDron::Clip &partner = track.clips[ref.clipIndex];
         if (!partner.containsTime(playheadUs) || playheadUs == partner.timelineStart)
             continue;
 
-        const drift::TimeUs offset = playheadUs - partner.timelineStart;
-        drift::Clip partnerTail;
-        if (!drift::splitClipAtOffset(partner, partnerTail, offset))
+        const TonDron::TimeUs offset = playheadUs - partner.timelineStart;
+        TonDron::Clip partnerTail;
+        if (!TonDron::splitClipAtOffset(partner, partnerTail, offset))
             continue;
 
         partnerTail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         if (!tailLinkId.isEmpty())
             partnerTail.linkId = tailLinkId;
         else
-            drift::assignSplitLinkIds(partner, partnerTail);
+            TonDron::assignSplitLinkIds(partner, partnerTail);
         track.clips.insert(ref.clipIndex + 1, partnerTail);
     }
 }
 
-void expandSelectionWithLinkedPartners(const drift::Project &project, QList<QPair<int, int>> &pairs)
+void expandSelectionWithLinkedPartners(const TonDron::Project &project, QList<QPair<int, int>> &pairs)
 {
     QList<QPair<int, int>> expanded = pairs;
     for (const QPair<int, int> &pair : pairs) {
         if (pair.first < 0 || pair.first >= project.tracks().size())
             continue;
-        const drift::Track &track = project.tracks().at(pair.first);
+        const TonDron::Track &track = project.tracks().at(pair.first);
         if (pair.second < 0 || pair.second >= track.clips.size())
             continue;
 
-        for (const drift::ClipRef &ref : drift::linkedPartners(project, track.clips.at(pair.second))) {
+        for (const TonDron::ClipRef &ref : TonDron::linkedPartners(project, track.clips.at(pair.second))) {
             const QPair<int, int> linked(ref.trackIndex, ref.clipIndex);
             if (!expanded.contains(linked))
                 expanded.append(linked);
@@ -1407,14 +1407,14 @@ QHash<QString, QString> defaultShortcuts()
 
 } // namespace
 
-QVariantMap AppController::clipToMap(const drift::Clip &clip) const
+QVariantMap AppController::clipToMap(const TonDron::Clip &clip) const
 {
     QVariantList effects;
     for (int i = 0; i < clip.effects.size(); ++i)
         effects.append(effectToMap(clip.effects.at(i), i, clip.timelineStart));
 
     QVariantList audioEffects;
-    for (const drift::Effect &effect : clip.audioEffects)
+    for (const TonDron::Effect &effect : clip.audioEffects)
         audioEffects.append(audioEffectToMap(effect));
 
     QVariantList fadeShape;
@@ -1427,20 +1427,20 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip) const
 
     // Full source length backs the filmstrip's timestamp mapping (the strip is sampled across
     // the whole source, so tiles need the total to place srcIn/srcOut within it).
-    const drift::MediaAsset *sourceAsset = m_project.asset(clip.assetId);
+    const TonDron::MediaAsset *sourceAsset = m_project.asset(clip.assetId);
 
     return {
         {QStringLiteral("id"), clip.id},
         {QStringLiteral("name"), clip.name},
         {QStringLiteral("path"), clip.path},
-        {QStringLiteral("kind"), drift::clipTypeToString(clip.type)},
+        {QStringLiteral("kind"), TonDron::clipTypeToString(clip.type)},
         {QStringLiteral("thumbnailPath"), clip.thumbnailPath},
         {QStringLiteral("filmstripPath"), clip.filmstripPath},
         {QStringLiteral("textContent"), clip.textContent},
         {QStringLiteral("textStyle"), textStyleToMap(clip.textStyle)},
         {QStringLiteral("subtitleCues"), subtitleCuesToMap(clip.subtitleCues)},
         {QStringLiteral("shapeStyle"), shapeStyleToMap(clip.shapeStyle)},
-        {QStringLiteral("blendMode"), drift::blendModeToString(clip.blendMode)},
+        {QStringLiteral("blendMode"), TonDron::blendModeToString(clip.blendMode)},
         {QStringLiteral("speed"), clip.speed},
         {QStringLiteral("hasSpeedCurve"), clip.hasSpeedCurve()},
         {QStringLiteral("reverse"), clip.reverse},
@@ -1449,30 +1449,30 @@ QVariantMap AppController::clipToMap(const drift::Clip &clip) const
         {QStringLiteral("mask"), maskToMap(clip.mask)},
         {QStringLiteral("hasFaceTrack"), !clip.faceTrackPath.isEmpty()},
         {QStringLiteral("faceTrackHasContours"), faceTrackHasContours(clip.faceTrackPath)},
-        {QStringLiteral("start"), drift::usToSeconds(clip.timelineStart)},
-        {QStringLiteral("duration"), drift::usToSeconds(clip.timelineDuration)},
-        {QStringLiteral("inPoint"), drift::usToSeconds(clip.srcIn)},
-        {QStringLiteral("outPoint"), drift::usToSeconds(clip.srcOut)},
-        {QStringLiteral("sourceDuration"), sourceAsset ? drift::usToSeconds(sourceAsset->durationUs) : 0.0},
+        {QStringLiteral("start"), TonDron::usToSeconds(clip.timelineStart)},
+        {QStringLiteral("duration"), TonDron::usToSeconds(clip.timelineDuration)},
+        {QStringLiteral("inPoint"), TonDron::usToSeconds(clip.srcIn)},
+        {QStringLiteral("outPoint"), TonDron::usToSeconds(clip.srcOut)},
+        {QStringLiteral("sourceDuration"), sourceAsset ? TonDron::usToSeconds(sourceAsset->durationUs) : 0.0},
         {QStringLiteral("assetId"), clip.assetId},
         {QStringLiteral("assetIndex"), assetIndexForClip(clip)},
         {QStringLiteral("linked"), !clip.linkId.isEmpty()},
         {QStringLiteral("volume"), clip.volume.isEmpty() ? 1.0 : clip.volume.evaluateAt(0)},
-        {QStringLiteral("fadeIn"), drift::usToSeconds(clip.fadeInUs)},
-        {QStringLiteral("fadeOut"), drift::usToSeconds(clip.fadeOutUs)},
-        {QStringLiteral("fadeCurve"), drift::fadeCurveToString(clip.fadeCurve)},
+        {QStringLiteral("fadeIn"), TonDron::usToSeconds(clip.fadeInUs)},
+        {QStringLiteral("fadeOut"), TonDron::usToSeconds(clip.fadeOutUs)},
+        {QStringLiteral("fadeCurve"), TonDron::fadeCurveToString(clip.fadeCurve)},
         {QStringLiteral("fadeShape"), fadeShape},
         {QStringLiteral("animIn"), QVariantMap{
-             {QStringLiteral("kind"), drift::clipAnimKindToString(clip.animIn.kind)},
-             {QStringLiteral("duration"), drift::usToSeconds(clip.animIn.durationUs)},
-             {QStringLiteral("ease"), drift::clipAnimEaseToString(clip.animIn.ease)},
-             {QStringLiteral("curve"), drift::fadeCurveToString(clip.animIn.curve)},
+             {QStringLiteral("kind"), TonDron::clipAnimKindToString(clip.animIn.kind)},
+             {QStringLiteral("duration"), TonDron::usToSeconds(clip.animIn.durationUs)},
+             {QStringLiteral("ease"), TonDron::clipAnimEaseToString(clip.animIn.ease)},
+             {QStringLiteral("curve"), TonDron::fadeCurveToString(clip.animIn.curve)},
          }},
         {QStringLiteral("animOut"), QVariantMap{
-             {QStringLiteral("kind"), drift::clipAnimKindToString(clip.animOut.kind)},
-             {QStringLiteral("duration"), drift::usToSeconds(clip.animOut.durationUs)},
-             {QStringLiteral("ease"), drift::clipAnimEaseToString(clip.animOut.ease)},
-             {QStringLiteral("curve"), drift::fadeCurveToString(clip.animOut.curve)},
+             {QStringLiteral("kind"), TonDron::clipAnimKindToString(clip.animOut.kind)},
+             {QStringLiteral("duration"), TonDron::usToSeconds(clip.animOut.durationUs)},
+             {QStringLiteral("ease"), TonDron::clipAnimEaseToString(clip.animOut.ease)},
+             {QStringLiteral("curve"), TonDron::fadeCurveToString(clip.animOut.curve)},
          }},
         {QStringLiteral("effects"), effects},
         {QStringLiteral("audioEffects"), audioEffects},
@@ -1489,8 +1489,8 @@ int AppController::clipCountForAsset(int assetIndex) const
         return 0;
 
     int count = 0;
-    for (const drift::Track &track : m_project.tracks()) {
-        for (const drift::Clip &clip : track.clips) {
+    for (const TonDron::Track &track : m_project.tracks()) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (clip.assetId == assetId)
                 ++count;
         }
@@ -1506,7 +1506,7 @@ bool AppController::removeAsset(int assetIndex)
     if (!m_assetLibrary || clipCountForAsset(assetIndex) > 0)
         return false;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     if (!m_assetLibrary->removeAssetAt(assetIndex))
         return false;
 
@@ -1530,7 +1530,7 @@ bool AppController::renameAsset(int assetIndex, const QString &name)
     if (current.isEmpty() || current.value(QStringLiteral("name")).toString() == trimmed)
         return false;
 
-    const drift::Project before = m_project.detachedCopy();
+    const TonDron::Project before = m_project.detachedCopy();
     if (!m_assetLibrary->setAssetName(assetIndex, trimmed))
         return false;
 
@@ -1583,7 +1583,7 @@ bool AppController::exportAssetImage(int assetIndex, const QUrl &url)
 
     const QVariantMap asset = m_assetLibrary->assetAt(assetIndex);
     if (asset.value(QStringLiteral("kind")).toString()
-        != drift::mediaKindToString(drift::MediaKind::Image)) {
+        != TonDron::mediaKindToString(TonDron::MediaKind::Image)) {
         return false;
     }
 
@@ -1621,7 +1621,7 @@ bool AppController::exportAssetImage(int assetIndex, const QUrl &url)
     return image.save(destPath, "PNG");
 }
 
-void AppController::finalizeAssetReplace(const QString &assetId, const drift::MediaAsset &filled,
+void AppController::finalizeAssetReplace(const QString &assetId, const TonDron::MediaAsset &filled,
                                          bool ok)
 {
     // The probe has landed, so the row stops being busy whatever the outcome below turns out to
@@ -1631,7 +1631,7 @@ void AppController::finalizeAssetReplace(const QString &assetId, const drift::Me
         emit replacingAssetIdChanged();
     }
 
-    const drift::MediaAsset *current = m_project.asset(assetId);
+    const TonDron::MediaAsset *current = m_project.asset(assetId);
     if (!current) {
         // The row was removed while the probe ran.
         emit assetReplaceFinished(false, tr("That media is no longer in this project."), 0);
@@ -1648,14 +1648,14 @@ void AppController::finalizeAssetReplace(const QString &assetId, const drift::Me
     if (filled.kind != current->kind) {
         emit assetReplaceFinished(false,
                                   tr("“%1” is %2, but this slot holds %3.")
-                                      .arg(filled.name, drift::mediaKindToString(filled.kind),
-                                           drift::mediaKindToString(current->kind)),
+                                      .arg(filled.name, TonDron::mediaKindToString(filled.kind),
+                                           TonDron::mediaKindToString(current->kind)),
                                   0);
         return;
     }
 
     const QString newName = filled.name;
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     if (!m_assetLibrary->applyProbedSource(assetId, filled)) {
         emit assetReplaceFinished(false, tr("That media is no longer in this project."), 0);
         return;
@@ -1667,11 +1667,11 @@ void AppController::finalizeAssetReplace(const QString &assetId, const drift::Me
     emit assetReplaceFinished(true, newName, adjusted);
 }
 
-int AppController::rebindClipsToAsset(const QString &assetId, const drift::MediaAsset &asset)
+int AppController::rebindClipsToAsset(const QString &assetId, const TonDron::MediaAsset &asset)
 {
     int adjusted = 0;
-    for (drift::Track &track : m_project.tracks()) {
-        for (drift::Clip &clip : track.clips) {
+    for (TonDron::Track &track : m_project.tracks()) {
+        for (TonDron::Clip &clip : track.clips) {
             if (clip.assetId != assetId)
                 continue;
 
@@ -1711,7 +1711,7 @@ int AppController::rebindClipsToAsset(const QString &assetId, const drift::Media
     return adjusted;
 }
 
-int AppController::assetIndexForClip(const drift::Clip &clip) const
+int AppController::assetIndexForClip(const TonDron::Clip &clip) const
 {
     if (clip.assetId.isEmpty())
         return -1;
@@ -1720,12 +1720,12 @@ int AppController::assetIndexForClip(const drift::Clip &clip) const
 
 double AppController::playheadSeconds() const
 {
-    return drift::usToSeconds(m_playheadUs);
+    return TonDron::usToSeconds(m_playheadUs);
 }
 
 double AppController::durationSeconds() const
 {
-    return drift::usToSeconds(m_project.durationUs());
+    return TonDron::usToSeconds(m_project.durationUs());
 }
 
 QString AppController::projectName() const
@@ -1741,8 +1741,8 @@ QVariantMap AppController::selectedClipData() const
     auto enrich = [this](QVariantMap data, int trackIndex, int clipIndex) -> QVariantMap {
         if (data.isEmpty() || !isValidClipIndex(trackIndex, clipIndex))
             return data;
-        const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
-        const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+        const TonDron::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+        const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
         data.insert(QStringLiteral("rotationAtPlayhead"),
                     clipTransformValue(clip.rotation, relative, 0.0));
         return data;
@@ -1830,9 +1830,9 @@ QVariantList AppController::actions() const
     };
 }
 
-void AppController::setPlayheadUs(drift::TimeUs us)
+void AppController::setPlayheadUs(TonDron::TimeUs us)
 {
-    const drift::TimeUs clamped = qBound<drift::TimeUs>(0, us, qMax(m_project.durationUs(), drift::TimeUs{0}));
+    const TonDron::TimeUs clamped = qBound<TonDron::TimeUs>(0, us, qMax(m_project.durationUs(), TonDron::TimeUs{0}));
     if (m_playheadUs == clamped)
         return;
 
@@ -1845,7 +1845,7 @@ void AppController::setPlayheadUs(drift::TimeUs us)
 
 void AppController::setPlayheadSeconds(double seconds)
 {
-    setPlayheadUs(drift::secondsToUs(seconds));
+    setPlayheadUs(TonDron::secondsToUs(seconds));
 }
 
 void AppController::setPlaying(bool playing)
@@ -1855,10 +1855,10 @@ void AppController::setPlaying(bool playing)
 
     m_playing = playing;
     if (m_playing) {
-        const drift::TimeUs durationUs = m_project.durationUs();
+        const TonDron::TimeUs durationUs = m_project.durationUs();
         if (m_loopWorkAreaEnabled && m_project.hasWorkArea()) {
-            const drift::TimeUs loopIn = m_project.workAreaInUs();
-            const drift::TimeUs loopOut = m_project.workAreaOutUs();
+            const TonDron::TimeUs loopIn = m_project.workAreaInUs();
+            const TonDron::TimeUs loopOut = m_project.workAreaOutUs();
             if (m_playheadUs >= loopOut || m_playheadUs < loopIn)
                 setPlayheadUs(loopIn);
         } else if (m_playheadUs >= durationUs && durationUs > 0) {
@@ -1887,14 +1887,14 @@ void AppController::stepFrames(int frames)
     // the stepped position on its next tick.
     setPlaying(false);
 
-    const drift::TimeUs step = drift::frameDurationUs(projectFps());
+    const TonDron::TimeUs step = TonDron::frameDurationUs(projectFps());
     const int64_t frame = (m_playheadUs + step / 2) / step;
     setPlayheadUs((frame + frames) * step);
 }
 
 void AppController::jumpSeconds(double seconds)
 {
-    setPlayheadUs(m_playheadUs + drift::secondsToUs(seconds));
+    setPlayheadUs(m_playheadUs + TonDron::secondsToUs(seconds));
 }
 
 int AppController::keyboardModifiers() const
@@ -2020,7 +2020,7 @@ void AppController::installUiTranslators()
     if (locale.language() == QLocale::English)
         return;
 
-    if (g_appTranslator.load(locale, QStringLiteral("drift"), QStringLiteral("_"), QStringLiteral(":/i18n")))
+    if (g_appTranslator.load(locale, QStringLiteral("TonDron"), QStringLiteral("_"), QStringLiteral(":/i18n")))
         app->installTranslator(&g_appTranslator);
 }
 
@@ -2040,11 +2040,11 @@ QVariantList AppController::uiLanguages() const
 
     QStringList codes;
     const QDir dir(QStringLiteral(":/i18n"));
-    const QStringList files = dir.entryList({QStringLiteral("drift_*.qm")}, QDir::Files);
+    const QStringList files = dir.entryList({QStringLiteral("TonDron_*.qm")}, QDir::Files);
     for (const QString &file : files) {
-        if (!file.startsWith(QStringLiteral("drift_")) || !file.endsWith(QStringLiteral(".qm")))
+        if (!file.startsWith(QStringLiteral("TonDron_")) || !file.endsWith(QStringLiteral(".qm")))
             continue;
-        const QString code = file.mid(6, file.size() - 9); // strip drift_ and .qm
+        const QString code = file.mid(6, file.size() - 9); // strip TonDron_ and .qm
         if (code.isEmpty() || code.compare(QStringLiteral("en"), Qt::CaseInsensitive) == 0)
             continue;
         if (!codes.contains(code))
@@ -2265,7 +2265,7 @@ QString AppController::imageUrl(const QString &path) const
 {
     if (path.isEmpty())
         return {};
-    return QStringLiteral("image://drift/") + QString::fromUtf8(QUrl::toPercentEncoding(path));
+    return QStringLiteral("image://TonDron/") + QString::fromUtf8(QUrl::toPercentEncoding(path));
 }
 
 QString AppController::filmstripFrameUrl(const QString &path, int frame, int count) const
@@ -2285,25 +2285,25 @@ QString AppController::filmstripTileUrl(const QString &path, int level, double i
 
 double AppController::snapTime(double seconds) const
 {
-    return drift::usToSeconds(drift::snapTime(m_project, drift::secondsToUs(seconds), m_snapEnabled,
+    return TonDron::usToSeconds(TonDron::snapTime(m_project, TonDron::secondsToUs(seconds), m_snapEnabled,
                                               m_playheadUs, extraSnapTargets()));
 }
 
-drift::TimeUs AppController::clipDurationForAssetIndex(int assetIndex) const
+TonDron::TimeUs AppController::clipDurationForAssetIndex(int assetIndex) const
 {
     if (!m_assetLibrary)
-        return drift::kImageClipDurationUs;
-    return drift::clipDurationForAsset(m_project.asset(m_assetLibrary->assetIdAt(assetIndex)));
+        return TonDron::kImageClipDurationUs;
+    return TonDron::clipDurationForAsset(m_project.asset(m_assetLibrary->assetIdAt(assetIndex)));
 }
 
-drift::TimeUs AppController::sourceDurationForClip(const drift::Clip &clip) const
+TonDron::TimeUs AppController::sourceDurationForClip(const TonDron::Clip &clip) const
 {
-    return drift::sourceDurationForClip(m_project, clip);
+    return TonDron::sourceDurationForClip(m_project, clip);
 }
 
 QVariantMap AppController::clipAt(int trackIndex, int clipIndex) const
 {
-    const QList<drift::Track> &tracks = m_project.tracks();
+    const QList<TonDron::Track> &tracks = m_project.tracks();
     if (trackIndex < 0 || trackIndex >= tracks.size())
         return {};
     if (clipIndex < 0 || clipIndex >= tracks[trackIndex].clips.size())
@@ -2315,11 +2315,11 @@ QVariantMap AppController::clipAt(int trackIndex, int clipIndex) const
 QVariantMap AppController::activeVideoClipAtPlayhead() const
 {
     QVariantMap result;
-    for (const drift::Track &track : m_project.tracks()) {
-        if (track.type != drift::TrackType::Video || track.hidden)
+    for (const TonDron::Track &track : m_project.tracks()) {
+        if (track.type != TonDron::TrackType::Video || track.hidden)
             continue;
 
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (clip.containsTime(m_playheadUs))
                 result = clipToMap(clip);
         }
@@ -2330,11 +2330,11 @@ QVariantMap AppController::activeVideoClipAtPlayhead() const
 QVariantMap AppController::activeAudioClipAtPlayhead() const
 {
     QVariantMap result;
-    for (const drift::Track &track : m_project.tracks()) {
-        if (track.type != drift::TrackType::Audio || track.muted || track.hidden)
+    for (const TonDron::Track &track : m_project.tracks()) {
+        if (track.type != TonDron::TrackType::Audio || track.muted || track.hidden)
             continue;
 
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             if (clip.containsTime(m_playheadUs))
                 result = clipToMap(clip);
         }
@@ -2363,11 +2363,11 @@ double AppController::sourceTimeAtPlayhead() const
     return sourceTimeForClip(activeVideoClipAtPlayhead());
 }
 
-void AppController::pushProjectEdit(const drift::Project &before, const QString &text)
+void AppController::pushProjectEdit(const TonDron::Project &before, const QString &text)
 {
     if (m_mcpUndoSuspended)
         return;
-    m_undoStack.push(new drift::ProjectSnapshotCommand(&m_project, before, m_project, text));
+    m_undoStack.push(new TonDron::ProjectSnapshotCommand(&m_project, before, m_project, text));
 }
 
 void AppController::finishEdit(const QString &message)
@@ -2403,13 +2403,13 @@ void AppController::finishEdit(const QString &message)
     ++m_mcpEditRevision;
 }
 
-void AppController::applyRippleShift(drift::Track &track, int fromClipIndex, drift::TimeUs delta)
+void AppController::applyRippleShift(TonDron::Track &track, int fromClipIndex, TonDron::TimeUs delta)
 {
     if (!m_rippleEnabled || delta == 0)
         return;
 
     for (int i = fromClipIndex + 1; i < track.clips.size(); ++i)
-        track.clips[i].timelineStart = qMax<drift::TimeUs>(0, track.clips[i].timelineStart + delta);
+        track.clips[i].timelineStart = qMax<TonDron::TimeUs>(0, track.clips[i].timelineStart + delta);
 }
 
 void AppController::addClipFromAsset(int assetIndex)
@@ -2419,25 +2419,25 @@ void AppController::addClipFromAsset(int assetIndex)
         return;
 
     const QString kind = asset.value(QStringLiteral("kind")).toString();
-    const drift::ClipType clipType = drift::clipTypeFromString(kind);
-    const drift::Project before = m_project;
-    int trackIndex = drift::defaultTrackForClipType(m_project, clipType);
+    const TonDron::ClipType clipType = TonDron::clipTypeFromString(kind);
+    const TonDron::Project before = m_project;
+    int trackIndex = TonDron::defaultTrackForClipType(m_project, clipType);
     if (trackIndex < 0)
-        trackIndex = drift::ensureTrackForClipType(m_project, clipType, false);
+        trackIndex = TonDron::ensureTrackForClipType(m_project, clipType, false);
 
     m_assetLibrary->ensureMedia(assetIndex);
     const QString thumbnailPath = m_assetLibrary->thumbnailAt(assetIndex);
     const QString filmstripPath = m_assetLibrary->filmstripAt(assetIndex);
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (!track.allowsClipType(clipType))
         return;
 
-    const drift::TimeUs duration = clipDurationForAssetIndex(assetIndex);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, m_playheadUs, duration, m_snapEnabled,
+    const TonDron::TimeUs duration = clipDurationForAssetIndex(assetIndex);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, m_playheadUs, duration, m_snapEnabled,
                                                         m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     clip.assetId = m_assetLibrary->assetIdAt(assetIndex);
     clip.type = clipType;
@@ -2466,7 +2466,7 @@ bool AppController::trackAcceptsAsset(int trackIndex, int assetIndex) const
     if (asset.isEmpty())
         return false;
 
-    const drift::ClipType clipType = drift::clipTypeFromString(asset.value(QStringLiteral("kind")).toString());
+    const TonDron::ClipType clipType = TonDron::clipTypeFromString(asset.value(QStringLiteral("kind")).toString());
     return m_project.tracks().at(trackIndex).allowsClipType(clipType);
 }
 
@@ -2479,8 +2479,8 @@ QString AppController::trackTypeForAsset(int assetIndex) const
     if (asset.isEmpty())
         return QStringLiteral("video");
 
-    const drift::ClipType clipType = drift::clipTypeFromString(asset.value(QStringLiteral("kind")).toString());
-    return drift::trackTypeToString(drift::trackTypeForClipType(clipType));
+    const TonDron::ClipType clipType = TonDron::clipTypeFromString(asset.value(QStringLiteral("kind")).toString());
+    return TonDron::trackTypeToString(TonDron::trackTypeForClipType(clipType));
 }
 
 void AppController::addClipFromAssetOnNewTrack(int assetIndex, double atSeconds)
@@ -2497,20 +2497,20 @@ void AppController::addClipFromAssetOnNewTrackAt(int assetIndex, int insertIndex
     if (asset.isEmpty())
         return;
 
-    const drift::ClipType clipType = drift::clipTypeFromString(asset.value(QStringLiteral("kind")).toString());
-    const drift::Project before = m_project;
-    const int trackIndex = drift::insertTrackAboveForClipType(m_project, insertIndex, clipType);
+    const TonDron::ClipType clipType = TonDron::clipTypeFromString(asset.value(QStringLiteral("kind")).toString());
+    const TonDron::Project before = m_project;
+    const int trackIndex = TonDron::insertTrackAboveForClipType(m_project, insertIndex, clipType);
 
     m_assetLibrary->ensureMedia(assetIndex);
     const QString thumbnailPath = m_assetLibrary->thumbnailAt(assetIndex);
     const QString filmstripPath = m_assetLibrary->filmstripAt(assetIndex);
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::TimeUs duration = clipDurationForAssetIndex(assetIndex);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, drift::secondsToUs(atSeconds),
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::TimeUs duration = clipDurationForAssetIndex(assetIndex);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, TonDron::secondsToUs(atSeconds),
                                                         duration, m_snapEnabled, m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     clip.assetId = m_assetLibrary->assetIdAt(assetIndex);
     clip.type = clipType;
@@ -2543,18 +2543,18 @@ void AppController::addClipFromAssetAt(int assetIndex, int trackIndex, double at
     const QString thumbnailPath = m_assetLibrary->thumbnailAt(assetIndex);
     const QString filmstripPath = m_assetLibrary->filmstripAt(assetIndex);
     const QString kind = asset.value(QStringLiteral("kind")).toString();
-    const drift::ClipType clipType = drift::clipTypeFromString(kind);
+    const TonDron::ClipType clipType = TonDron::clipTypeFromString(kind);
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (!track.allowsClipType(clipType))
         return;
 
-    const drift::Project before = m_project;
-    const drift::TimeUs duration = clipDurationForAssetIndex(assetIndex);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, drift::secondsToUs(atSeconds),
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs duration = clipDurationForAssetIndex(assetIndex);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, TonDron::secondsToUs(atSeconds),
                                                         duration, m_snapEnabled, m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     clip.assetId = m_assetLibrary->assetIdAt(assetIndex);
     clip.type = clipType;
@@ -2668,7 +2668,7 @@ void AppController::deleteSelectedClip()
     if (m_selection.isEmpty())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     QList<QPair<int, int>> pairs = m_selection;
     expandSelectionWithLinkedPartners(m_project, pairs);
     QSet<QString> removedClipIds;
@@ -2683,9 +2683,9 @@ void AppController::deleteSelectedClip()
         removedClipIds.insert(m_project.tracks().at(pair.first).clips.at(pair.second).id);
         m_project.tracks()[pair.first].clips.removeAt(pair.second);
     }
-    for (drift::Track &track : m_project.tracks()) {
+    for (TonDron::Track &track : m_project.tracks()) {
         for (int i = track.transitions.size() - 1; i >= 0; --i) {
-            const drift::Transition &transition = track.transitions.at(i);
+            const TonDron::Transition &transition = track.transitions.at(i);
             if (removedClipIds.contains(transition.fromClipId) || removedClipIds.contains(transition.toClipId))
                 track.transitions.removeAt(i);
         }
@@ -2700,39 +2700,39 @@ void AppController::moveClip(int trackIndex, int clipIndex, double newStart)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
     const QPair<int, int> requested(trackIndex, clipIndex);
     QList<QPair<int, int>> targets = m_selection.contains(requested) ? m_selection
                                                                       : QList<QPair<int, int>>{requested};
-    const drift::Project before = m_project;
-    const drift::TimeUs desiredUs = drift::secondsToUs(newStart);
-    const drift::TimeUs baseUs = m_project.tracks().at(trackIndex).clips.at(clipIndex).timelineStart;
-    const drift::TimeUs delta = desiredUs - baseUs;
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs desiredUs = TonDron::secondsToUs(newStart);
+    const TonDron::TimeUs baseUs = m_project.tracks().at(trackIndex).clips.at(clipIndex).timelineStart;
+    const TonDron::TimeUs delta = desiredUs - baseUs;
     QSet<QString> movedIds;
     for (const QPair<int, int> &pair : targets) {
         if (!isValidClipIndex(pair.first, pair.second))
             continue;
-        drift::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
-        clip.timelineStart = qMax<drift::TimeUs>(0, clip.timelineStart + delta);
+        TonDron::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
+        clip.timelineStart = qMax<TonDron::TimeUs>(0, clip.timelineStart + delta);
         movedIds.insert(clip.id);
     }
     if (!m_allowClipOverlap) {
         for (const QPair<int, int> &pair : targets) {
             if (!isValidClipIndex(pair.first, pair.second))
                 continue;
-            drift::Track &targetTrack = m_project.tracks()[pair.first];
-            drift::Clip &clip = targetTrack.clips[pair.second];
-            clip.timelineStart = drift::clampClipStartNoOverlap(targetTrack, movedIds, clip.timelineStart,
+            TonDron::Track &targetTrack = m_project.tracks()[pair.first];
+            TonDron::Clip &clip = targetTrack.clips[pair.second];
+            clip.timelineStart = TonDron::clampClipStartNoOverlap(targetTrack, movedIds, clip.timelineStart,
                                                                 clip.timelineDuration);
         }
     }
     for (const QPair<int, int> &pair : targets) {
         if (!isValidClipIndex(pair.first, pair.second))
             continue;
-        const drift::Clip &clip = m_project.tracks().at(pair.first).clips.at(pair.second);
+        const TonDron::Clip &clip = m_project.tracks().at(pair.first).clips.at(pair.second);
         syncLinkedPartnersFrom(m_project, clip, movedIds);
     }
     pushProjectEdit(before, tr("Clip moved"));
@@ -2741,13 +2741,13 @@ void AppController::moveClip(int trackIndex, int clipIndex, double newStart)
 
 void AppController::splitAtPlayhead()
 {
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     bool splitAny = false;
     QSet<QString> handledLinkIds;
 
-    for (drift::Track &track : m_project.tracks()) {
+    for (TonDron::Track &track : m_project.tracks()) {
         for (int clipIndex = 0; clipIndex < track.clips.size(); ++clipIndex) {
-            drift::Clip &clip = track.clips[clipIndex];
+            TonDron::Clip &clip = track.clips[clipIndex];
             if (!clip.containsTime(m_playheadUs))
                 continue;
             if (m_playheadUs == clip.timelineStart)
@@ -2755,13 +2755,13 @@ void AppController::splitAtPlayhead()
             if (!clip.linkId.isEmpty() && handledLinkIds.contains(clip.linkId))
                 continue;
 
-            const drift::TimeUs offset = m_playheadUs - clip.timelineStart;
-            drift::Clip tail;
-            if (!drift::splitClipAtOffset(clip, tail, offset))
+            const TonDron::TimeUs offset = m_playheadUs - clip.timelineStart;
+            TonDron::Clip tail;
+            if (!TonDron::splitClipAtOffset(clip, tail, offset))
                 continue;
 
             tail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-            const QString tailLinkId = drift::assignSplitLinkIds(clip, tail);
+            const QString tailLinkId = TonDron::assignSplitLinkIds(clip, tail);
             if (!clip.linkId.isEmpty())
                 handledLinkIds.insert(clip.linkId);
             splitLinkedPartnerAt(m_project, clip, m_playheadUs, tailLinkId);
@@ -2784,23 +2784,23 @@ void AppController::splitClipAt(int trackIndex, int clipIndex, double seconds)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs atUs = drift::secondsToUs(seconds);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs atUs = TonDron::secondsToUs(seconds);
     if (!clip.containsTime(atUs) || atUs == clip.timelineStart)
         return;
 
-    const drift::Project before = m_project;
-    const drift::TimeUs offset = atUs - clip.timelineStart;
-    drift::Clip tail;
-    if (!drift::splitClipAtOffset(clip, tail, offset))
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs offset = atUs - clip.timelineStart;
+    TonDron::Clip tail;
+    if (!TonDron::splitClipAtOffset(clip, tail, offset))
         return;
 
     tail.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    const QString tailLinkId = drift::assignSplitLinkIds(clip, tail);
+    const QString tailLinkId = TonDron::assignSplitLinkIds(clip, tail);
     splitLinkedPartnerAt(m_project, clip, atUs, tailLinkId);
     track.clips.insert(clipIndex + 1, tail);
 
@@ -2813,20 +2813,20 @@ void AppController::splitClipLeftAt(int trackIndex, int clipIndex, double second
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs atUs = drift::secondsToUs(seconds);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs atUs = TonDron::secondsToUs(seconds);
     if (!clip.containsTime(atUs) || atUs == clip.timelineStart)
         return;
 
-    const drift::TimeUs offset = atUs - clip.timelineStart;
-    const drift::Project before = m_project;
+    const TonDron::TimeUs offset = atUs - clip.timelineStart;
+    const TonDron::Project before = m_project;
 
-    drift::Clip right;
-    if (!drift::splitClipAtOffset(clip, right, offset))
+    TonDron::Clip right;
+    if (!TonDron::splitClipAtOffset(clip, right, offset))
         return;
 
     right.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -2848,21 +2848,21 @@ void AppController::splitClipRightAt(int trackIndex, int clipIndex, double secon
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs atUs = drift::secondsToUs(seconds);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs atUs = TonDron::secondsToUs(seconds);
     if (!clip.containsTime(atUs))
         return;
 
-    const drift::TimeUs offset = atUs - clip.timelineStart;
-    const drift::Project before = m_project;
-    const drift::TimeUs oldDuration = clip.timelineDuration;
+    const TonDron::TimeUs offset = atUs - clip.timelineStart;
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs oldDuration = clip.timelineDuration;
 
-    drift::Clip discardedTail;
-    if (!drift::splitClipAtOffset(clip, discardedTail, offset))
+    TonDron::Clip discardedTail;
+    if (!TonDron::splitClipAtOffset(clip, discardedTail, offset))
         return;
 
     // Keep only the left half — everything right of the cut is dropped.
@@ -2877,31 +2877,31 @@ void AppController::trimClipLeft(int trackIndex, int clipIndex, double newStart)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::TimeUs snappedStart = drift::snapTime(m_project, drift::secondsToUs(newStart), m_snapEnabled,
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::TimeUs snappedStart = TonDron::snapTime(m_project, TonDron::secondsToUs(newStart), m_snapEnabled,
                                                  m_playheadUs, extraSnapTargets());
     // Extending left can create a new overlap; clamp against neighbors when overlap is off.
     if (!m_allowClipOverlap && snappedStart < clip.timelineStart) {
         const QSet<QString> exclude{clip.id};
-        snappedStart = drift::clampClipStartAgainstLeftNeighbors(track, exclude, clip.timelineStart,
+        snappedStart = TonDron::clampClipStartAgainstLeftNeighbors(track, exclude, clip.timelineStart,
                                                                  snappedStart);
     }
-    const drift::TimeUs delta = snappedStart - clip.timelineStart;
+    const TonDron::TimeUs delta = snappedStart - clip.timelineStart;
     if (delta == 0)
         return;
 
     if (isSyntheticTimelineClip(clip.type)) {
         if (delta > 0) {
-            if (clip.timelineDuration - delta < drift::kMinClipDurationUs)
+            if (clip.timelineDuration - delta < TonDron::kMinClipDurationUs)
                 return;
             clip.timelineStart += delta;
             clip.timelineDuration -= delta;
         } else {
-            const drift::TimeUs extendBy = -delta;
+            const TonDron::TimeUs extendBy = -delta;
             if (clip.timelineDuration + extendBy > syntheticClipMaxDurationUs())
                 return;
             clip.timelineStart = snappedStart;
@@ -2910,7 +2910,7 @@ void AppController::trimClipLeft(int trackIndex, int clipIndex, double newStart)
         // Cue times are relative to the clip's timeline start, so they have to travel with it or
         // every subtitle would slide by the trim amount. Cues pushed outside the clip keep their
         // (possibly negative) offsets so dragging the edge back restores them.
-        for (drift::SubtitleCue &cue : clip.subtitleCues) {
+        for (TonDron::SubtitleCue &cue : clip.subtitleCues) {
             cue.startUs -= delta;
             cue.endUs -= delta;
         }
@@ -2922,15 +2922,15 @@ void AppController::trimClipLeft(int trackIndex, int clipIndex, double newStart)
     }
 
     if (delta > 0) {
-        if (clip.timelineDuration - delta < drift::kMinClipDurationUs)
+        if (clip.timelineDuration - delta < TonDron::kMinClipDurationUs)
             return;
-        const drift::TimeUs sourceDelta = trimSourceDelta(clip, delta, false, false);
+        const TonDron::TimeUs sourceDelta = trimSourceDelta(clip, delta, false, false);
         if (sourceDelta <= 0)
             return;
         if (clip.reverse) {
-            if (clip.srcOut <= clip.srcIn + sourceDelta + drift::kMinClipDurationUs)
+            if (clip.srcOut <= clip.srcIn + sourceDelta + TonDron::kMinClipDurationUs)
                 return;
-        } else if (clip.srcIn + sourceDelta > clip.srcOut - drift::kMinClipDurationUs) {
+        } else if (clip.srcIn + sourceDelta > clip.srcOut - TonDron::kMinClipDurationUs) {
             return;
         }
 
@@ -2941,10 +2941,10 @@ void AppController::trimClipLeft(int trackIndex, int clipIndex, double newStart)
         else
             clip.srcIn += sourceDelta;
     } else {
-        const drift::TimeUs extendBy = -delta;
-        const drift::TimeUs sourceExtend = trimSourceDelta(clip, extendBy, true, clip.reverse);
+        const TonDron::TimeUs extendBy = -delta;
+        const TonDron::TimeUs sourceExtend = trimSourceDelta(clip, extendBy, true, clip.reverse);
         if (clip.reverse) {
-            const drift::TimeUs maxSource = sourceDurationForClip(clip);
+            const TonDron::TimeUs maxSource = sourceDurationForClip(clip);
             if (clip.srcOut + sourceExtend > maxSource)
                 return;
             clip.timelineStart = snappedStart;
@@ -2971,37 +2971,37 @@ void AppController::trimClipRight(int trackIndex, int clipIndex, double newEnd)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::TimeUs snappedEnd = drift::snapTime(m_project, drift::secondsToUs(newEnd), m_snapEnabled,
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::TimeUs snappedEnd = TonDron::snapTime(m_project, TonDron::secondsToUs(newEnd), m_snapEnabled,
                                                m_playheadUs, extraSnapTargets());
     if (!m_allowClipOverlap && snappedEnd > clip.timelineEnd()) {
         const QSet<QString> exclude{clip.id};
-        snappedEnd = drift::clampClipEndNoOverlap(track, exclude, clip.timelineEnd(), snappedEnd);
+        snappedEnd = TonDron::clampClipEndNoOverlap(track, exclude, clip.timelineEnd(), snappedEnd);
     }
-    drift::TimeUs newDuration = snappedEnd - clip.timelineStart;
+    TonDron::TimeUs newDuration = snappedEnd - clip.timelineStart;
 
     const bool syntheticVisual = isSyntheticTimelineClip(clip.type);
-    const drift::TimeUs maxSource = sourceDurationForClip(clip);
-    const drift::TimeUs maxSourceSpan =
+    const TonDron::TimeUs maxSource = sourceDurationForClip(clip);
+    const TonDron::TimeUs maxSourceSpan =
         clip.reverse ? clip.srcOut : (maxSource > clip.srcIn ? maxSource - clip.srcIn : 0);
-    const drift::TimeUs mediaMaxDuration =
+    const TonDron::TimeUs mediaMaxDuration =
         clip.effectiveSpeed() > 0.0
-            ? static_cast<drift::TimeUs>(llround(static_cast<double>(maxSourceSpan) / clip.effectiveSpeed()))
+            ? static_cast<TonDron::TimeUs>(llround(static_cast<double>(maxSourceSpan) / clip.effectiveSpeed()))
             : maxSourceSpan;
-    const drift::TimeUs maxDuration =
-        syntheticVisual ? drift::secondsToUs(300.0) : mediaMaxDuration;
-    newDuration = qBound(drift::kMinClipDurationUs, newDuration, maxDuration);
+    const TonDron::TimeUs maxDuration =
+        syntheticVisual ? TonDron::secondsToUs(300.0) : mediaMaxDuration;
+    newDuration = qBound(TonDron::kMinClipDurationUs, newDuration, maxDuration);
 
     clip.timelineDuration = newDuration;
-    const drift::TimeUs span =
+    const TonDron::TimeUs span =
         clip.hasSpeedCurve() ? trimSourceDelta(clip, newDuration, false, true) : clip.sourceSpanUs();
-    const drift::TimeUs maxSrcOut = syntheticVisual ? drift::secondsToUs(300.0) : maxSource;
+    const TonDron::TimeUs maxSrcOut = syntheticVisual ? TonDron::secondsToUs(300.0) : maxSource;
     if (clip.reverse) {
-        clip.srcIn = qMax<drift::TimeUs>(0, clip.srcOut - span);
+        clip.srcIn = qMax<TonDron::TimeUs>(0, clip.srcOut - span);
     } else {
         clip.srcOut = qMin(clip.srcIn + span, maxSrcOut);
     }
@@ -3016,24 +3016,24 @@ void AppController::setClipTrim(int trackIndex, int clipIndex, double inPoint, d
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs sourceDuration = sourceDurationForClip(clip);
-    const drift::TimeUs clampedIn = qBound<drift::TimeUs>(0, drift::secondsToUs(inPoint),
-                                                          sourceDuration - drift::kMinClipDurationUs);
-    const drift::TimeUs clampedOut = qBound(clampedIn + drift::kMinClipDurationUs, drift::secondsToUs(outPoint),
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs sourceDuration = sourceDurationForClip(clip);
+    const TonDron::TimeUs clampedIn = qBound<TonDron::TimeUs>(0, TonDron::secondsToUs(inPoint),
+                                                          sourceDuration - TonDron::kMinClipDurationUs);
+    const TonDron::TimeUs clampedOut = qBound(clampedIn + TonDron::kMinClipDurationUs, TonDron::secondsToUs(outPoint),
                                             sourceDuration);
-    const drift::TimeUs newDuration = clampedOut - clampedIn;
+    const TonDron::TimeUs newDuration = clampedOut - clampedIn;
     const double speed = clip.effectiveSpeed();
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.srcIn = clampedIn;
     clip.srcOut = clampedOut;
-    clip.timelineDuration = static_cast<drift::TimeUs>(llround(static_cast<double>(newDuration) / speed));
-    clip.timelineDuration = qMax(clip.timelineDuration, drift::kMinClipDurationUs);
+    clip.timelineDuration = static_cast<TonDron::TimeUs>(llround(static_cast<double>(newDuration) / speed));
+    clip.timelineDuration = qMax(clip.timelineDuration, TonDron::kMinClipDurationUs);
     // A ramp re-derives the duration from the range that survived the trim.
     clip.syncDurationFromSpeedCurve();
     pushProjectEdit(before, tr("Trim updated"));
@@ -3045,15 +3045,15 @@ void AppController::duplicateSelectedClip()
     if (m_selectedTrack < 0 || m_selectedClip < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[m_selectedTrack];
+    TonDron::Track &track = m_project.tracks()[m_selectedTrack];
     if (m_selectedClip >= track.clips.size())
         return;
 
-    const drift::Project before = m_project;
-    const drift::Clip original = track.clips.at(m_selectedClip);
-    drift::Clip copy = original;
+    const TonDron::Project before = m_project;
+    const TonDron::Clip original = track.clips.at(m_selectedClip);
+    TonDron::Clip copy = original;
     copy.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    copy.timelineStart = drift::resolveClipStart(
+    copy.timelineStart = TonDron::resolveClipStart(
         m_project, track, -1, original.timelineEnd(), original.timelineDuration, m_snapEnabled, m_playheadUs);
 
     track.clips.append(copy);
@@ -3077,19 +3077,19 @@ void AppController::splitSelectedClipLeft()
     if (m_selectedTrack < 0 || m_selectedClip < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[m_selectedTrack];
+    TonDron::Track &track = m_project.tracks()[m_selectedTrack];
     if (m_selectedClip >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[m_selectedClip];
+    TonDron::Clip &clip = track.clips[m_selectedClip];
     if (!clip.containsTime(m_playheadUs) || m_playheadUs == clip.timelineStart)
         return;
 
-    const drift::TimeUs offset = m_playheadUs - clip.timelineStart;
-    const drift::Project before = m_project;
+    const TonDron::TimeUs offset = m_playheadUs - clip.timelineStart;
+    const TonDron::Project before = m_project;
 
-    drift::Clip right;
-    if (!drift::splitClipAtOffset(clip, right, offset))
+    TonDron::Clip right;
+    if (!TonDron::splitClipAtOffset(clip, right, offset))
         return;
 
     right.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -3106,19 +3106,19 @@ void AppController::splitSelectedClipRight()
     if (m_selectedTrack < 0 || m_selectedClip < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[m_selectedTrack];
+    TonDron::Track &track = m_project.tracks()[m_selectedTrack];
     if (m_selectedClip >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[m_selectedClip];
+    TonDron::Clip &clip = track.clips[m_selectedClip];
     if (!clip.containsTime(m_playheadUs) || m_playheadUs == clip.timelineEnd())
         return;
 
-    const drift::TimeUs offset = m_playheadUs - clip.timelineStart;
-    const drift::Project before = m_project;
+    const TonDron::TimeUs offset = m_playheadUs - clip.timelineStart;
+    const TonDron::Project before = m_project;
 
-    drift::Clip discardedTail;
-    if (!drift::splitClipAtOffset(clip, discardedTail, offset))
+    TonDron::Clip discardedTail;
+    if (!TonDron::splitClipAtOffset(clip, discardedTail, offset))
         return;
 
     // Keep only the left half (discard right) — same as previous "split right" behavior.
@@ -3134,16 +3134,16 @@ void AppController::moveClipToTrack(int trackIndex, int clipIndex, int newTrackI
     if (newTrackIndex < 0 || newTrackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &fromTrack = m_project.tracks()[trackIndex];
+    TonDron::Track &fromTrack = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= fromTrack.clips.size())
         return;
 
-    drift::Track &toTrack = m_project.tracks()[newTrackIndex];
-    const drift::Clip clip = fromTrack.clips.at(clipIndex);
+    TonDron::Track &toTrack = m_project.tracks()[newTrackIndex];
+    const TonDron::Clip clip = fromTrack.clips.at(clipIndex);
     if (!toTrack.allowsClipType(clip.type))
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     fromTrack.clips.removeAt(clipIndex);
 
     // Source-track indices after the hole shift down. Drop the moved slot and
@@ -3159,8 +3159,8 @@ void AppController::moveClipToTrack(int trackIndex, int clipIndex, int newTrackI
             --pair.second;
     }
 
-    drift::Clip moved = clip;
-    moved.timelineStart = drift::resolveClipStart(m_project, toTrack, -1, drift::secondsToUs(newStart),
+    TonDron::Clip moved = clip;
+    moved.timelineStart = TonDron::resolveClipStart(m_project, toTrack, -1, TonDron::secondsToUs(newStart),
                                                   moved.timelineDuration, m_snapEnabled, m_playheadUs,
                                                   extraSnapTargets());
     toTrack.clips.append(moved);
@@ -3188,27 +3188,27 @@ void AppController::addTextClip(const QString &text, double atSeconds, const QSt
     const bool placeholder = trimmed.isEmpty();
     const QString content = placeholder ? tr("Your text here") : trimmed;
 
-    const drift::Project before = m_project;
-    const int trackIndex = drift::ensureTrackForClipType(m_project, drift::ClipType::Text, true);
+    const TonDron::Project before = m_project;
+    const int trackIndex = TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Text, true);
     if (trackIndex < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : drift::secondsToUs(atSeconds);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, startSeconds,
-                                                        drift::kTextClipDurationUs, m_snapEnabled, m_playheadUs);
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : TonDron::secondsToUs(atSeconds);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, startSeconds,
+                                                        TonDron::kTextClipDurationUs, m_snapEnabled, m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    clip.type = drift::ClipType::Text;
+    clip.type = TonDron::ClipType::Text;
     clip.name = content.left(32);
     clip.textContent = content;
     clip.timelineStart = start;
-    clip.timelineDuration = drift::kTextClipDurationUs;
+    clip.timelineDuration = TonDron::kTextClipDurationUs;
     clip.srcIn = 0;
-    clip.srcOut = drift::kTextClipDurationUs;
+    clip.srcOut = TonDron::kTextClipDurationUs;
     if (!presetId.isEmpty()) {
-        if (const drift::TextStyle *preset = drift::textStyleForPresetId(presetId)) {
+        if (const TonDron::TextStyle *preset = TonDron::textStyleForPresetId(presetId)) {
             clip.textStyle = *preset;
             clip.textStyle.packId = presetId;
         }
@@ -3225,35 +3225,35 @@ void AppController::addTextClip(const QString &text, double atSeconds, const QSt
         // resolveClipStart pushes the clip past anything already occupying the
         // playhead, so park the playhead on it: the preview can only show (and
         // edit) a clip that spans the current time.
-        if (m_playheadUs < start || m_playheadUs >= start + drift::kTextClipDurationUs)
-            setPlayheadSeconds(drift::usToSeconds(start));
+        if (m_playheadUs < start || m_playheadUs >= start + TonDron::kTextClipDurationUs)
+            setPlayheadSeconds(TonDron::usToSeconds(start));
         emit inlineTextEditRequested(trackIndex, newClipIndex);
     }
 }
 
 void AppController::addSubtitleClip(double atSeconds)
 {
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     const int trackIndex =
-        drift::ensureTrackForClipType(m_project, drift::ClipType::Subtitle, true);
+        TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Subtitle, true);
     if (trackIndex < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : drift::secondsToUs(atSeconds);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, startSeconds,
-                                                        drift::kSubtitleClipDurationUs, m_snapEnabled,
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : TonDron::secondsToUs(atSeconds);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, startSeconds,
+                                                        TonDron::kSubtitleClipDurationUs, m_snapEnabled,
                                                         m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    clip.type = drift::ClipType::Subtitle;
+    clip.type = TonDron::ClipType::Subtitle;
     clip.name = tr("Subtitles");
     clip.timelineStart = start;
-    clip.timelineDuration = drift::kSubtitleClipDurationUs;
+    clip.timelineDuration = TonDron::kSubtitleClipDurationUs;
     clip.srcIn = 0;
-    clip.srcOut = drift::kSubtitleClipDurationUs;
-    if (const drift::TextStyle *preset = drift::textStyleForPresetId(QStringLiteral("subtitle")))
+    clip.srcOut = TonDron::kSubtitleClipDurationUs;
+    if (const TonDron::TextStyle *preset = TonDron::textStyleForPresetId(QStringLiteral("subtitle")))
         clip.textStyle = *preset;
     applyDefaultVisualLayout(clip, m_project.width(), m_project.height());
 
@@ -3265,10 +3265,10 @@ void AppController::addSubtitleClip(double atSeconds)
 
 namespace {
 
-drift::TimeUs subtitleClipDurationForCues(const QList<drift::SubtitleCue> &cues)
+TonDron::TimeUs subtitleClipDurationForCues(const QList<TonDron::SubtitleCue> &cues)
 {
-    drift::TimeUs duration = drift::kSubtitleClipDurationUs;
-    for (const drift::SubtitleCue &cue : cues)
+    TonDron::TimeUs duration = TonDron::kSubtitleClipDurationUs;
+    for (const TonDron::SubtitleCue &cue : cues)
         duration = qMax(duration, cue.endUs);
     return duration;
 }
@@ -3283,36 +3283,36 @@ bool AppController::importSubtitleFile(const QUrl &url, double atSeconds)
         return false;
     }
 
-    QList<drift::SubtitleCue> cues;
+    QList<TonDron::SubtitleCue> cues;
     QString error;
-    if (!drift::parseSrtFile(path, &cues, &error)) {
+    if (!TonDron::parseSrtFile(path, &cues, &error)) {
         setLastMessage(error.isEmpty() ? tr("Could not read subtitle file") : error, QStringLiteral("error"));
         return false;
     }
 
-    const drift::TimeUs duration = subtitleClipDurationForCues(cues);
-    const drift::Project before = m_project;
+    const TonDron::TimeUs duration = subtitleClipDurationForCues(cues);
+    const TonDron::Project before = m_project;
     const int trackIndex =
-        drift::ensureTrackForClipType(m_project, drift::ClipType::Subtitle, true);
+        TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Subtitle, true);
     if (trackIndex < 0)
         return false;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : drift::secondsToUs(atSeconds);
-    const drift::TimeUs start =
-        drift::resolveClipStart(m_project, track, -1, startSeconds, duration, m_snapEnabled,
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : TonDron::secondsToUs(atSeconds);
+    const TonDron::TimeUs start =
+        TonDron::resolveClipStart(m_project, track, -1, startSeconds, duration, m_snapEnabled,
                                 m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    clip.type = drift::ClipType::Subtitle;
+    clip.type = TonDron::ClipType::Subtitle;
     clip.timelineStart = start;
     clip.timelineDuration = duration;
     clip.srcIn = 0;
     clip.srcOut = duration;
     clip.subtitleCues = cues;
-    clip.name = drift::subtitleClipName(cues);
-    if (const drift::TextStyle *preset = drift::textStyleForPresetId(QStringLiteral("subtitle")))
+    clip.name = TonDron::subtitleClipName(cues);
+    if (const TonDron::TextStyle *preset = TonDron::textStyleForPresetId(QStringLiteral("subtitle")))
         clip.textStyle = *preset;
     applyDefaultVisualLayout(clip, m_project.width(), m_project.height());
 
@@ -3329,12 +3329,12 @@ bool AppController::importSubtitleFileIntoClip(int trackIndex, int clipIndex, co
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return false;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return false;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Subtitle) {
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Subtitle) {
         setLastMessage(tr("Select a subtitle clip to import into"), QStringLiteral("warning"));
         return false;
     }
@@ -3345,17 +3345,17 @@ bool AppController::importSubtitleFileIntoClip(int trackIndex, int clipIndex, co
         return false;
     }
 
-    QList<drift::SubtitleCue> cues;
+    QList<TonDron::SubtitleCue> cues;
     QString error;
-    if (!drift::parseSrtFile(path, &cues, &error)) {
+    if (!TonDron::parseSrtFile(path, &cues, &error)) {
         setLastMessage(error.isEmpty() ? tr("Could not read subtitle file") : error, QStringLiteral("error"));
         return false;
     }
 
-    const drift::TimeUs duration = subtitleClipDurationForCues(cues);
-    const drift::Project before = m_project;
+    const TonDron::TimeUs duration = subtitleClipDurationForCues(cues);
+    const TonDron::Project before = m_project;
     clip.subtitleCues = cues;
-    clip.name = drift::subtitleClipName(cues);
+    clip.name = TonDron::subtitleClipName(cues);
     if (duration > clip.timelineDuration) {
         clip.timelineDuration = duration;
         clip.srcOut = duration;
@@ -3371,12 +3371,12 @@ bool AppController::exportSubtitleFile(int trackIndex, int clipIndex, const QUrl
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return false;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return false;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Subtitle) {
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Subtitle) {
         setLastMessage(tr("Select a subtitle clip to export"), QStringLiteral("warning"));
         return false;
     }
@@ -3392,7 +3392,7 @@ bool AppController::exportSubtitleFile(int trackIndex, int clipIndex, const QUrl
     }
 
     QString error;
-    if (!drift::writeSrtFile(path, clip.subtitleCues, &error)) {
+    if (!TonDron::writeSrtFile(path, clip.subtitleCues, &error)) {
         setLastMessage(error.isEmpty() ? tr("Could not write subtitle file") : error, QStringLiteral("error"));
         return false;
     }
@@ -3415,7 +3415,7 @@ QVariantList AppController::whisperLanguages()
     autoRow.insert(QStringLiteral("label"), tr("Auto-detect"));
     out.append(autoRow);
 
-    const QVariantList langs = drift::WhisperTranscriber::instance().supportedLanguages();
+    const QVariantList langs = TonDron::WhisperTranscriber::instance().supportedLanguages();
     for (const QVariant &row : langs)
         out.append(row);
     return out;
@@ -3429,12 +3429,12 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
     }
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio) {
+    const TonDron::Clip clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Audio) {
         setLastMessage(tr("Select a video or audio clip to create captions"), QStringLiteral("warning"));
         return;
     }
@@ -3455,10 +3455,10 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
     setLastMessage(tr("Creating captions…"));
 
     const QString path = clip.path;
-    const drift::TimeUs srcIn = clip.srcIn;
-    const drift::TimeUs srcOut = clip.srcOut;
-    const drift::TimeUs timelineStart = clip.timelineStart;
-    const drift::TimeUs timelineDuration = clip.timelineDuration;
+    const TonDron::TimeUs srcIn = clip.srcIn;
+    const TonDron::TimeUs srcOut = clip.srcOut;
+    const TonDron::TimeUs timelineStart = clip.timelineStart;
+    const TonDron::TimeUs timelineDuration = clip.timelineDuration;
     const double speed = clip.effectiveSpeed();
     const bool reverse = clip.reverse;
     const QString languageCode = language.trimmed().toLower();
@@ -3480,7 +3480,7 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
         };
 
         auto finish = [this, timelineStart, timelineDuration](bool ok, const QString &message,
-                                                              const QList<drift::SubtitleCue> &cues) {
+                                                              const QList<TonDron::SubtitleCue> &cues) {
             QMetaObject::invokeMethod(
                 this,
                 [this, ok, message, cues, timelineStart, timelineDuration]() {
@@ -3501,7 +3501,7 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
         };
 
         setProgress(0.02, tr("Getting speech recognition ready…"));
-        drift::WhisperTranscriber &whisper = drift::WhisperTranscriber::instance();
+        TonDron::WhisperTranscriber &whisper = TonDron::WhisperTranscriber::instance();
         if (!whisper.available()) {
             qWarning() << "[subtitles] whisper unavailable:" << whisper.lastError();
             finish(false, whisper.lastError(), {});
@@ -3513,16 +3513,16 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
         const int rate = 16000;
         const int chunkFrames = 30 * rate;
         std::vector<float> mono;
-        drift::TimeUs pos = srcIn;
-        const drift::TimeUs spanUs = std::max<drift::TimeUs>(1, srcOut - srcIn);
+        TonDron::TimeUs pos = srcIn;
+        const TonDron::TimeUs spanUs = std::max<TonDron::TimeUs>(1, srcOut - srcIn);
         while (pos < srcOut) {
             if (m_subtitleGenCancel.loadRelaxed()) {
                 finish(false, tr("Subtitle generation cancelled"), {});
                 return;
             }
-            const drift::TimeUs remainUs = srcOut - pos;
+            const TonDron::TimeUs remainUs = srcOut - pos;
             const int frames =
-                qMin<int64_t>(chunkFrames, (remainUs * rate) / drift::kUsPerSecond + 1);
+                qMin<int64_t>(chunkFrames, (remainUs * rate) / TonDron::kUsPerSecond + 1);
             if (frames <= 0)
                 break;
             QVector<float> stereo(static_cast<qsizetype>(frames) * 2);
@@ -3535,7 +3535,7 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
             mono.resize(base + got);
             for (int i = 0; i < got; ++i)
                 mono[base + i] = 0.5f * (stereo[i * 2] + stereo[i * 2 + 1]);
-            pos += static_cast<drift::TimeUs>((static_cast<int64_t>(got) * drift::kUsPerSecond) / rate);
+            pos += static_cast<TonDron::TimeUs>((static_cast<int64_t>(got) * TonDron::kUsPerSecond) / rate);
             const double decodeFrac = static_cast<double>(pos - srcIn) / static_cast<double>(spanUs);
             setProgress(0.05 + 0.10 * std::min(1.0, decodeFrac),
                         tr("Reading audio… %1%")
@@ -3554,7 +3554,7 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
                               ? tr("Transcribing…")
                               : tr("Transcribing (%1)…").arg(languageCode));
 
-        const drift::WhisperResult res = whisper.transcribe(
+        const TonDron::WhisperResult res = whisper.transcribe(
             mono,
             [this, setProgress](double fraction, const QString &status) {
                 // Map Whisper's 0–1 into the remaining 15%–95% of the overall bar.
@@ -3579,24 +3579,24 @@ void AppController::generateSubtitlesForClip(int trackIndex, int clipIndex, cons
 
         // Map source-relative cue times onto clip-relative timeline time (accounts for
         // speed and reverse), clamped to the clip's duration.
-        const double spanSec = drift::usToSeconds(srcOut - srcIn);
-        QList<drift::SubtitleCue> mapped;
-        for (const drift::SubtitleCue &cue : res.cues) {
-            const double srcStart = drift::usToSeconds(cue.startUs);
-            const double srcEnd = drift::usToSeconds(cue.endUs);
+        const double spanSec = TonDron::usToSeconds(srcOut - srcIn);
+        QList<TonDron::SubtitleCue> mapped;
+        for (const TonDron::SubtitleCue &cue : res.cues) {
+            const double srcStart = TonDron::usToSeconds(cue.startUs);
+            const double srcEnd = TonDron::usToSeconds(cue.endUs);
             double tlStart = reverse ? (spanSec - srcEnd) / speed : srcStart / speed;
             double tlEnd = reverse ? (spanSec - srcStart) / speed : srcEnd / speed;
-            drift::TimeUs s = qBound<drift::TimeUs>(0, drift::secondsToUs(tlStart), timelineDuration);
-            drift::TimeUs e = qBound<drift::TimeUs>(0, drift::secondsToUs(tlEnd), timelineDuration);
+            TonDron::TimeUs s = qBound<TonDron::TimeUs>(0, TonDron::secondsToUs(tlStart), timelineDuration);
+            TonDron::TimeUs e = qBound<TonDron::TimeUs>(0, TonDron::secondsToUs(tlEnd), timelineDuration);
             if (e > s) {
-                drift::SubtitleCue m;
+                TonDron::SubtitleCue m;
                 m.startUs = s;
                 m.endUs = e;
                 m.text = cue.text;
                 mapped.append(m);
             }
         }
-        drift::sortSubtitleCues(mapped);
+        TonDron::sortSubtitleCues(mapped);
 
         qWarning() << "[subtitles] mapped cues:" << mapped.size() << "spanSec:" << spanSec
                    << "timelineDuration us:" << timelineDuration << "speed:" << speed;
@@ -3613,12 +3613,12 @@ bool AppController::segmentationAvailable()
 {
     // Deliberately only checks that the model files exist. This is reached from a QML binding, and
     // loading the sessions here would block the GUI thread for seconds.
-    return drift::Sam2Segmenter::modelPresent();
+    return TonDron::Sam2Segmenter::modelPresent();
 }
 
 QString AppController::segmentationModelVariant()
 {
-    return drift::Sam2Segmenter::installedVariant();
+    return TonDron::Sam2Segmenter::installedVariant();
 }
 
 void AppController::cancelSegmentation()
@@ -3632,10 +3632,10 @@ void AppController::beginSegmentationSession(int trackIndex, int clipIndex, doub
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
-    if (track.clips.at(clipIndex).type != drift::ClipType::Video) {
+    if (track.clips.at(clipIndex).type != TonDron::ClipType::Video) {
         setLastMessage(tr("Select a video clip to cut out"), QStringLiteral("warning"));
         return;
     }
@@ -3653,12 +3653,12 @@ void AppController::beginSpeedCurveSession(int trackIndex, int clipIndex)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio) {
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Audio) {
         setLastMessage(tr("Custom speed works on video and audio clips"), QStringLiteral("warning"));
         return;
     }
@@ -3676,7 +3676,7 @@ void AppController::beginSpeedCurveSession(int trackIndex, int clipIndex)
     m_speedCurveClip = clip;
     // An existing ramp is what the editor should open on; otherwise start flat at the clip's
     // current constant speed so the graph begins where the clip already plays.
-    m_speedCurve = clip.hasSpeedCurve() ? clip.speedCurve : drift::SpeedCurve::flat(clip.effectiveSpeed());
+    m_speedCurve = clip.hasSpeedCurve() ? clip.speedCurve : TonDron::SpeedCurve::flat(clip.effectiveSpeed());
     m_speedCurveClip.speedCurve = m_speedCurve;
     m_speedCurveActive = true;
 
@@ -3695,7 +3695,7 @@ void AppController::endSpeedCurveSession()
     m_speedCurveActive = false;
     m_speedCurveTrack = -1;
     m_speedCurveClipIndex = -1;
-    m_speedCurveClip = drift::Clip{};
+    m_speedCurveClip = TonDron::Clip{};
     m_speedCurve.clear();
     emit speedCurveSessionChanged();
     emit speedCurveChanged();
@@ -3704,7 +3704,7 @@ void AppController::endSpeedCurveSession()
 QVariantList AppController::speedCurvePoints() const
 {
     QVariantList out;
-    for (const drift::SpeedPoint &point : m_speedCurve.points()) {
+    for (const TonDron::SpeedPoint &point : m_speedCurve.points()) {
         out.append(QVariantMap{
             {QStringLiteral("pos"), point.pos},
             {QStringLiteral("speed"), point.speed},
@@ -3723,11 +3723,11 @@ void AppController::setSpeedCurvePoints(const QVariantList &points)
     if (!m_speedCurveActive)
         return;
 
-    QList<drift::SpeedPoint> parsed;
+    QList<TonDron::SpeedPoint> parsed;
     parsed.reserve(points.size());
     for (const QVariant &entry : points) {
         const QVariantMap map = entry.toMap();
-        drift::SpeedPoint point;
+        TonDron::SpeedPoint point;
         point.pos = map.value(QStringLiteral("pos")).toDouble();
         point.speed = map.value(QStringLiteral("speed"), 1.0).toDouble();
         point.inDx = map.value(QStringLiteral("inDx")).toDouble();
@@ -3746,27 +3746,27 @@ void AppController::setSpeedCurvePoints(const QVariantList &points)
 
 double AppController::speedCurveSourceStart() const
 {
-    return drift::usToSeconds(m_speedCurveClip.srcIn);
+    return TonDron::usToSeconds(m_speedCurveClip.srcIn);
 }
 
 double AppController::speedCurveMediaDuration() const
 {
-    return drift::usToSeconds(sourceDurationForClip(m_speedCurveClip));
+    return TonDron::usToSeconds(sourceDurationForClip(m_speedCurveClip));
 }
 
 double AppController::speedCurveSourceDuration() const
 {
-    return drift::usToSeconds(m_speedCurveClip.srcOut - m_speedCurveClip.srcIn);
+    return TonDron::usToSeconds(m_speedCurveClip.srcOut - m_speedCurveClip.srcIn);
 }
 
 double AppController::speedCurveRetimedDuration() const
 {
-    return drift::usToSeconds(m_speedCurvePlayer.durationUs());
+    return TonDron::usToSeconds(m_speedCurvePlayer.durationUs());
 }
 
 double AppController::speedCurvePosition() const
 {
-    return drift::usToSeconds(m_speedCurvePlayer.positionUs());
+    return TonDron::usToSeconds(m_speedCurvePlayer.positionUs());
 }
 
 void AppController::playSpeedCurvePreview()
@@ -3786,15 +3786,15 @@ void AppController::seekSpeedCurvePreview(double seconds)
 {
     if (!m_speedCurveActive)
         return;
-    m_speedCurvePlayer.seek(drift::secondsToUs(seconds));
+    m_speedCurvePlayer.seek(TonDron::secondsToUs(seconds));
 }
 
 double AppController::speedCurveSourcePosition() const
 {
-    const drift::TimeUs span = m_speedCurveClip.srcOut - m_speedCurveClip.srcIn;
+    const TonDron::TimeUs span = m_speedCurveClip.srcOut - m_speedCurveClip.srcIn;
     if (span <= 0)
         return 0.0;
-    const drift::TimeUs offset =
+    const TonDron::TimeUs offset =
         m_speedCurve.sourceOffsetForTimelineOffset(m_speedCurvePlayer.positionUs(), span);
     return static_cast<double>(offset) / span;
 }
@@ -3803,10 +3803,10 @@ void AppController::seekSpeedCurvePreviewAtSource(double position)
 {
     if (!m_speedCurveActive)
         return;
-    const drift::TimeUs span = m_speedCurveClip.srcOut - m_speedCurveClip.srcIn;
+    const TonDron::TimeUs span = m_speedCurveClip.srcOut - m_speedCurveClip.srcIn;
     if (span <= 0)
         return;
-    const drift::TimeUs offset = static_cast<drift::TimeUs>(qBound(0.0, position, 1.0) * span);
+    const TonDron::TimeUs offset = static_cast<TonDron::TimeUs>(qBound(0.0, position, 1.0) * span);
     m_speedCurvePlayer.seek(m_speedCurve.timelineOffsetForSourceOffset(offset, span));
 }
 
@@ -3816,13 +3816,13 @@ void AppController::applySpeedCurve()
         return;
     if (m_speedCurveTrack < 0 || m_speedCurveTrack >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(m_speedCurveTrack);
+    const TonDron::Track &track = m_project.tracks().at(m_speedCurveTrack);
     if (m_speedCurveClipIndex < 0 || m_speedCurveClipIndex >= track.clips.size())
         return;
 
     m_speedCurvePlayer.pause();
 
-    const drift::Clip source = track.clips.at(m_speedCurveClipIndex);
+    const TonDron::Clip source = track.clips.at(m_speedCurveClipIndex);
     // The timeline stays editable while the window is open, so the indices captured at the start
     // of the session can point at a different clip by now.
     if (source.id != m_speedCurveClip.id) {
@@ -3830,8 +3830,8 @@ void AppController::applySpeedCurve()
         return;
     }
 
-    const drift::Project before = m_project;
-    drift::Clip retimed = source;
+    const TonDron::Project before = m_project;
+    TonDron::Clip retimed = source;
     retimed.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     retimed.speedCurve = m_speedCurve;
     retimed.syncDurationFromSpeedCurve();
@@ -3848,20 +3848,20 @@ void AppController::applySpeedCurve()
     // shows through wherever the retimed duration differs. A detached audio companion goes with it
     // for the same reason — the copy carries its own audio.
     QSet<QString> replacedIds{source.id};
-    for (const drift::ClipRef &ref : drift::linkedPartners(m_project, source))
+    for (const TonDron::ClipRef &ref : TonDron::linkedPartners(m_project, source))
         replacedIds.insert(m_project.tracks().at(ref.trackIndex).clips.at(ref.clipIndex).id);
 
     const int newTrack =
-        drift::insertTrackAboveForClipType(m_project, m_speedCurveTrack, source.type);
+        TonDron::insertTrackAboveForClipType(m_project, m_speedCurveTrack, source.type);
     m_project.tracks()[newTrack].clips.append(retimed);
 
-    for (drift::Track &t : m_project.tracks()) {
+    for (TonDron::Track &t : m_project.tracks()) {
         for (int i = t.clips.size() - 1; i >= 0; --i) {
             if (replacedIds.contains(t.clips.at(i).id))
                 t.clips.removeAt(i);
         }
         for (int i = t.transitions.size() - 1; i >= 0; --i) {
-            const drift::Transition &transition = t.transitions.at(i);
+            const TonDron::Transition &transition = t.transitions.at(i);
             if (replacedIds.contains(transition.fromClipId) || replacedIds.contains(transition.toClipId))
                 t.transitions.removeAt(i);
         }
@@ -3877,19 +3877,19 @@ void AppController::clearClipSpeedCurve(int trackIndex, int clipIndex)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (!clip.hasSpeedCurve())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.speedCurve.clear();
     // Keep the source range the user framed and let the scalar speed decide how long it takes,
     // rather than syncSrcOutFromSpeed's other direction — the retimed duration it would read
     // from is exactly the thing being discarded.
-    clip.timelineDuration = qMax<drift::TimeUs>(
+    clip.timelineDuration = qMax<TonDron::TimeUs>(
         1, llround(static_cast<double>(clip.srcOut - clip.srcIn) / clip.effectiveSpeed()));
     pushProjectEdit(before, tr("Speed curve removed"));
     finishEdit(tr("Speed curve removed"));
@@ -3899,14 +3899,14 @@ void AppController::beginFadeCurveSession(int trackIndex, int clipIndex)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
     if (m_fadeCurveActive)
         endFadeCurveSession();
 
-    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    TonDron::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
     m_fadeCurveTrack = trackIndex;
     m_fadeCurveClipIndex = clipIndex;
     m_fadeCurveClipId = clip.id;
@@ -3915,16 +3915,16 @@ void AppController::beginFadeCurveSession(int trackIndex, int clipIndex)
     m_fadeShapeBefore = clip.fadeShape;
     m_fadeCurveApplied = false;
 
-    if (clip.fadeCurve == drift::FadeCurve::Custom && !clip.fadeShape.isEmpty())
+    if (clip.fadeCurve == TonDron::FadeCurve::Custom && !clip.fadeShape.isEmpty())
         m_fadeShape = clip.fadeShape;
-    else if (clip.fadeCurve == drift::FadeCurve::Linear)
-        m_fadeShape = drift::FadeShape::linearPreset();
-    else if (clip.fadeCurve == drift::FadeCurve::EqualPower)
-        m_fadeShape = drift::FadeShape::equalPowerPreset();
+    else if (clip.fadeCurve == TonDron::FadeCurve::Linear)
+        m_fadeShape = TonDron::FadeShape::linearPreset();
+    else if (clip.fadeCurve == TonDron::FadeCurve::EqualPower)
+        m_fadeShape = TonDron::FadeShape::equalPowerPreset();
     else
-        m_fadeShape = drift::FadeShape::smoothPreset();
+        m_fadeShape = TonDron::FadeShape::smoothPreset();
 
-    clip.fadeCurve = drift::FadeCurve::Custom;
+    clip.fadeCurve = TonDron::FadeCurve::Custom;
     clip.fadeShape = m_fadeShape;
     syncLinkedPartnersFrom(m_project, clip);
     m_fadeCurveActive = true;
@@ -3940,10 +3940,10 @@ void AppController::endFadeCurveSession()
 
     if (!m_fadeCurveApplied
         && m_fadeCurveTrack >= 0 && m_fadeCurveTrack < m_project.tracks().size()) {
-        drift::Track &track = m_project.tracks()[m_fadeCurveTrack];
+        TonDron::Track &track = m_project.tracks()[m_fadeCurveTrack];
         if (m_fadeCurveClipIndex >= 0 && m_fadeCurveClipIndex < track.clips.size()
             && track.clips.at(m_fadeCurveClipIndex).id == m_fadeCurveClipId) {
-            drift::Clip &clip = track.clips[m_fadeCurveClipIndex];
+            TonDron::Clip &clip = track.clips[m_fadeCurveClipIndex];
             clip.fadeCurve = m_fadeCurveBefore;
             clip.fadeShape = m_fadeShapeBefore;
             syncLinkedPartnersFrom(m_project, clip);
@@ -3981,10 +3981,10 @@ void AppController::setFadeCurvePoints(const QVariantList &points)
         return;
     if (m_fadeCurveTrack < 0 || m_fadeCurveTrack >= m_project.tracks().size())
         return;
-    drift::Track &track = m_project.tracks()[m_fadeCurveTrack];
+    TonDron::Track &track = m_project.tracks()[m_fadeCurveTrack];
     if (m_fadeCurveClipIndex < 0 || m_fadeCurveClipIndex >= track.clips.size())
         return;
-    drift::Clip &clip = track.clips[m_fadeCurveClipIndex];
+    TonDron::Clip &clip = track.clips[m_fadeCurveClipIndex];
     if (clip.id != m_fadeCurveClipId)
         return;
 
@@ -3996,14 +3996,14 @@ void AppController::setFadeCurvePoints(const QVariantList &points)
                               map.value(QStringLiteral("g")).toDouble()));
     }
     m_fadeShape.setPoints(parsed);
-    clip.fadeCurve = drift::FadeCurve::Custom;
+    clip.fadeCurve = TonDron::FadeCurve::Custom;
     clip.fadeShape = m_fadeShape;
-    if (clip.animIn.kind == drift::ClipAnimKind::Fade || clip.animIn.curve == drift::FadeCurve::Custom) {
-        clip.animIn.curve = drift::FadeCurve::Custom;
+    if (clip.animIn.kind == TonDron::ClipAnimKind::Fade || clip.animIn.curve == TonDron::FadeCurve::Custom) {
+        clip.animIn.curve = TonDron::FadeCurve::Custom;
         clip.animIn.shape = m_fadeShape;
     }
-    if (clip.animOut.kind == drift::ClipAnimKind::Fade || clip.animOut.curve == drift::FadeCurve::Custom) {
-        clip.animOut.curve = drift::FadeCurve::Custom;
+    if (clip.animOut.kind == TonDron::ClipAnimKind::Fade || clip.animOut.curve == TonDron::FadeCurve::Custom) {
+        clip.animOut.curve = TonDron::FadeCurve::Custom;
         clip.animOut.shape = m_fadeShape;
     }
     syncLinkedPartnersFrom(m_project, clip);
@@ -4016,11 +4016,11 @@ void AppController::resetFadeCurvePreset(const QString &preset)
     if (!m_fadeCurveActive)
         return;
     if (preset == QLatin1String("linear"))
-        m_fadeShape = drift::FadeShape::linearPreset();
+        m_fadeShape = TonDron::FadeShape::linearPreset();
     else if (preset == QLatin1String("equalPower") || preset == QLatin1String("natural"))
-        m_fadeShape = drift::FadeShape::equalPowerPreset();
+        m_fadeShape = TonDron::FadeShape::equalPowerPreset();
     else
-        m_fadeShape = drift::FadeShape::smoothPreset();
+        m_fadeShape = TonDron::FadeShape::smoothPreset();
 
     QVariantList points;
     for (const QPointF &pt : m_fadeShape.points()) {
@@ -4038,41 +4038,41 @@ void AppController::applyFadeCurve()
         return;
     if (m_fadeCurveTrack < 0 || m_fadeCurveTrack >= m_project.tracks().size())
         return;
-    drift::Track &track = m_project.tracks()[m_fadeCurveTrack];
+    TonDron::Track &track = m_project.tracks()[m_fadeCurveTrack];
     if (m_fadeCurveClipIndex < 0 || m_fadeCurveClipIndex >= track.clips.size())
         return;
-    drift::Clip &clip = track.clips[m_fadeCurveClipIndex];
+    TonDron::Clip &clip = track.clips[m_fadeCurveClipIndex];
     if (clip.id != m_fadeCurveClipId) {
         setLastMessage(tr("That clip moved — open Custom fade again"), QStringLiteral("warning"));
         return;
     }
 
     // Rebuild the "before" snapshot: restore prior fade fields on a copy of the current project.
-    drift::Project before = m_project;
+    TonDron::Project before = m_project;
     if (m_fadeCurveTrack < before.tracks().size()
         && m_fadeCurveClipIndex < before.tracks().at(m_fadeCurveTrack).clips.size()) {
-        drift::Clip &beforeClip = before.tracks()[m_fadeCurveTrack].clips[m_fadeCurveClipIndex];
+        TonDron::Clip &beforeClip = before.tracks()[m_fadeCurveTrack].clips[m_fadeCurveClipIndex];
         beforeClip.fadeCurve = m_fadeCurveBefore;
         beforeClip.fadeShape = m_fadeShapeBefore;
         syncLinkedPartnersFrom(before, beforeClip);
     }
 
-    clip.fadeCurve = drift::FadeCurve::Custom;
+    clip.fadeCurve = TonDron::FadeCurve::Custom;
     clip.fadeShape = m_fadeShape;
-    if (clip.animIn.kind == drift::ClipAnimKind::Fade) {
-        clip.animIn.curve = drift::FadeCurve::Custom;
+    if (clip.animIn.kind == TonDron::ClipAnimKind::Fade) {
+        clip.animIn.curve = TonDron::FadeCurve::Custom;
         clip.animIn.shape = m_fadeShape;
-        clip.animIn.ease = drift::clipAnimCurveToEase(drift::FadeCurve::Custom);
+        clip.animIn.ease = TonDron::clipAnimCurveToEase(TonDron::FadeCurve::Custom);
     }
-    if (clip.animOut.kind == drift::ClipAnimKind::Fade) {
-        clip.animOut.curve = drift::FadeCurve::Custom;
+    if (clip.animOut.kind == TonDron::ClipAnimKind::Fade) {
+        clip.animOut.curve = TonDron::FadeCurve::Custom;
         clip.animOut.shape = m_fadeShape;
-        clip.animOut.ease = drift::clipAnimCurveToEase(drift::FadeCurve::Custom);
+        clip.animOut.ease = TonDron::clipAnimCurveToEase(TonDron::FadeCurve::Custom);
     }
     // Motion Custom styles also share this curve editor session.
-    if (clip.animIn.curve == drift::FadeCurve::Custom)
+    if (clip.animIn.curve == TonDron::FadeCurve::Custom)
         clip.animIn.shape = m_fadeShape;
-    if (clip.animOut.curve == drift::FadeCurve::Custom)
+    if (clip.animOut.curve == TonDron::FadeCurve::Custom)
         clip.animOut.shape = m_fadeShape;
     syncLinkedPartnersFrom(m_project, clip);
     pushProjectEdit(before, tr("Custom fade applied"));
@@ -4093,7 +4093,7 @@ void AppController::endSegmentationSession()
     m_segClip = -1;
     m_segPoints.clear();
     m_segFrame = QImage();
-    m_segEmbedding = drift::Sam2Embedding{};
+    m_segEmbedding = TonDron::Sam2Embedding{};
     ++m_segGeneration;
     ++m_segSeedGeneration;
     m_segSeedRunning = false;
@@ -4108,17 +4108,17 @@ void AppController::setSegmentationFrame(double seconds)
         return;
     if (m_segTrack < 0 || m_segTrack >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(m_segTrack);
+    const TonDron::Track &track = m_project.tracks().at(m_segTrack);
     if (m_segClip < 0 || m_segClip >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(m_segClip);
+    const TonDron::Clip clip = track.clips.at(m_segClip);
     m_segSeconds = seconds;
 
-    const drift::TimeUs timelineUs =
-        qBound(clip.timelineStart, drift::secondsToUs(seconds),
+    const TonDron::TimeUs timelineUs =
+        qBound(clip.timelineStart, TonDron::secondsToUs(seconds),
                clip.timelineStart + clip.timelineDuration - 1);
-    const drift::TimeUs sourceUs = clip.timelineToSourceUs(timelineUs);
+    const TonDron::TimeUs sourceUs = clip.timelineToSourceUs(timelineUs);
     const QString path = clip.path;
     const int canvasW = m_project.width();
     const int canvasH = m_project.height();
@@ -4133,9 +4133,9 @@ void AppController::setSegmentationFrame(double seconds)
     (void)QtConcurrent::run([this, path, sourceUs, canvasW, canvasH, generation]() {
         const QImage frame =
             ClipReaderPool::instance().readVideoFrame(path, sourceUs, canvasW, canvasH);
-        drift::Sam2Embedding embedding;
+        TonDron::Sam2Embedding embedding;
         if (!frame.isNull())
-            embedding = drift::Sam2Segmenter::instance().encode(frame);
+            embedding = TonDron::Sam2Segmenter::instance().encode(frame);
 
         QMetaObject::invokeMethod(
             this,
@@ -4153,7 +4153,7 @@ void AppController::setSegmentationFrame(double seconds)
                 SegmentImageStore::setMask(QImage());
                 ++m_segRevision;
                 if (frame.isNull() || !embedding.valid)
-                    setLastMessage(drift::Sam2Segmenter::instance().lastError(), QStringLiteral("error"));
+                    setLastMessage(TonDron::Sam2Segmenter::instance().lastError(), QStringLiteral("error"));
                 emit segmentSessionChanged();
             },
             Qt::QueuedConnection);
@@ -4211,7 +4211,7 @@ void AppController::refreshSegmentationPreview()
 
 void AppController::runSegmentationSeed(int generation)
 {
-    drift::Sam2Prompt prompt;
+    TonDron::Sam2Prompt prompt;
     for (const QVariant &entry : std::as_const(m_segPoints)) {
         const QVariantMap map = entry.toMap();
         prompt.points.append(QPointF(map.value(QStringLiteral("x")).toDouble() * m_segFrame.width(),
@@ -4219,9 +4219,9 @@ void AppController::runSegmentationSeed(int generation)
         prompt.labels.append(map.value(QStringLiteral("include")).toBool() ? 1 : 0);
     }
 
-    const drift::Sam2Embedding embedding = m_segEmbedding;
+    const TonDron::Sam2Embedding embedding = m_segEmbedding;
     (void)QtConcurrent::run([this, embedding, prompt, generation]() {
-        const drift::Sam2Result result = drift::Sam2Segmenter::instance().segmentSeed(embedding, prompt);
+        const TonDron::Sam2Result result = TonDron::Sam2Segmenter::instance().segmentSeed(embedding, prompt);
         QMetaObject::invokeMethod(
             this,
             [this, result, generation]() {
@@ -4259,16 +4259,16 @@ void AppController::openSegmentationForTemplate(int trackIndex, int clipIndex)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Video)
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Video)
         return;
 
-    const double startSeconds = drift::usToSeconds(clip.timelineStart);
-    const double durationSeconds = drift::usToSeconds(clip.timelineDuration);
+    const double startSeconds = TonDron::usToSeconds(clip.timelineStart);
+    const double durationSeconds = TonDron::usToSeconds(clip.timelineDuration);
     beginSegmentationSession(trackIndex, clipIndex, startSeconds, true);
     emit openSegmentationWindowRequested(trackIndex, clipIndex, startSeconds, durationSeconds);
 }
@@ -4282,12 +4282,12 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
     }
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Video) {
+    const TonDron::Clip clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Video) {
         setLastMessage(tr("Select a video clip to cut out"), QStringLiteral("warning"));
         return;
     }
@@ -4302,7 +4302,7 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
 
     // Kept normalized: the decoded frame size depends on the project canvas, and the prompt has
     // to be scaled to whatever each frame actually comes back as.
-    drift::Sam2Prompt normalized;
+    TonDron::Sam2Prompt normalized;
     for (const QVariant &entry : points) {
         const QVariantMap map = entry.toMap();
         normalized.points.append(QPointF(map.value(QStringLiteral("x")).toDouble(),
@@ -4324,8 +4324,8 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
     setLastMessage(tr("Cutting out subject…"));
 
     const QString path = clip.path;
-    const drift::TimeUs srcIn = clip.srcIn;
-    const drift::TimeUs srcOut = clip.srcOut;
+    const TonDron::TimeUs srcIn = clip.srcIn;
+    const TonDron::TimeUs srcOut = clip.srcOut;
     const int fps = qMax(1, m_project.fps());
     const int canvasW = m_project.width();
     const int canvasH = m_project.height();
@@ -4388,28 +4388,28 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
                 Qt::QueuedConnection);
         };
 
-        drift::Sam2Segmenter &sam = drift::Sam2Segmenter::instance();
+        TonDron::Sam2Segmenter &sam = TonDron::Sam2Segmenter::instance();
         if (!sam.available()) {
             finish(false, sam.lastError(), {});
             return;
         }
 
-        const drift::TimeUs step = drift::kUsPerSecond / fps;
+        const TonDron::TimeUs step = TonDron::kUsPerSecond / fps;
         const int totalFrames = int((srcOut - srcIn + step - 1) / step);
         if (totalFrames <= 0) {
             finish(false, tr("Clip is too short to cut out"), {});
             return;
         }
 
-        const QString mattePath = drift::newMattePath();
+        const QString mattePath = TonDron::newMattePath();
         if (mattePath.isEmpty()) {
             finish(false, tr("Could not create a cutout file"), {});
             return;
         }
 
-        drift::MatteWriter writer;
+        TonDron::MatteWriter writer;
         bool writerOpen = false;
-        std::unique_ptr<drift::Sam2Segmenter::Track> track = sam.newTrack();
+        std::unique_ptr<TonDron::Sam2Segmenter::Track> track = sam.newTrack();
         if (!track) {
             finish(false, sam.lastError(), {});
             return;
@@ -4424,7 +4424,7 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
                 return;
             }
 
-            const drift::TimeUs sourceUs = srcIn + drift::TimeUs(i) * step;
+            const TonDron::TimeUs sourceUs = srcIn + TonDron::TimeUs(i) * step;
             const QImage frame =
                 ClipReaderPool::instance().readVideoFrame(path, sourceUs, canvasW, canvasH);
             if (frame.isNull()) {
@@ -4441,7 +4441,7 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
                 writerOpen = true;
             }
 
-            const drift::Sam2Embedding embedding = sam.encode(frame);
+            const TonDron::Sam2Embedding embedding = sam.encode(frame);
             if (!embedding.valid) {
                 writer.abort();
                 finish(false, sam.lastError(), {});
@@ -4450,9 +4450,9 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
 
             // The first frame is prompted; every later frame is propagated purely from the
             // model's memory bank, so no prompt is carried forward by hand.
-            drift::Sam2Result result;
+            TonDron::Sam2Result result;
             if (i == 0) {
-                drift::Sam2Prompt prompt;
+                TonDron::Sam2Prompt prompt;
                 for (int p = 0; p < normalized.points.size(); ++p) {
                     prompt.points.append(QPointF(normalized.points.at(p).x() * frame.width(),
                                                  normalized.points.at(p).y() * frame.height()));
@@ -4501,7 +4501,7 @@ void AppController::segmentClip(int trackIndex, int clipIndex, const QVariantLis
 
 bool AppController::faceDetectionAvailable()
 {
-    return drift::FaceLandmarker::modelPresent();
+    return TonDron::FaceLandmarker::modelPresent();
 }
 
 void AppController::cancelFaceDetection()
@@ -4521,7 +4521,7 @@ void AppController::clearFaceTrack(int trackIndex, int clipIndex)
 
     // The sidecar itself is left on disk: undo has to be able to bring the track back, and these
     // files are small and live in a cache directory.
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.tracks()[trackIndex].clips[clipIndex].faceTrackPath.clear();
     m_project.tracks()[trackIndex].clips[clipIndex].faceTrackSrcOffsetUs = 0;
     pushProjectEdit(before, tr("Clear Face Track"));
@@ -4536,12 +4536,12 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
     }
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Image) {
+    const TonDron::Clip clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Image) {
         setLastMessage(tr("Select a video clip to detect faces in"), QStringLiteral("warning"));
         return;
     }
@@ -4564,8 +4564,8 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
     setLastMessage(tr("Detecting faces…"));
 
     const QString path = clip.path;
-    const drift::TimeUs srcIn = clip.srcIn;
-    const drift::TimeUs srcOut = clip.srcOut;
+    const TonDron::TimeUs srcIn = clip.srcIn;
+    const TonDron::TimeUs srcOut = clip.srcOut;
     const int fps = qMax(1, m_project.fps());
     const int canvasW = m_project.width();
     const int canvasH = m_project.height();
@@ -4611,25 +4611,25 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
                 Qt::QueuedConnection);
         };
 
-        drift::FaceLandmarker &landmarker = drift::FaceLandmarker::instance();
+        TonDron::FaceLandmarker &landmarker = TonDron::FaceLandmarker::instance();
         if (!landmarker.available()) {
             finish(false, landmarker.lastError(), {});
             return;
         }
 
-        const drift::TimeUs step = drift::kUsPerSecond / fps;
+        const TonDron::TimeUs step = TonDron::kUsPerSecond / fps;
         const int totalFrames = int((srcOut - srcIn + step - 1) / step);
         if (totalFrames <= 0) {
             finish(false, tr("Clip is too short to scan"), {});
             return;
         }
 
-        drift::FaceTrack faceTrack;
+        TonDron::FaceTrack faceTrack;
         faceTrack.fps = fps;
         faceTrack.startSrcUs = srcIn;
         faceTrack.frames.reserve(totalFrames);
 
-        QList<drift::FaceAnchors> previous;
+        QList<TonDron::FaceAnchors> previous;
         int framesWithFace = 0;
 
         for (int i = 0; i < totalFrames; ++i) {
@@ -4638,7 +4638,7 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
                 return;
             }
 
-            const drift::TimeUs sourceUs = srcIn + drift::TimeUs(i) * step;
+            const TonDron::TimeUs sourceUs = srcIn + TonDron::TimeUs(i) * step;
             const QImage frame =
                 ClipReaderPool::instance().readVideoFrame(path, sourceUs, canvasW, canvasH);
             if (frame.isNull()) {
@@ -4648,15 +4648,15 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
 
             // The previous frame seeds the next one's ROI, which is what keeps a face in the same
             // slot for the whole clip and skips the detector while tracking holds.
-            QList<drift::FaceAnchors> faces =
+            QList<TonDron::FaceAnchors> faces =
                 landmarker.detect(frame, previous.isEmpty() ? nullptr : &previous);
             previous = faces;
 
-            drift::FaceTrackFrame baked;
+            TonDron::FaceTrackFrame baked;
             baked.faces = faces;
             faceTrack.frames.append(baked);
 
-            for (const drift::FaceAnchors &a : faces) {
+            for (const TonDron::FaceAnchors &a : faces) {
                 if (a.valid) {
                     ++framesWithFace;
                     break;
@@ -4672,11 +4672,11 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
             return;
         }
 
-        drift::smoothFaceTrack(&faceTrack);
+        TonDron::smoothFaceTrack(&faceTrack);
 
-        const QString trackPath = drift::newFaceTrackPath();
+        const QString trackPath = TonDron::newFaceTrackPath();
         QString error;
-        if (trackPath.isEmpty() || !drift::writeFaceTrack(trackPath, faceTrack, &error)) {
+        if (trackPath.isEmpty() || !TonDron::writeFaceTrack(trackPath, faceTrack, &error)) {
             finish(false, error.isEmpty() ? tr("Could not write the face track") : error,
                    {});
             return;
@@ -4693,12 +4693,12 @@ void AppController::detectFacesForClip(int trackIndex, int clipIndex)
 }
 
 void AppController::finalizeFaceDetection(const QString &clipId, const QString &trackPath,
-                                          drift::TimeUs srcOffsetUs)
+                                          TonDron::TimeUs srcOffsetUs)
 {
     int trackIndex = -1;
     int clipIndex = -1;
     for (int t = 0; t < m_project.tracks().size() && trackIndex < 0; ++t) {
-        const drift::Track &track = m_project.tracks().at(t);
+        const TonDron::Track &track = m_project.tracks().at(t);
         for (int c = 0; c < track.clips.size(); ++c) {
             if (track.clips.at(c).id == clipId) {
                 trackIndex = t;
@@ -4714,7 +4714,7 @@ void AppController::finalizeFaceDetection(const QString &clipId, const QString &
         return;
     }
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.tracks()[trackIndex].clips[clipIndex].faceTrackPath = trackPath;
     m_project.tracks()[trackIndex].clips[clipIndex].faceTrackSrcOffsetUs = srcOffsetUs;
     pushProjectEdit(before, tr("Detect Faces"));
@@ -4723,12 +4723,12 @@ void AppController::finalizeFaceDetection(const QString &clipId, const QString &
 }
 
 void AppController::finalizeSegmentation(const QString &clipId, const QString &mattePath,
-                                         drift::TimeUs matteSrcOffsetUs, const QString &outputMode)
+                                         TonDron::TimeUs matteSrcOffsetUs, const QString &outputMode)
 {
     int trackIndex = -1;
     int clipIndex = -1;
     for (int t = 0; t < m_project.tracks().size() && trackIndex < 0; ++t) {
-        const drift::Track &track = m_project.tracks().at(t);
+        const TonDron::Track &track = m_project.tracks().at(t);
         for (int c = 0; c < track.clips.size(); ++c) {
             if (track.clips.at(c).id == clipId) {
                 trackIndex = t;
@@ -4744,11 +4744,11 @@ void AppController::finalizeSegmentation(const QString &clipId, const QString &m
         return;
     }
 
-    const drift::Project before = m_project;
-    const drift::Clip source = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Project before = m_project;
+    const TonDron::Clip source = m_project.tracks().at(trackIndex).clips.at(clipIndex);
 
-    drift::Mask matte;
-    matte.shape = drift::MaskShape::Matte;
+    TonDron::Mask matte;
+    matte.shape = TonDron::MaskShape::Matte;
     matte.mattePath = mattePath;
     matte.matteSrcOffsetUs = matteSrcOffsetUs;
 
@@ -4764,7 +4764,7 @@ void AppController::finalizeSegmentation(const QString &clipId, const QString &m
     // composites back to the original because they differ only by mask inversion. The original
     // clip is deliberately left in place.
     auto derive = [&source, &matte](bool invert, const QString &suffix) {
-        drift::Clip clip = source;
+        TonDron::Clip clip = source;
         clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         clip.linkId.clear();
         clip.mask = matte;
@@ -4774,10 +4774,10 @@ void AppController::finalizeSegmentation(const QString &clipId, const QString &m
     };
 
     // Prepended in reverse so the foreground ends up on top (index 0 is the topmost track).
-    const int bgTrack = drift::insertTrackAtTopForClipType(m_project, drift::ClipType::Video);
+    const int bgTrack = TonDron::insertTrackAtTopForClipType(m_project, TonDron::ClipType::Video);
     m_project.tracks()[bgTrack].clips.append(derive(true, QStringLiteral(" (background)")));
 
-    const int fgTrack = drift::insertTrackAtTopForClipType(m_project, drift::ClipType::Video);
+    const int fgTrack = TonDron::insertTrackAtTopForClipType(m_project, TonDron::ClipType::Video);
     m_project.tracks()[fgTrack].clips.append(derive(false, QStringLiteral(" (foreground)")));
 
     pushProjectEdit(before, tr("Cut out subject"));
@@ -4791,7 +4791,7 @@ bool AppController::denoiseAvailable()
 {
     // Deliberately only checks that the model files exist. This is reached from a QML binding, and
     // loading the session here would block the GUI thread.
-    return drift::DeepFilterDenoiser::modelPresent();
+    return TonDron::DeepFilterDenoiser::modelPresent();
 }
 
 void AppController::cancelDenoise()
@@ -4800,8 +4800,8 @@ void AppController::cancelDenoise()
         m_denoiseCancel.storeRelaxed(1);
 }
 
-bool AppController::renderDenoisedAudio(const QString &path, drift::TimeUs srcIn,
-                                        drift::TimeUs span, const QString &outPath,
+bool AppController::renderDenoisedAudio(const QString &path, TonDron::TimeUs srcIn,
+                                        TonDron::TimeUs span, const QString &outPath,
                                         const QString &originalPath, double progressFrom,
                                         double progressTo, QString *errorOut)
 {
@@ -4827,13 +4827,13 @@ bool AppController::renderDenoisedAudio(const QString &path, drift::TimeUs srcIn
         return progressFrom + (progressTo - progressFrom) * std::clamp(f, 0.0, 1.0);
     };
 
-    drift::DeepFilterDenoiser &dn = drift::DeepFilterDenoiser::instance();
+    TonDron::DeepFilterDenoiser &dn = TonDron::DeepFilterDenoiser::instance();
     setProgress(span01(0.0), tr("Getting noise removal ready…"));
     if (!dn.available())
         return fail(dn.lastError());
 
-    const int rate = drift::DeepFilterDenoiser::sampleRate();
-    const int64_t totalFrames = (span * rate) / drift::kUsPerSecond;
+    const int rate = TonDron::DeepFilterDenoiser::sampleRate();
+    const int64_t totalFrames = (span * rate) / TonDron::kUsPerSecond;
     if (totalFrames <= 0)
         return fail(tr("Clip is too short to process"));
 
@@ -4846,7 +4846,7 @@ bool AppController::renderDenoisedAudio(const QString &path, drift::TimeUs srcIn
     while (have < totalFrames) {
         if (m_denoiseCancel.loadRelaxed())
             return fail(tr("Noise removal cancelled"));
-        const drift::TimeUs at = srcIn + drift::TimeUs((have * drift::kUsPerSecond) / rate);
+        const TonDron::TimeUs at = srcIn + TonDron::TimeUs((have * TonDron::kUsPerSecond) / rate);
         const int want = int(std::min<int64_t>(chunkFrames, totalFrames - have));
         const int got = ClipReaderPool::instance().readAudioInterleaved(
             path, at, want, rate, interleaved.data() + size_t(have) * 2);
@@ -4863,7 +4863,7 @@ bool AppController::renderDenoisedAudio(const QString &path, drift::TimeUs srcIn
     // The A/B source for the preview window, written before the model runs so a cancel still
     // leaves nothing half-made.
     if (!originalPath.isEmpty()) {
-        drift::AudioFileWriter orig;
+        TonDron::AudioFileWriter orig;
         QString error;
         if (!orig.open(originalPath, rate, 2, &error))
             return fail(error);
@@ -4895,7 +4895,7 @@ bool AppController::renderDenoisedAudio(const QString &path, drift::TimeUs srcIn
     }
 
     setProgress(span01(0.95), tr("Writing audio…"));
-    drift::AudioFileWriter writer;
+    TonDron::AudioFileWriter writer;
     QString error;
     if (!writer.open(outPath, rate, 2, &error))
         return fail(error);
@@ -4919,12 +4919,12 @@ void AppController::previewDenoise(int trackIndex, int clipIndex, double atSecon
     }
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Audio && clip.type != drift::ClipType::Video) {
+    const TonDron::Clip clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Audio && clip.type != TonDron::ClipType::Video) {
         setLastMessage(tr("Select a video or audio clip"), QStringLiteral("warning"));
         return;
     }
@@ -4939,13 +4939,13 @@ void AppController::previewDenoise(int trackIndex, int clipIndex, double atSecon
 
     // Eight seconds is enough to judge the result and short enough that dragging the window along
     // the clip stays responsive.
-    constexpr drift::TimeUs kPreviewSpan = 8 * drift::kUsPerSecond;
-    const drift::TimeUs clipSpan = clip.srcOut - clip.srcIn;
-    const drift::TimeUs offset =
-        qBound<drift::TimeUs>(0, drift::secondsToUs(atSeconds) * clip.effectiveSpeed(),
-                              std::max<drift::TimeUs>(0, clipSpan - 1));
-    const drift::TimeUs from = clip.srcIn + offset;
-    const drift::TimeUs span = std::min(kPreviewSpan, clip.srcOut - from);
+    constexpr TonDron::TimeUs kPreviewSpan = 8 * TonDron::kUsPerSecond;
+    const TonDron::TimeUs clipSpan = clip.srcOut - clip.srcIn;
+    const TonDron::TimeUs offset =
+        qBound<TonDron::TimeUs>(0, TonDron::secondsToUs(atSeconds) * clip.effectiveSpeed(),
+                              std::max<TonDron::TimeUs>(0, clipSpan - 1));
+    const TonDron::TimeUs from = clip.srcIn + offset;
+    const TonDron::TimeUs span = std::min(kPreviewSpan, clip.srcOut - from);
 
     m_denoiseCancel.storeRelaxed(0);
     m_denoiseProgress = 0.0;
@@ -4956,8 +4956,8 @@ void AppController::previewDenoise(int trackIndex, int clipIndex, double atSecon
     emit denoisingChanged();
 
     const QString path = clip.path;
-    const QString cleanPath = drift::newDenoisePath(QStringLiteral("-preview"));
-    const QString origPath = drift::newDenoisePath(QStringLiteral("-original"));
+    const QString cleanPath = TonDron::newDenoisePath(QStringLiteral("-preview"));
+    const QString origPath = TonDron::newDenoisePath(QStringLiteral("-original"));
     if (cleanPath.isEmpty() || origPath.isEmpty()) {
         m_denoising = false;
         emit denoisingChanged();
@@ -5005,12 +5005,12 @@ void AppController::applyDenoise(int trackIndex, int clipIndex)
     }
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Audio && clip.type != drift::ClipType::Video) {
+    const TonDron::Clip clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Audio && clip.type != TonDron::ClipType::Video) {
         setLastMessage(tr("Select a video or audio clip"), QStringLiteral("warning"));
         return;
     }
@@ -5031,12 +5031,12 @@ void AppController::applyDenoise(int trackIndex, int clipIndex)
     setLastMessage(tr("Removing noise…"));
 
     const QString path = clip.path;
-    const drift::TimeUs srcIn = clip.srcIn;
-    const drift::TimeUs span = clip.srcOut - clip.srcIn;
+    const TonDron::TimeUs srcIn = clip.srcIn;
+    const TonDron::TimeUs span = clip.srcOut - clip.srcIn;
     // Resolved by id at the end rather than by index: the timeline can be edited while the job
     // runs, and a stale index would attach the audio to the wrong clip.
     const QString clipId = clip.id;
-    const QString outPath = drift::newDenoisePath();
+    const QString outPath = TonDron::newDenoisePath();
     if (outPath.isEmpty()) {
         m_denoising = false;
         emit denoisingChanged();
@@ -5073,7 +5073,7 @@ void AppController::finalizeDenoise(const QString &clipId, const QString &audioP
     int trackIndex = -1;
     int clipIndex = -1;
     for (int t = 0; t < m_project.tracks().size() && trackIndex < 0; ++t) {
-        const drift::Track &track = m_project.tracks().at(t);
+        const TonDron::Track &track = m_project.tracks().at(t);
         for (int c = 0; c < track.clips.size(); ++c) {
             if (track.clips.at(c).id == clipId) {
                 trackIndex = t;
@@ -5091,28 +5091,28 @@ void AppController::finalizeDenoise(const QString &clipId, const QString &audioP
         return;
     }
 
-    const drift::Project before = m_project;
-    const drift::Clip source = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Project before = m_project;
+    const TonDron::Clip source = m_project.tracks().at(trackIndex).clips.at(clipIndex);
 
     // Everything about the clip carries over except the media it points at. srcIn/srcOut rebase
     // because the render already baked in the source window, while speed and reverse stay — the
     // render is in the source's time base, so the new clip lines up with the original.
-    drift::Clip clip = source;
+    TonDron::Clip clip = source;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     clip.linkId.clear();
     clip.assetId.clear();
     clip.path = audioPath;
     clip.thumbnailPath.clear();
     clip.filmstripPath.clear();
-    clip.type = drift::ClipType::Audio;
-    clip.mask = drift::Mask{};
+    clip.type = TonDron::ClipType::Audio;
+    clip.mask = TonDron::Mask{};
     clip.srcIn = 0;
     clip.srcOut = source.srcOut - source.srcIn;
     clip.name = (source.name.isEmpty() ? tr("Clip") : source.name)
                 + tr(" (denoised)");
 
     const int newTrack =
-        drift::insertTrackAboveForClipType(m_project, trackIndex, drift::ClipType::Audio);
+        TonDron::insertTrackAboveForClipType(m_project, trackIndex, TonDron::ClipType::Audio);
     m_project.tracks()[newTrack].clips.append(clip);
 
     pushProjectEdit(before, tr("Remove noise"));
@@ -5122,30 +5122,30 @@ void AppController::finalizeDenoise(const QString &clipId, const QString &audioP
     emit denoiseFinished(true, tr("Noise removed"));
 }
 
-void AppController::finalizeGeneratedSubtitles(drift::TimeUs timelineStart,
-                                               drift::TimeUs timelineDuration,
-                                               const QList<drift::SubtitleCue> &cues)
+void AppController::finalizeGeneratedSubtitles(TonDron::TimeUs timelineStart,
+                                               TonDron::TimeUs timelineDuration,
+                                               const QList<TonDron::SubtitleCue> &cues)
 {
-    const drift::Project before = m_project;
-    const int trackIndex = drift::ensureTrackForClipType(m_project, drift::ClipType::Subtitle, true);
+    const TonDron::Project before = m_project;
+    const int trackIndex = TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Subtitle, true);
     qWarning() << "[subtitles] finalize: trackIndex" << trackIndex << "cues" << cues.size()
                << "start" << timelineStart << "dur" << timelineDuration;
     if (trackIndex < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    drift::Clip clip;
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    clip.type = drift::ClipType::Subtitle;
+    clip.type = TonDron::ClipType::Subtitle;
     clip.timelineStart = timelineStart;
     clip.timelineDuration = timelineDuration;
     clip.srcIn = 0;
     clip.srcOut = timelineDuration;
-    if (const drift::TextStyle *preset = drift::textStyleForPresetId(QStringLiteral("subtitle")))
+    if (const TonDron::TextStyle *preset = TonDron::textStyleForPresetId(QStringLiteral("subtitle")))
         clip.textStyle = *preset;
     applyDefaultVisualLayout(clip, m_project.width(), m_project.height());
     clip.subtitleCues = cues;
-    clip.name = drift::subtitleClipName(cues);
+    clip.name = TonDron::subtitleClipName(cues);
 
     track.clips.append(clip);
     pushProjectEdit(before, tr("Subtitles generated"));
@@ -5160,14 +5160,14 @@ void AppController::reportMissingCatalogEntries()
     QSet<QString> missingEffects;
     QSet<QString> missingTransitions;
 
-    for (const drift::Track &track : m_project.tracks()) {
-        for (const drift::Clip &clip : track.clips) {
-            for (const drift::Effect &effect : clip.effects) {
+    for (const TonDron::Track &track : m_project.tracks()) {
+        for (const TonDron::Clip &clip : track.clips) {
+            for (const TonDron::Effect &effect : clip.effects) {
                 if (!effect.catalogId.isEmpty() && !effectDefForId(effect.catalogId))
                     missingEffects.insert(effect.catalogId);
             }
         }
-        for (const drift::Transition &transition : track.transitions) {
+        for (const TonDron::Transition &transition : track.transitions) {
             if (!transition.kindId.isEmpty() && !transitionDefForId(transition.kindId))
                 missingTransitions.insert(transition.kindId);
         }
@@ -5220,13 +5220,13 @@ QVariantList AppController::builtinStickerCategories() const
 QVariantList AppController::builtinShapes() const
 {
     QVariantList out;
-    for (const drift::ShapeCatalogEntry &entry : drift::shapeCatalog()) {
+    for (const TonDron::ShapeCatalogEntry &entry : TonDron::shapeCatalog()) {
         out.append(QVariantMap{
             {QStringLiteral("id"), entry.id},
             {QStringLiteral("label"), entry.label},
             {QStringLiteral("category"), entry.category},
             // Several ids share a kind, so the inspector matches a clip's stored kind on this.
-            {QStringLiteral("kind"), drift::shapeKindToString(entry.style.kind)},
+            {QStringLiteral("kind"), TonDron::shapeKindToString(entry.style.kind)},
         });
     }
     return out;
@@ -5235,7 +5235,7 @@ QVariantList AppController::builtinShapes() const
 QVariantList AppController::builtinShapeCategories() const
 {
     QVariantList out;
-    for (const drift::ShapeCategory &category : drift::shapeCategories()) {
+    for (const TonDron::ShapeCategory &category : TonDron::shapeCategories()) {
         out.append(QVariantMap{
             {QStringLiteral("id"), category.id},
             {QStringLiteral("label"), category.label},
@@ -5246,8 +5246,8 @@ QVariantList AppController::builtinShapeCategories() const
 
 QString AppController::shapeSvgPath(const QString &shapeId) const
 {
-    const drift::ShapeCatalogEntry *entry = drift::shapeCatalogEntry(shapeId);
-    drift::ShapeStyle style = entry ? entry->style : shapeStyleForKind(shapeId);
+    const TonDron::ShapeCatalogEntry *entry = TonDron::shapeCatalogEntry(shapeId);
+    TonDron::ShapeStyle style = entry ? entry->style : shapeStyleForKind(shapeId);
     const double aspect = entry ? entry->aspect : 1.0;
 
     // Thumbnails are authored on the 0..100 grid ShapePreview.qml scales from, inset so the 2px
@@ -5262,7 +5262,7 @@ QString AppController::shapeSvgPath(const QString &shapeId) const
 
     // Corner radius is in project pixels; on a 100-unit grid a 32px radius would swallow the shape.
     style.cornerRadius = style.cornerRadius > 0.0 ? 12.0 : 0.0;
-    return drift::shapeSvgPath(style, bounds);
+    return TonDron::shapeSvgPath(style, bounds);
 }
 
 void AppController::addShapeClip(const QString &shapeKind, double atSeconds)
@@ -5272,32 +5272,32 @@ void AppController::addShapeClip(const QString &shapeKind, double atSeconds)
 
 void AppController::addShapeClipAt(const QString &shapeId, int trackIndex, double atSeconds)
 {
-    const drift::ShapeCatalogEntry *entry = drift::shapeCatalogEntry(shapeId);
-    const drift::ShapeStyle style = entry ? entry->style : shapeStyleForKind(shapeId);
-    const drift::Project before = m_project;
+    const TonDron::ShapeCatalogEntry *entry = TonDron::shapeCatalogEntry(shapeId);
+    const TonDron::ShapeStyle style = entry ? entry->style : shapeStyleForKind(shapeId);
+    const TonDron::Project before = m_project;
 
     int target = trackIndex;
     if (target < 0 || target >= m_project.tracks().size()
-        || !m_project.tracks().at(target).allowsClipType(drift::ClipType::Shape)) {
-        target = drift::ensureTrackForClipType(m_project, drift::ClipType::Shape, true);
+        || !m_project.tracks().at(target).allowsClipType(TonDron::ClipType::Shape)) {
+        target = TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Shape, true);
     }
     if (target < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[target];
-    const drift::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : drift::secondsToUs(atSeconds);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, startSeconds,
-                                                        drift::kImageClipDurationUs, m_snapEnabled, m_playheadUs);
+    TonDron::Track &track = m_project.tracks()[target];
+    const TonDron::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : TonDron::secondsToUs(atSeconds);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, startSeconds,
+                                                        TonDron::kImageClipDurationUs, m_snapEnabled, m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    clip.type = drift::ClipType::Shape;
-    clip.name = entry ? entry->label : drift::shapeKindToString(style.kind);
+    clip.type = TonDron::ClipType::Shape;
+    clip.name = entry ? entry->label : TonDron::shapeKindToString(style.kind);
     clip.shapeStyle = style;
     clip.timelineStart = start;
-    clip.timelineDuration = drift::kImageClipDurationUs;
+    clip.timelineDuration = TonDron::kImageClipDurationUs;
     clip.srcIn = 0;
-    clip.srcOut = drift::kImageClipDurationUs;
+    clip.srcOut = TonDron::kImageClipDurationUs;
     applyDefaultVisualLayout(clip, m_project.width(), m_project.height(),
                              entry ? entry->aspect : 1.6);
 
@@ -5365,28 +5365,28 @@ void AppController::addImageOverlayClip(const QString &path, const QString &name
                                         const QString &emoji, double atSeconds,
                                         const QString &undoText)
 {
-    const drift::Project before = m_project;
-    const int trackIndex = drift::ensureTrackForClipType(m_project, drift::ClipType::Image, true);
+    const TonDron::Project before = m_project;
+    const int trackIndex = TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Image, true);
     if (trackIndex < 0)
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : drift::secondsToUs(atSeconds);
-    const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, startSeconds,
-                                                        drift::kImageClipDurationUs, m_snapEnabled, m_playheadUs);
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::TimeUs startSeconds = atSeconds < 0.0 ? m_playheadUs : TonDron::secondsToUs(atSeconds);
+    const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, startSeconds,
+                                                        TonDron::kImageClipDurationUs, m_snapEnabled, m_playheadUs);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    clip.type = drift::ClipType::Image;
+    clip.type = TonDron::ClipType::Image;
     clip.name = name;
     clip.path = path;
     clip.thumbnailPath = path;
     clip.filmstripPath = path;
     clip.emoji = emoji;
     clip.timelineStart = start;
-    clip.timelineDuration = drift::kImageClipDurationUs;
+    clip.timelineDuration = TonDron::kImageClipDurationUs;
     clip.srcIn = 0;
-    clip.srcOut = drift::kImageClipDurationUs;
+    clip.srcOut = TonDron::kImageClipDurationUs;
     applyDefaultVisualLayout(clip, m_project.width(), m_project.height());
 
     track.clips.append(clip);
@@ -5403,21 +5403,21 @@ QVariantList AppController::previewClipsAtPlayhead() const
     if (canvasWidth <= 0 || canvasHeight <= 0)
         return out;
 
-    const QList<drift::Track> &tracks = m_project.tracks();
+    const QList<TonDron::Track> &tracks = m_project.tracks();
     for (int trackIndex = 0; trackIndex < tracks.size(); ++trackIndex) {
-        const drift::Track &track = tracks.at(trackIndex);
+        const TonDron::Track &track = tracks.at(trackIndex);
         if (track.hidden)
             continue;
-        if (track.type != drift::TrackType::Video && track.type != drift::TrackType::Shape
-            && track.type != drift::TrackType::Text && track.type != drift::TrackType::Subtitle)
+        if (track.type != TonDron::TrackType::Video && track.type != TonDron::TrackType::Shape
+            && track.type != TonDron::TrackType::Text && track.type != TonDron::TrackType::Subtitle)
             continue;
 
         for (int clipIndex = 0; clipIndex < track.clips.size(); ++clipIndex) {
-            const drift::Clip &clip = track.clips.at(clipIndex);
+            const TonDron::Clip &clip = track.clips.at(clipIndex);
             if (!clip.containsTime(m_playheadUs) || !clipAcceptsPreviewTransform(clip))
                 continue;
 
-            const drift::TimeUs relative = m_playheadUs - clip.timelineStart;
+            const TonDron::TimeUs relative = m_playheadUs - clip.timelineStart;
             const double x = clipTransformValue(clip.transformX, relative, 0.0);
             const double y = clipTransformValue(clip.transformY, relative, 0.0);
             const double w = clipTransformValue(clip.transformW, relative, static_cast<double>(canvasWidth));
@@ -5427,7 +5427,7 @@ QVariantList AppController::previewClipsAtPlayhead() const
             out.append(QVariantMap{
                 {QStringLiteral("track"), trackIndex},
                 {QStringLiteral("clip"), clipIndex},
-                {QStringLiteral("kind"), drift::clipTypeToString(clip.type)},
+                {QStringLiteral("kind"), TonDron::clipTypeToString(clip.type)},
                 {QStringLiteral("name"), clip.name},
                 {QStringLiteral("pixelSize"), clip.textStyle.pixelSize},
                 {QStringLiteral("x"), x},
@@ -5478,9 +5478,9 @@ void AppController::setProjectSetup(int width, int height, int fps)
     const bool pristine =
         m_undoStack.count() == 0 && !m_dirty && m_currentProjectPath.isEmpty();
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     if (m_project.width() != width || m_project.height() != height)
-        drift::rebaseClipLayout(m_project, m_project.width(), m_project.height(), 0.0, 0.0);
+        TonDron::rebaseClipLayout(m_project, m_project.width(), m_project.height(), 0.0, 0.0);
     m_project.setResolution(width, height);
     m_project.setFps(fps);
     if (!pristine)
@@ -5498,8 +5498,8 @@ void AppController::applyCanvasCrop(double x, double y, double width, double hei
         && qFuzzyIsNull(x) && qFuzzyIsNull(y))
         return;
 
-    const drift::Project before = m_project;
-    drift::rebaseClipLayout(m_project, m_project.width(), m_project.height(), x, y);
+    const TonDron::Project before = m_project;
+    TonDron::rebaseClipLayout(m_project, m_project.width(), m_project.height(), x, y);
     m_project.setResolution(newWidth, newHeight);
     pushProjectEdit(before, tr("Crop canvas"));
     finishEdit(tr("Video size cropped to %1×%2").arg(newWidth).arg(newHeight));
@@ -5515,10 +5515,10 @@ void AppController::setCanvasCropMode(bool active)
 
 QVariantMap AppController::background() const
 {
-    const drift::Background &bg = m_project.background();
+    const TonDron::Background &bg = m_project.background();
     QVariantMap map;
     map.insert(QStringLiteral("kind"),
-               bg.kind == drift::BackgroundKind::Blur ? QStringLiteral("blur") : QStringLiteral("color"));
+               bg.kind == TonDron::BackgroundKind::Blur ? QStringLiteral("blur") : QStringLiteral("color"));
     map.insert(QStringLiteral("color"), bg.color.name(QColor::HexArgb));
     map.insert(QStringLiteral("blurStrength"), bg.blurStrength);
     return map;
@@ -5526,11 +5526,11 @@ QVariantMap AppController::background() const
 
 void AppController::setBackground(const QVariantMap &background)
 {
-    drift::Background bg = m_project.background();
+    TonDron::Background bg = m_project.background();
     if (background.contains(QStringLiteral("kind"))) {
         bg.kind = background.value(QStringLiteral("kind")).toString() == QStringLiteral("blur")
-                      ? drift::BackgroundKind::Blur
-                      : drift::BackgroundKind::Color;
+                      ? TonDron::BackgroundKind::Blur
+                      : TonDron::BackgroundKind::Color;
     }
     if (background.contains(QStringLiteral("color"))) {
         const QColor color(background.value(QStringLiteral("color")).toString());
@@ -5540,12 +5540,12 @@ void AppController::setBackground(const QVariantMap &background)
     if (background.contains(QStringLiteral("blurStrength")))
         bg.blurStrength = qBound(0.0, background.value(QStringLiteral("blurStrength")).toDouble(), 200.0);
 
-    const drift::Background &current = m_project.background();
+    const TonDron::Background &current = m_project.background();
     if (current.kind == bg.kind && current.color == bg.color
         && qFuzzyCompare(current.blurStrength + 1.0, bg.blurStrength + 1.0))
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.setBackground(bg);
     pushProjectEdit(before, tr("Change background"));
     finishEdit(tr("Background updated"));
@@ -5555,11 +5555,11 @@ void AppController::setBackground(const QVariantMap &background)
 
 bool AppController::timelineHasVisualClips() const
 {
-    for (const drift::Track &track : m_project.tracks()) {
-        for (const drift::Clip &clip : track.clips) {
-            if (clip.type == drift::ClipType::Video || clip.type == drift::ClipType::Image
-                || clip.type == drift::ClipType::Text || clip.type == drift::ClipType::Subtitle
-                || clip.type == drift::ClipType::Shape) {
+    for (const TonDron::Track &track : m_project.tracks()) {
+        for (const TonDron::Clip &clip : track.clips) {
+            if (clip.type == TonDron::ClipType::Video || clip.type == TonDron::ClipType::Image
+                || clip.type == TonDron::ClipType::Text || clip.type == TonDron::ClipType::Subtitle
+                || clip.type == TonDron::ClipType::Shape) {
                 return true;
             }
         }
@@ -5581,9 +5581,9 @@ bool AppController::shouldConfigureProjectForAsset(int assetIndex) const
         return false;
 
     // Offer setup only for the first video/image clip (text/shapes alone don't count).
-    for (const drift::Track &track : m_project.tracks()) {
-        for (const drift::Clip &clip : track.clips) {
-            if (clip.type == drift::ClipType::Video || clip.type == drift::ClipType::Image)
+    for (const TonDron::Track &track : m_project.tracks()) {
+        for (const TonDron::Clip &clip : track.clips) {
+            if (clip.type == TonDron::ClipType::Video || clip.type == TonDron::ClipType::Image)
                 return false;
         }
     }
@@ -5667,12 +5667,12 @@ void AppController::previewSetClipPosition(int trackIndex, int clipIndex, double
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
     const bool wroteX = writeKeyframeValue(clip.transformX, relative, xPixels, m_autoKeyEnabled, false);
     const bool wroteY = writeKeyframeValue(clip.transformY, relative, yPixels, m_autoKeyEnabled, false);
     if (!wroteX && !wroteY) {
@@ -5691,12 +5691,12 @@ void AppController::previewSetClipSize(int trackIndex, int clipIndex, double wid
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
     const bool wroteW =
         writeKeyframeValue(clip.transformW, relative, qMax(1.0, widthPixels), m_autoKeyEnabled, false);
     const bool wroteH =
@@ -5718,12 +5718,12 @@ void AppController::previewSetClipRect(int trackIndex, int clipIndex, double xPi
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
     bool wrote = false;
     wrote = writeKeyframeValue(clip.transformX, relative, xPixels, m_autoKeyEnabled, false) || wrote;
     wrote = writeKeyframeValue(clip.transformY, relative, yPixels, m_autoKeyEnabled, false) || wrote;
@@ -5747,12 +5747,12 @@ void AppController::previewSetClipRotation(int trackIndex, int clipIndex, double
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
     if (!writeKeyframeValue(clip.rotation, relative, degrees, m_autoKeyEnabled, false)) {
         emit transformBlocked(tr("Turn on Auto keyframes to rotate this"));
         return;
@@ -5770,12 +5770,12 @@ void AppController::previewSetClipKeyframe(int trackIndex, int clipIndex, const 
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs rel = qMax<drift::TimeUs>(0, drift::secondsToUs(atSeconds) - clip.timelineStart);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs rel = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(atSeconds) - clip.timelineStart);
     if (!writeClipPropValue(clip, prop, rel, value, m_autoKeyEnabled, /*force=*/false)) {
         emit transformBlocked(tr("Turn on Auto keyframes to edit this"));
         return;
@@ -5793,11 +5793,11 @@ void AppController::previewSetEffectParam(int trackIndex, int clipIndex, int eff
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.effects.size())
         return;
     if (key.isEmpty())
@@ -5809,7 +5809,7 @@ void AppController::previewSetEffectParam(int trackIndex, int clipIndex, int eff
     const EffectPresetEntry *def = effectDefForId(clip.effects[effectIndex].catalogId);
     bool asBoolean = false;
     if (def) {
-        for (const drift::EffectParamSpec &param : def->meta.parameters) {
+        for (const TonDron::EffectParamSpec &param : def->meta.parameters) {
             if (param.key == key) {
                 asBoolean = param.isBoolean();
                 break;
@@ -5828,12 +5828,12 @@ void AppController::previewSetClipSpeed(int trackIndex, int clipIndex, double sp
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Audio)
         return;
 
     if (!m_previewDragActive)
@@ -5850,36 +5850,36 @@ void AppController::previewSetClipFade(int trackIndex, int clipIndex, double fad
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
     if (!m_previewDragActive)
         beginPreviewDrag(tr("Adjust fade"));
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::TimeUs fin = qMax<drift::TimeUs>(0, drift::secondsToUs(fadeInSeconds));
-    drift::TimeUs fout = qMax<drift::TimeUs>(0, drift::secondsToUs(fadeOutSeconds));
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::TimeUs fin = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(fadeInSeconds));
+    TonDron::TimeUs fout = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(fadeOutSeconds));
     fin = qMin(fin, clip.timelineDuration);
     fout = qMin(fout, clip.timelineDuration - fin);
     clip.fadeInUs = fin;
     clip.fadeOutUs = fout;
-    if (clip.type != drift::ClipType::Audio && clip.type != drift::ClipType::Subtitle) {
+    if (clip.type != TonDron::ClipType::Audio && clip.type != TonDron::ClipType::Subtitle) {
         if (fin > 0) {
-            clip.animIn.kind = drift::ClipAnimKind::Fade;
+            clip.animIn.kind = TonDron::ClipAnimKind::Fade;
             clip.animIn.durationUs = fin;
             clip.animIn.curve = clip.fadeCurve;
             clip.animIn.shape = clip.fadeShape;
-        } else if (clip.animIn.kind == drift::ClipAnimKind::Fade) {
-            clip.animIn.kind = drift::ClipAnimKind::None;
+        } else if (clip.animIn.kind == TonDron::ClipAnimKind::Fade) {
+            clip.animIn.kind = TonDron::ClipAnimKind::None;
         }
         if (fout > 0) {
-            clip.animOut.kind = drift::ClipAnimKind::Fade;
+            clip.animOut.kind = TonDron::ClipAnimKind::Fade;
             clip.animOut.durationUs = fout;
             clip.animOut.curve = clip.fadeCurve;
             clip.animOut.shape = clip.fadeShape;
-        } else if (clip.animOut.kind == drift::ClipAnimKind::Fade) {
-            clip.animOut.kind = drift::ClipAnimKind::None;
+        } else if (clip.animOut.kind == TonDron::ClipAnimKind::Fade) {
+            clip.animOut.kind = TonDron::ClipAnimKind::None;
         }
     }
     syncLinkedPartnersFrom(m_project, clip);
@@ -5891,7 +5891,7 @@ void AppController::previewSetClipMask(int trackIndex, int clipIndex, const QVar
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
@@ -5909,7 +5909,7 @@ void AppController::commitPreviewDrag()
 
     const QString text = m_previewDragText.isEmpty() ? tr("Edit clip") : m_previewDragText;
     if (!m_mcpUndoSuspended)
-        m_undoStack.push(new drift::ProjectSnapshotCommand(&m_project, m_previewDragBefore, m_project, text));
+        m_undoStack.push(new TonDron::ProjectSnapshotCommand(&m_project, m_previewDragBefore, m_project, text));
     m_previewDragActive = false;
     finishEdit(text);
 }
@@ -5929,14 +5929,14 @@ void AppController::setClipStart(int trackIndex, int clipIndex, double start)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Project before = m_project;
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs oldStart = clip.timelineStart;
-    clip.timelineStart = drift::resolveClipStart(m_project, track, clipIndex, drift::secondsToUs(start),
+    const TonDron::Project before = m_project;
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs oldStart = clip.timelineStart;
+    clip.timelineStart = TonDron::resolveClipStart(m_project, track, clipIndex, TonDron::secondsToUs(start),
                                                  clip.timelineDuration, m_snapEnabled, m_playheadUs,
                                                  extraSnapTargets());
     applyRippleShift(track, clipIndex, clip.timelineStart - oldStart);
@@ -5949,31 +5949,31 @@ void AppController::setClipDuration(int trackIndex, int clipIndex, double durati
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Project before = m_project;
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::TimeUs maxSource = sourceDurationForClip(clip);
+    const TonDron::Project before = m_project;
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::TimeUs maxSource = sourceDurationForClip(clip);
     const bool syntheticVisual = isSyntheticTimelineClip(clip.type);
-    const drift::TimeUs maxSourceSpan =
+    const TonDron::TimeUs maxSourceSpan =
         syntheticVisual ? syntheticClipMaxDurationUs()
                         : (clip.reverse ? clip.srcOut : (maxSource > clip.srcIn ? maxSource - clip.srcIn : 0));
-    const drift::TimeUs maxDuration =
+    const TonDron::TimeUs maxDuration =
         syntheticVisual
             ? maxSourceSpan
             : (clip.effectiveSpeed() > 0.0
-                   ? static_cast<drift::TimeUs>(
+                   ? static_cast<TonDron::TimeUs>(
                          llround(static_cast<double>(maxSourceSpan) / clip.effectiveSpeed()))
                    : maxSourceSpan);
-    clip.timelineDuration = qBound(drift::kMinClipDurationUs, drift::secondsToUs(duration), maxDuration);
+    clip.timelineDuration = qBound(TonDron::kMinClipDurationUs, TonDron::secondsToUs(duration), maxDuration);
     if (syntheticVisual) {
         syncSyntheticSourceRange(clip);
     } else {
-        const drift::TimeUs span = clip.sourceSpanUs();
+        const TonDron::TimeUs span = clip.sourceSpanUs();
         if (clip.reverse)
-            clip.srcIn = qMax<drift::TimeUs>(0, clip.srcOut - span);
+            clip.srcIn = qMax<TonDron::TimeUs>(0, clip.srcOut - span);
         else
             clip.srcOut = qMin(clip.srcIn + span, maxSource);
     }
@@ -5986,15 +5986,15 @@ void AppController::setClipTextContent(int trackIndex, int clipIndex, const QStr
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Text)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Text)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.textContent = text.trimmed();
     clip.name = clip.textContent.left(32);
     pushProjectEdit(before, tr("Text updated"));
@@ -6006,7 +6006,7 @@ void AppController::setClipName(int trackIndex, int clipIndex, const QString &na
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
@@ -6014,13 +6014,13 @@ void AppController::setClipName(int trackIndex, int clipIndex, const QString &na
     if (trimmed.isEmpty())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (clip.name == trimmed)
         return;
 
     // Clip nests Qt-implicitly-shared maps (keyframes, effects). A plain Project
     // copy can still alias those payloads across undo snapshots; detach first.
-    const drift::Project before = m_project.detachedCopy();
+    const TonDron::Project before = m_project.detachedCopy();
     clip.name = trimmed;
     pushProjectEdit(before, tr("Rename clip"));
     finishEdit(tr("Clip renamed"));
@@ -6031,12 +6031,12 @@ void AppController::previewSetClipTextContent(int trackIndex, int clipIndex, con
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Text)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Text)
         return;
 
     if (clip.textContent == text && clip.name == text.left(32))
@@ -6056,12 +6056,12 @@ void AppController::commitTextEdit(int trackIndex, int clipIndex, const QString 
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Text)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Text)
         return;
 
     const QString trimmed = text.trimmed();
@@ -6075,7 +6075,7 @@ void AppController::commitTextEdit(int trackIndex, int clipIndex, const QString 
     if (clip.textContent == trimmed && clip.name == trimmed.left(32))
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.textContent = trimmed;
     clip.name = trimmed.left(32);
     pushProjectEdit(before, tr("Text updated"));
@@ -6086,10 +6086,10 @@ void AppController::beginTextEdit(int trackIndex, int clipIndex)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
-    if (track.clips.at(clipIndex).type != drift::ClipType::Text)
+    if (track.clips.at(clipIndex).type != TonDron::ClipType::Text)
         return;
 
     if (!m_previewDragActive)
@@ -6123,8 +6123,8 @@ void AppController::syncTextOverlaySkip()
 
     QString id;
     if (!m_playing && isValidClipIndex(m_selectedTrack, m_selectedClip)) {
-        const drift::Clip &clip = m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip);
-        if (clip.type == drift::ClipType::Text && clip.containsTime(m_playheadUs))
+        const TonDron::Clip &clip = m_project.tracks().at(m_selectedTrack).clips.at(m_selectedClip);
+        if (clip.type == TonDron::ClipType::Text && clip.containsTime(m_playheadUs))
             id = clip.id;
     }
     m_playback.setEditingClipId(id);
@@ -6135,17 +6135,17 @@ void AppController::setSubtitleCues(int trackIndex, int clipIndex, const QVarian
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Subtitle)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Subtitle)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.subtitleCues = subtitleCuesFromMap(cues);
-    clip.name = drift::subtitleClipName(clip.subtitleCues);
+    clip.name = TonDron::subtitleClipName(clip.subtitleCues);
     pushProjectEdit(before, tr("Subtitles updated"));
     finishEdit(tr("Subtitles updated"));
 }
@@ -6155,19 +6155,19 @@ void AppController::previewSetSubtitleCues(int trackIndex, int clipIndex, const 
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Subtitle)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Subtitle)
         return;
 
     if (!m_previewDragActive)
         beginPreviewDrag(tr("Adjust subtitle timing"));
 
     clip.subtitleCues = subtitleCuesFromMap(cues);
-    clip.name = drift::subtitleClipName(clip.subtitleCues);
+    clip.name = TonDron::subtitleClipName(clip.subtitleCues);
     emitPreviewFrame();
 }
 
@@ -6176,15 +6176,15 @@ double AppController::subtitleLocalPlayheadSeconds(int trackIndex, int clipIndex
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return -1.0;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return -1.0;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Subtitle || !clip.containsTime(m_playheadUs))
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Subtitle || !clip.containsTime(m_playheadUs))
         return -1.0;
 
-    return drift::usToSeconds(m_playheadUs - clip.timelineStart);
+    return TonDron::usToSeconds(m_playheadUs - clip.timelineStart);
 }
 
 void AppController::upsertSubtitleCueAtPlayhead(int trackIndex, int clipIndex, const QString &text)
@@ -6192,31 +6192,31 @@ void AppController::upsertSubtitleCueAtPlayhead(int trackIndex, int clipIndex, c
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Subtitle)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Subtitle)
         return;
 
     const QString trimmed = text.trimmed();
     if (trimmed.isEmpty())
         return;
 
-    const drift::TimeUs localUs =
-        qBound(drift::TimeUs{0}, m_playheadUs - clip.timelineStart, clip.timelineDuration);
-    const int existingIndex = drift::subtitleCueIndexAt(clip.subtitleCues, localUs);
+    const TonDron::TimeUs localUs =
+        qBound(TonDron::TimeUs{0}, m_playheadUs - clip.timelineStart, clip.timelineDuration);
+    const int existingIndex = TonDron::subtitleCueIndexAt(clip.subtitleCues, localUs);
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     if (existingIndex >= 0) {
         clip.subtitleCues[existingIndex].text = trimmed;
     } else {
-        drift::SubtitleCue cue;
+        TonDron::SubtitleCue cue;
         cue.startUs = localUs;
 
-        drift::TimeUs nextStart = clip.timelineDuration;
-        for (const drift::SubtitleCue &existing : clip.subtitleCues) {
+        TonDron::TimeUs nextStart = clip.timelineDuration;
+        for (const TonDron::SubtitleCue &existing : clip.subtitleCues) {
             if (existing.startUs > localUs)
                 nextStart = qMin(nextStart, existing.startUs);
         }
@@ -6226,10 +6226,10 @@ void AppController::upsertSubtitleCueAtPlayhead(int trackIndex, int clipIndex, c
             cue.endUs = qMin(clip.timelineDuration, cue.startUs + 1);
         cue.text = trimmed;
         clip.subtitleCues.append(cue);
-        drift::sortSubtitleCues(clip.subtitleCues);
+        TonDron::sortSubtitleCues(clip.subtitleCues);
     }
 
-    clip.name = drift::subtitleClipName(clip.subtitleCues);
+    clip.name = TonDron::subtitleClipName(clip.subtitleCues);
     pushProjectEdit(before, tr("Subtitle cue updated"));
     finishEdit(tr("Subtitle cue updated"));
 }
@@ -6239,15 +6239,15 @@ void AppController::seekToSubtitleCue(int trackIndex, int clipIndex, int cueInde
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (clip.type != drift::ClipType::Subtitle || cueIndex < 0 || cueIndex >= clip.subtitleCues.size())
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (clip.type != TonDron::ClipType::Subtitle || cueIndex < 0 || cueIndex >= clip.subtitleCues.size())
         return;
 
-    setPlayheadSeconds(drift::usToSeconds(clip.timelineStart + clip.subtitleCues.at(cueIndex).startUs));
+    setPlayheadSeconds(TonDron::usToSeconds(clip.timelineStart + clip.subtitleCues.at(cueIndex).startUs));
 }
 
 void AppController::setTextStyle(int trackIndex, int clipIndex, const QVariantMap &m)
@@ -6255,16 +6255,16 @@ void AppController::setTextStyle(int trackIndex, int clipIndex, const QVariantMa
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Text && clip.type != drift::ClipType::Subtitle)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Text && clip.type != TonDron::ClipType::Subtitle)
         return;
 
-    const drift::Project before = m_project;
-    drift::TextStyle &s = clip.textStyle;
+    const TonDron::Project before = m_project;
+    TonDron::TextStyle &s = clip.textStyle;
     if (m.contains(QStringLiteral("fontFamily")))
         s.fontFamily = m.value(QStringLiteral("fontFamily")).toString();
     if (m.contains(QStringLiteral("pixelSize")))
@@ -6276,9 +6276,9 @@ void AppController::setTextStyle(int trackIndex, int clipIndex, const QVariantMa
     if (m.contains(QStringLiteral("color")))
         s.color = QColor(m.value(QStringLiteral("color")).toString());
     if (m.contains(QStringLiteral("align")))
-        s.align = drift::textAlignFromString(m.value(QStringLiteral("align")).toString());
+        s.align = TonDron::textAlignFromString(m.value(QStringLiteral("align")).toString());
     if (m.contains(QStringLiteral("valign")))
-        s.valign = drift::textVAlignFromString(m.value(QStringLiteral("valign")).toString());
+        s.valign = TonDron::textVAlignFromString(m.value(QStringLiteral("valign")).toString());
     if (m.contains(QStringLiteral("wordWrap")))
         s.wordWrap = m.value(QStringLiteral("wordWrap")).toBool();
     if (m.contains(QStringLiteral("lineHeight")))
@@ -6350,19 +6350,19 @@ void AppController::applyTextPreset(int trackIndex, int clipIndex, const QString
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Text && clip.type != drift::ClipType::Subtitle)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Text && clip.type != TonDron::ClipType::Subtitle)
         return;
 
-    const drift::TextStyle *preset = drift::textStyleForPresetId(presetId);
+    const TonDron::TextStyle *preset = TonDron::textStyleForPresetId(presetId);
     if (!preset)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.textStyle = *preset;
     clip.textStyle.packId = presetId;
     pushProjectEdit(before, tr("Apply text preset"));
@@ -6372,7 +6372,7 @@ void AppController::applyTextPreset(int trackIndex, int clipIndex, const QString
 QVariantList AppController::textPresets() const
 {
     QVariantList out;
-    for (const drift::TextPreset &preset : drift::textPresets()) {
+    for (const TonDron::TextPreset &preset : TonDron::textPresets()) {
         out.append(QVariantMap{
             {QStringLiteral("id"), preset.id},
             {QStringLiteral("label"), preset.label},
@@ -6425,19 +6425,19 @@ void AppController::previewSetTextRect(int trackIndex, int clipIndex, double xPi
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Text && clip.type != drift::ClipType::Subtitle)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Text && clip.type != TonDron::ClipType::Subtitle)
         return;
 
     // The rect follows the same auto-key rules as previewSetClipRect. The glyph size is a plain
     // style field rather than a keyframed track, so it is always applied — the two move together
     // under one undo entry, because resizing a text clip should scale what you see, not just the
     // invisible wrap container.
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
     bool wrote = false;
     wrote = writeKeyframeValue(clip.transformX, relative, xPixels, m_autoKeyEnabled, false) || wrote;
     wrote = writeKeyframeValue(clip.transformY, relative, yPixels, m_autoKeyEnabled, false) || wrote;
@@ -6465,12 +6465,12 @@ void AppController::setClipBlendMode(int trackIndex, int clipIndex, const QStrin
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Project before = m_project;
-    track.clips[clipIndex].blendMode = drift::blendModeFromString(mode);
+    const TonDron::Project before = m_project;
+    track.clips[clipIndex].blendMode = TonDron::blendModeFromString(mode);
     pushProjectEdit(before, tr("Blend mode changed"));
     finishEdit(tr("Blend mode updated"));
 }
@@ -6480,15 +6480,15 @@ void AppController::setClipSpeed(int trackIndex, int clipIndex, double speed)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Audio)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.speed = qBound(0.25, speed, 4.0);
     clip.syncSrcOutFromSpeed(sourceDurationForClip(clip));
     syncLinkedPartnersFrom(m_project, clip);
@@ -6501,17 +6501,17 @@ void AppController::setClipReverse(int trackIndex, int clipIndex, bool reverse)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type != drift::ClipType::Video && clip.type != drift::ClipType::Audio)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type != TonDron::ClipType::Video && clip.type != TonDron::ClipType::Audio)
         return;
     if (clip.reverse == reverse)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.reverse = reverse;
     pushProjectEdit(before, reverse ? tr("Reverse on") : tr("Reverse off"));
     finishEdit(reverse ? tr("Clip reversed") : tr("Clip forward"));
@@ -6521,14 +6521,14 @@ void AppController::requestClipReverse(int trackIndex, int clipIndex)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip clip = track.clips.at(clipIndex);
+    const TonDron::Clip clip = track.clips.at(clipIndex);
     const bool needsRender =
-        clip.type == drift::ClipType::Video && !clip.path.isEmpty() && clip.srcOut > clip.srcIn
-        && drift::ReverseProxyCache::instance()
+        clip.type == TonDron::ClipType::Video && !clip.path.isEmpty() && clip.srcOut > clip.srcIn
+        && TonDron::ReverseProxyCache::instance()
                .lookup(clip.path, clip.srcIn, clip.srcOut, nullptr)
                .isEmpty();
     if (!needsRender) {
@@ -6537,7 +6537,7 @@ void AppController::requestClipReverse(int trackIndex, int clipIndex)
     }
 
     emit reverseConfirmRequested(trackIndex, clipIndex,
-                                 drift::usToSeconds(clip.srcOut - clip.srcIn));
+                                 TonDron::usToSeconds(clip.srcOut - clip.srcIn));
 }
 
 void AppController::applyClipReverse(int trackIndex, int clipIndex)
@@ -6548,39 +6548,39 @@ void AppController::applyClipReverse(int trackIndex, int clipIndex)
     }
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
     // By value: setClipReverse below runs a full edit cycle, and reading the clip back out of the
     // project afterwards would mean trusting indices across it.
-    const drift::Clip clip = track.clips.at(clipIndex);
-    const drift::TimeUs sourceDuration = sourceDurationForClip(clip);
+    const TonDron::Clip clip = track.clips.at(clipIndex);
+    const TonDron::TimeUs sourceDuration = sourceDurationForClip(clip);
 
     setClipReverse(trackIndex, clipIndex, true);
 
     // Audio reverses by flipping decoded blocks, which is already cheap. Only video pays the
     // per-frame keyframe seek a proxy exists to avoid.
-    if (clip.type != drift::ClipType::Video || clip.path.isEmpty() || clip.srcOut <= clip.srcIn)
+    if (clip.type != TonDron::ClipType::Video || clip.path.isEmpty() || clip.srcOut <= clip.srcIn)
         return;
-    if (!drift::ReverseProxyCache::instance()
+    if (!TonDron::ReverseProxyCache::instance()
              .lookup(clip.path, clip.srcIn, clip.srcOut, nullptr)
              .isEmpty())
         return;
 
     // Padding either side so ordinary trim-handle nudges stay inside the rendered range instead
     // of dropping the clip back onto the live path.
-    constexpr drift::TimeUs kPadUs = 2 * drift::kUsPerSecond;
-    const drift::TimeUs coverIn = qMax<drift::TimeUs>(0, clip.srcIn - kPadUs);
-    drift::TimeUs coverOut = clip.srcOut + kPadUs;
+    constexpr TonDron::TimeUs kPadUs = 2 * TonDron::kUsPerSecond;
+    const TonDron::TimeUs coverIn = qMax<TonDron::TimeUs>(0, clip.srcIn - kPadUs);
+    TonDron::TimeUs coverOut = clip.srcOut + kPadUs;
     if (sourceDuration > 0)
         coverOut = qMin(coverOut, sourceDuration);
 
     startReverseRender(clip.path, coverIn, qMax(coverOut, clip.srcOut));
 }
 
-void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs coverInUs,
-                                       drift::TimeUs coverOutUs)
+void AppController::startReverseRender(const QString &sourcePath, TonDron::TimeUs coverInUs,
+                                       TonDron::TimeUs coverOutUs)
 {
     m_reverseCancel.storeRelaxed(0);
     m_reverseProgress = 0.0;
@@ -6619,7 +6619,7 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
                     m_reverseStatus = ok ? QStringLiteral("Done") : message;
                     emit reverseRenderStatusChanged();
                     if (ok) {
-                        drift::ReverseProxyCache::instance().insert(sourcePath, coverInUs,
+                        TonDron::ReverseProxyCache::instance().insert(sourcePath, coverInUs,
                                                                     coverOutUs, proxyPath);
                     }
                     setLastMessage(message, ok ? QStringLiteral("info")
@@ -6633,14 +6633,14 @@ void AppController::startReverseRender(const QString &sourcePath, drift::TimeUs 
                 Qt::QueuedConnection);
         };
 
-        const QString proxyPath = drift::newReversePath();
+        const QString proxyPath = TonDron::newReversePath();
         if (proxyPath.isEmpty()) {
             finish(false, tr("Could not create a reversed file"), {});
             return;
         }
 
         QString error;
-        const bool ok = drift::renderReversed(
+        const bool ok = TonDron::renderReversed(
             sourcePath, coverInUs, coverOutUs, proxyPath, &error, [&](double fraction) {
                 setProgress(fraction, tr("Reversing video…"));
                 return m_reverseCancel.loadRelaxed() == 0;
@@ -6659,16 +6659,16 @@ bool AppController::clipHasReverseProxy(int trackIndex, int clipIndex) const
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return true;
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return true;
 
     // Anything with nothing to render reports true, so the "not rendered" hint stays hidden for
     // clips a proxy would do nothing for.
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (!clip.reverse || clip.type != drift::ClipType::Video || clip.path.isEmpty())
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (!clip.reverse || clip.type != TonDron::ClipType::Video || clip.path.isEmpty())
         return true;
-    return !drift::ReverseProxyCache::instance()
+    return !TonDron::ReverseProxyCache::instance()
                 .lookup(clip.path, clip.srcIn, clip.srcOut, nullptr)
                 .isEmpty();
 }
@@ -6678,17 +6678,17 @@ void AppController::setClipFlip(int trackIndex, int clipIndex, bool flipH, bool 
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type == drift::ClipType::Audio)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type == TonDron::ClipType::Audio)
         return;
     if (clip.flipH == flipH && clip.flipV == flipV)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.flipH = flipH;
     clip.flipV = flipV;
     pushProjectEdit(before, tr("Flip changed"));
@@ -6700,12 +6700,12 @@ void AppController::setClipRotationSnap(int trackIndex, int clipIndex, double de
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type == drift::ClipType::Audio)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type == TonDron::ClipType::Audio)
         return;
 
     // Normalize to (-180, 180]
@@ -6715,7 +6715,7 @@ void AppController::setClipRotationSnap(int trackIndex, int clipIndex, double de
     while (snapped <= -180.0)
         snapped += 360.0;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     // Snap replaces the rotation curve with a single constant key so inspector
     // chips and preview stay in lockstep (no leftover mid-curve keys).
     clip.rotation = {};
@@ -6743,11 +6743,11 @@ bool AppController::canMergeSelection() const
         if (leftTrack != rightTrack || !isValidClipIndex(leftTrack, leftClip)
             || !isValidClipIndex(rightTrack, rightClip))
             return false;
-        const drift::Clip &a = m_project.tracks().at(leftTrack).clips.at(leftClip);
-        const drift::Clip &b = m_project.tracks().at(rightTrack).clips.at(rightClip);
+        const TonDron::Clip &a = m_project.tracks().at(leftTrack).clips.at(leftClip);
+        const TonDron::Clip &b = m_project.tracks().at(rightTrack).clips.at(rightClip);
         if (a.timelineStart <= b.timelineStart)
-            return drift::clipsCanMerge(a, b);
-        return drift::clipsCanMerge(b, a);
+            return TonDron::clipsCanMerge(a, b);
+        return TonDron::clipsCanMerge(b, a);
     }
 
     if (pairs.size() == 1) {
@@ -6755,13 +6755,13 @@ bool AppController::canMergeSelection() const
         const int clipIndex = pairs[0].second;
         if (!isValidClipIndex(trackIndex, clipIndex))
             return false;
-        const drift::Track &track = m_project.tracks().at(trackIndex);
-        const drift::Clip &left = track.clips.at(clipIndex);
+        const TonDron::Track &track = m_project.tracks().at(trackIndex);
+        const TonDron::Clip &left = track.clips.at(clipIndex);
         // Prefer merging with the clip that starts at this clip's end.
         for (int i = 0; i < track.clips.size(); ++i) {
             if (i == clipIndex)
                 continue;
-            if (drift::clipsCanMerge(left, track.clips.at(i)))
+            if (TonDron::clipsCanMerge(left, track.clips.at(i)))
                 return true;
         }
         return false;
@@ -6786,8 +6786,8 @@ void AppController::mergeSelectedClips()
         trackIndex = pairs[0].first;
         if (!isValidClipIndex(trackIndex, pairs[0].second) || !isValidClipIndex(trackIndex, pairs[1].second))
             return;
-        const drift::Clip &a = m_project.tracks().at(trackIndex).clips.at(pairs[0].second);
-        const drift::Clip &b = m_project.tracks().at(trackIndex).clips.at(pairs[1].second);
+        const TonDron::Clip &a = m_project.tracks().at(trackIndex).clips.at(pairs[0].second);
+        const TonDron::Clip &b = m_project.tracks().at(trackIndex).clips.at(pairs[1].second);
         if (a.timelineStart <= b.timelineStart) {
             leftIndex = pairs[0].second;
             rightIndex = pairs[1].second;
@@ -6800,12 +6800,12 @@ void AppController::mergeSelectedClips()
         leftIndex = pairs[0].second;
         if (!isValidClipIndex(trackIndex, leftIndex))
             return;
-        const drift::Track &track = m_project.tracks().at(trackIndex);
-        const drift::Clip &left = track.clips.at(leftIndex);
+        const TonDron::Track &track = m_project.tracks().at(trackIndex);
+        const TonDron::Clip &left = track.clips.at(leftIndex);
         for (int i = 0; i < track.clips.size(); ++i) {
             if (i == leftIndex)
                 continue;
-            if (drift::clipsCanMerge(left, track.clips.at(i))) {
+            if (TonDron::clipsCanMerge(left, track.clips.at(i))) {
                 rightIndex = i;
                 break;
             }
@@ -6816,14 +6816,14 @@ void AppController::mergeSelectedClips()
         return;
     }
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::Clip &left = track.clips.at(leftIndex);
-    const drift::Clip &right = track.clips.at(rightIndex);
-    if (!drift::clipsCanMerge(left, right))
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::Clip &left = track.clips.at(leftIndex);
+    const TonDron::Clip &right = track.clips.at(rightIndex);
+    if (!TonDron::clipsCanMerge(left, right))
         return;
 
-    const drift::Project before = m_project;
-    drift::Clip merged = drift::mergeClips(left, right);
+    const TonDron::Project before = m_project;
+    TonDron::Clip merged = TonDron::mergeClips(left, right);
     // Remove right first if its index is higher so leftIndex stays valid.
     if (rightIndex > leftIndex) {
         track.clips.removeAt(rightIndex);
@@ -6878,15 +6878,15 @@ void AppController::separateAudioFromSelection()
     if (pairs.isEmpty())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     bool changed = false;
     QSet<QString> detachedVideoIds;
     for (const QPair<int, int> &pair : pairs) {
         if (!isValidClipIndex(pair.first, pair.second))
             continue;
 
-        drift::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
-        if (clip.type != drift::ClipType::Video || detachedVideoIds.contains(clip.id))
+        TonDron::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
+        if (clip.type != TonDron::ClipType::Video || detachedVideoIds.contains(clip.id))
             continue;
         if (detachEmbeddedAudioFromVideo(m_project, m_assetLibrary, clip)) {
             detachedVideoIds.insert(clip.id);
@@ -6912,20 +6912,20 @@ void AppController::unlinkSelectedClips()
     if (pairs.isEmpty())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     bool changed = false;
     QSet<QString> clearedLinkIds;
     for (const QPair<int, int> &pair : pairs) {
         if (!isValidClipIndex(pair.first, pair.second))
             continue;
 
-        drift::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
+        TonDron::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
         if (clip.linkId.isEmpty() || clearedLinkIds.contains(clip.linkId))
             continue;
 
         clearedLinkIds.insert(clip.linkId);
-        for (drift::Track &track : m_project.tracks()) {
-            for (drift::Clip &candidate : track.clips) {
+        for (TonDron::Track &track : m_project.tracks()) {
+            for (TonDron::Clip &candidate : track.clips) {
                 if (candidate.linkId == clip.linkId)
                     candidate.linkId.clear();
             }
@@ -6948,45 +6948,45 @@ void AppController::setClipFade(int trackIndex, int clipIndex, double fadeInSeco
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::TimeUs fin = qMax<drift::TimeUs>(0, drift::secondsToUs(fadeInSeconds));
-    drift::TimeUs fout = qMax<drift::TimeUs>(0, drift::secondsToUs(fadeOutSeconds));
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::TimeUs fin = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(fadeInSeconds));
+    TonDron::TimeUs fout = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(fadeOutSeconds));
     fin = qMin(fin, clip.timelineDuration);
     fout = qMin(fout, clip.timelineDuration - fin);
     if (clip.fadeInUs == fin && clip.fadeOutUs == fout)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     // First fade on an audio clip defaults to equal-power (constant loudness).
     const bool hadFade = clip.fadeInUs > 0 || clip.fadeOutUs > 0;
-    if (!hadFade && (fin > 0 || fout > 0) && clip.type == drift::ClipType::Audio)
-        clip.fadeCurve = drift::FadeCurve::EqualPower;
+    if (!hadFade && (fin > 0 || fout > 0) && clip.type == TonDron::ClipType::Audio)
+        clip.fadeCurve = TonDron::FadeCurve::EqualPower;
     clip.fadeInUs = fin;
     clip.fadeOutUs = fout;
 
     // Timeline fade handles are the CapCut Fade In/Out animation for visual clips.
-    if (clip.type != drift::ClipType::Audio && clip.type != drift::ClipType::Subtitle) {
+    if (clip.type != TonDron::ClipType::Audio && clip.type != TonDron::ClipType::Subtitle) {
         if (fin > 0) {
-            clip.animIn.kind = drift::ClipAnimKind::Fade;
+            clip.animIn.kind = TonDron::ClipAnimKind::Fade;
             clip.animIn.durationUs = fin;
             clip.animIn.curve = clip.fadeCurve;
             clip.animIn.shape = clip.fadeShape;
-            clip.animIn.ease = drift::clipAnimCurveToEase(clip.fadeCurve);
-        } else if (clip.animIn.kind == drift::ClipAnimKind::Fade) {
-            clip.animIn.kind = drift::ClipAnimKind::None;
+            clip.animIn.ease = TonDron::clipAnimCurveToEase(clip.fadeCurve);
+        } else if (clip.animIn.kind == TonDron::ClipAnimKind::Fade) {
+            clip.animIn.kind = TonDron::ClipAnimKind::None;
         }
         if (fout > 0) {
-            clip.animOut.kind = drift::ClipAnimKind::Fade;
+            clip.animOut.kind = TonDron::ClipAnimKind::Fade;
             clip.animOut.durationUs = fout;
             clip.animOut.curve = clip.fadeCurve;
             clip.animOut.shape = clip.fadeShape;
-            clip.animOut.ease = drift::clipAnimCurveToEase(clip.fadeCurve);
-        } else if (clip.animOut.kind == drift::ClipAnimKind::Fade) {
-            clip.animOut.kind = drift::ClipAnimKind::None;
+            clip.animOut.ease = TonDron::clipAnimCurveToEase(clip.fadeCurve);
+        } else if (clip.animOut.kind == TonDron::ClipAnimKind::Fade) {
+            clip.animOut.kind = TonDron::ClipAnimKind::None;
         }
     }
 
@@ -7000,30 +7000,30 @@ void AppController::setClipFadeCurve(int trackIndex, int clipIndex, const QStrin
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::FadeCurve newCurve = drift::fadeCurveFromString(curve);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::FadeCurve newCurve = TonDron::fadeCurveFromString(curve);
     if (clip.fadeCurve == newCurve
-        && (newCurve != drift::FadeCurve::Custom || !clip.fadeShape.isEmpty()))
+        && (newCurve != TonDron::FadeCurve::Custom || !clip.fadeShape.isEmpty()))
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.fadeCurve = newCurve;
-    if (newCurve == drift::FadeCurve::Custom && clip.fadeShape.isEmpty())
-        clip.fadeShape = drift::FadeShape::smoothPreset();
+    if (newCurve == TonDron::FadeCurve::Custom && clip.fadeShape.isEmpty())
+        clip.fadeShape = TonDron::FadeShape::smoothPreset();
     // Keep CapCut Fade animations on the same style as the timeline curve editor.
-    if (clip.animIn.kind == drift::ClipAnimKind::Fade) {
+    if (clip.animIn.kind == TonDron::ClipAnimKind::Fade) {
         clip.animIn.curve = newCurve;
         clip.animIn.shape = clip.fadeShape;
-        clip.animIn.ease = drift::clipAnimCurveToEase(newCurve);
+        clip.animIn.ease = TonDron::clipAnimCurveToEase(newCurve);
     }
-    if (clip.animOut.kind == drift::ClipAnimKind::Fade) {
+    if (clip.animOut.kind == TonDron::ClipAnimKind::Fade) {
         clip.animOut.curve = newCurve;
         clip.animOut.shape = clip.fadeShape;
-        clip.animOut.ease = drift::clipAnimCurveToEase(newCurve);
+        clip.animOut.ease = TonDron::clipAnimCurveToEase(newCurve);
     }
     syncLinkedPartnersFrom(m_project, clip);
     pushProjectEdit(before, tr("Fade curve changed"));
@@ -7035,12 +7035,12 @@ void AppController::setClipAnimation(int trackIndex, int clipIndex, const QStrin
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    if (clip.type == drift::ClipType::Audio || clip.type == drift::ClipType::Subtitle)
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    if (clip.type == TonDron::ClipType::Audio || clip.type == TonDron::ClipType::Subtitle)
         return;
     if (patch.isEmpty())
         return;
@@ -7050,33 +7050,33 @@ void AppController::setClipAnimation(int trackIndex, int clipIndex, const QStrin
     if (!isIn && !isOut)
         return;
 
-    drift::ClipAnimation next = isIn ? clip.animIn : clip.animOut;
+    TonDron::ClipAnimation next = isIn ? clip.animIn : clip.animOut;
     if (patch.contains(QStringLiteral("kind")))
-        next.kind = drift::clipAnimKindFromString(patch.value(QStringLiteral("kind")).toString());
+        next.kind = TonDron::clipAnimKindFromString(patch.value(QStringLiteral("kind")).toString());
     if (patch.contains(QStringLiteral("duration")))
         next.durationUs =
-            drift::secondsToUs(qBound(0.0, patch.value(QStringLiteral("duration")).toDouble(), 10.0));
+            TonDron::secondsToUs(qBound(0.0, patch.value(QStringLiteral("duration")).toDouble(), 10.0));
     if (patch.contains(QStringLiteral("curve"))) {
-        next.curve = drift::fadeCurveFromString(patch.value(QStringLiteral("curve")).toString());
-        next.ease = drift::clipAnimCurveToEase(next.curve);
-        if (next.curve == drift::FadeCurve::Custom && next.shape.isEmpty())
-            next.shape = clip.fadeShape.isEmpty() ? drift::FadeShape::smoothPreset() : clip.fadeShape;
+        next.curve = TonDron::fadeCurveFromString(patch.value(QStringLiteral("curve")).toString());
+        next.ease = TonDron::clipAnimCurveToEase(next.curve);
+        if (next.curve == TonDron::FadeCurve::Custom && next.shape.isEmpty())
+            next.shape = clip.fadeShape.isEmpty() ? TonDron::FadeShape::smoothPreset() : clip.fadeShape;
     } else if (patch.contains(QStringLiteral("ease"))) {
-        next.ease = drift::clipAnimEaseFromString(patch.value(QStringLiteral("ease")).toString());
-        next.curve = drift::clipAnimEaseToCurve(next.ease);
+        next.ease = TonDron::clipAnimEaseFromString(patch.value(QStringLiteral("ease")).toString());
+        next.curve = TonDron::clipAnimEaseToCurve(next.ease);
     }
 
-    if (next.kind != drift::ClipAnimKind::None && next.durationUs <= 0)
+    if (next.kind != TonDron::ClipAnimKind::None && next.durationUs <= 0)
         next.durationUs = 500000;
     next.durationUs = qMin(next.durationUs, clip.timelineDuration);
 
-    const drift::ClipAnimation &current = isIn ? clip.animIn : clip.animOut;
+    const TonDron::ClipAnimation &current = isIn ? clip.animIn : clip.animOut;
     if (next.kind == current.kind && next.durationUs == current.durationUs
         && next.curve == current.curve && next.ease == current.ease)
         return;
 
-    const drift::Project before = m_project;
-    drift::Clip &mutableClip = m_project.tracks()[trackIndex].clips[clipIndex];
+    const TonDron::Project before = m_project;
+    TonDron::Clip &mutableClip = m_project.tracks()[trackIndex].clips[clipIndex];
     if (isIn)
         mutableClip.animIn = next;
     else
@@ -7084,19 +7084,19 @@ void AppController::setClipAnimation(int trackIndex, int clipIndex, const QStrin
 
     // CapCut: Fade kind owns the timeline edge fade on that side; motion clears it.
     if (isIn) {
-        if (next.kind == drift::ClipAnimKind::Fade) {
+        if (next.kind == TonDron::ClipAnimKind::Fade) {
             mutableClip.fadeInUs = next.durationUs;
             mutableClip.fadeCurve = next.curve;
-            if (next.curve == drift::FadeCurve::Custom)
+            if (next.curve == TonDron::FadeCurve::Custom)
                 mutableClip.fadeShape = next.shape;
         } else {
             mutableClip.fadeInUs = 0;
         }
     } else {
-        if (next.kind == drift::ClipAnimKind::Fade) {
+        if (next.kind == TonDron::ClipAnimKind::Fade) {
             mutableClip.fadeOutUs = next.durationUs;
             mutableClip.fadeCurve = next.curve;
-            if (next.curve == drift::FadeCurve::Custom)
+            if (next.curve == TonDron::FadeCurve::Custom)
                 mutableClip.fadeShape = next.shape;
         } else {
             mutableClip.fadeOutUs = 0;
@@ -7113,24 +7113,24 @@ void AppController::setShapeStyle(int trackIndex, int clipIndex, const QVariantM
         return;
     if (clipIndex < 0 || clipIndex >= m_project.tracks().at(trackIndex).clips.size())
         return;
-    if (m_project.tracks().at(trackIndex).clips.at(clipIndex).type != drift::ClipType::Shape)
+    if (m_project.tracks().at(trackIndex).clips.at(clipIndex).type != TonDron::ClipType::Shape)
         return;
 
     // Snapshot before taking any reference into m_project: Project holds an implicitly shared
     // QList, so writing through a reference obtained before the copy would mutate the snapshot too
     // and the undo step would be a no-op.
-    const drift::Project before = m_project;
-    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
-    drift::ShapeStyle &s = clip.shapeStyle;
+    const TonDron::Project before = m_project;
+    TonDron::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    TonDron::ShapeStyle &s = clip.shapeStyle;
     if (m.contains(QStringLiteral("kind"))) {
         // The inspector addresses shapes by catalog id, so "circle" resolves to Ellipse here.
         const QString id = m.value(QStringLiteral("kind")).toString();
-        s.kind = drift::shapeKindFromString(id);
-        if (const drift::ShapeCatalogEntry *entry = drift::shapeCatalogEntry(id))
+        s.kind = TonDron::shapeKindFromString(id);
+        if (const TonDron::ShapeCatalogEntry *entry = TonDron::shapeCatalogEntry(id))
             clip.name = entry->label;
     }
     if (m.contains(QStringLiteral("fillKind")))
-        s.fillKind = drift::shapeFillKindFromString(m.value(QStringLiteral("fillKind")).toString());
+        s.fillKind = TonDron::shapeFillKindFromString(m.value(QStringLiteral("fillKind")).toString());
     if (m.contains(QStringLiteral("fill")))
         s.fill = QColor(m.value(QStringLiteral("fill")).toString());
     if (m.contains(QStringLiteral("fillSecondary")))
@@ -7143,7 +7143,7 @@ void AppController::setShapeStyle(int trackIndex, int clipIndex, const QVariantM
         s.strokeWidth = qBound(0.0, m.value(QStringLiteral("strokeWidth")).toDouble(), 200.0);
     if (m.contains(QStringLiteral("strokeStyle")))
         s.strokeStyle =
-            drift::shapeStrokeStyleFromString(m.value(QStringLiteral("strokeStyle")).toString());
+            TonDron::shapeStrokeStyleFromString(m.value(QStringLiteral("strokeStyle")).toString());
     if (m.contains(QStringLiteral("cornerRadius")))
         s.cornerRadius = qBound(0.0, m.value(QStringLiteral("cornerRadius")).toDouble(), 2000.0);
     if (m.contains(QStringLiteral("points")))
@@ -7175,11 +7175,11 @@ void AppController::setClipMask(int trackIndex, int clipIndex, const QVariantMap
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     track.clips[clipIndex].mask = maskFromMap(maskMap);
     pushProjectEdit(before, tr("Mask changed"));
     finishEdit(tr("Clip mask updated"));
@@ -7190,7 +7190,7 @@ void AppController::addTransition(int trackIndex, int clipIndex, const QString &
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (!trackAllowsTransitions(track.type))
         return;
 
@@ -7198,16 +7198,16 @@ void AppController::addTransition(int trackIndex, int clipIndex, const QString &
     if (partnerIndex < 0)
         return;
 
-    const drift::Clip &fromClip = track.clips.at(clipIndex);
-    const drift::Clip &toClip = track.clips.at(partnerIndex);
-    const drift::TimeUs overlapUs = drift::physicalOverlapDurationUs(fromClip, toClip);
-    const drift::TimeUs requestedUs = qMax<drift::TimeUs>(drift::secondsToUs(0.1), drift::secondsToUs(durationSeconds));
-    const drift::TimeUs durationUs = overlapUs > 0 ? overlapUs : requestedUs;
+    const TonDron::Clip &fromClip = track.clips.at(clipIndex);
+    const TonDron::Clip &toClip = track.clips.at(partnerIndex);
+    const TonDron::TimeUs overlapUs = TonDron::physicalOverlapDurationUs(fromClip, toClip);
+    const TonDron::TimeUs requestedUs = qMax<TonDron::TimeUs>(TonDron::secondsToUs(0.1), TonDron::secondsToUs(durationSeconds));
+    const TonDron::TimeUs durationUs = overlapUs > 0 ? overlapUs : requestedUs;
     const QString kindId = transitionDefForId(kind) ? kind : QStringLiteral("crossfade");
 
-    for (drift::Transition &existing : track.transitions) {
+    for (TonDron::Transition &existing : track.transitions) {
         if (existing.fromClipId == fromClip.id && existing.toClipId == toClip.id) {
-            const drift::Project before = m_project;
+            const TonDron::Project before = m_project;
             existing.kindId = kindId;
             existing.parameters.clear(); // overrides belong to the old package
             existing.durationUs = durationUs;
@@ -7218,14 +7218,14 @@ void AppController::addTransition(int trackIndex, int clipIndex, const QString &
         }
     }
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     transition.fromClipId = fromClip.id;
     transition.toClipId = toClip.id;
     transition.kindId = kindId;
     transition.durationUs = durationUs;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     track.transitions.append(transition);
     pushProjectEdit(before, tr("Add transition"));
     finishEdit(tr("Transition added"));
@@ -7237,13 +7237,13 @@ void AppController::removeTransition(int trackIndex, const QString &transitionId
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::Project before = m_project;
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::Project before = m_project;
     for (int i = 0; i < track.transitions.size(); ++i) {
         if (track.transitions.at(i).id != transitionId)
             continue;
 
-        const drift::Transition transition = track.transitions.at(i);
+        const TonDron::Transition transition = track.transitions.at(i);
         if (m_selectedTransitionTrack == trackIndex && m_selectedTransitionLeftClip >= 0) {
             const QString fromId = track.clips.value(m_selectedTransitionLeftClip).id;
             if (transition.fromClipId == fromId)
@@ -7251,15 +7251,15 @@ void AppController::removeTransition(int trackIndex, const QString &transitionId
         }
 
         // Physical overlaps auto-sync a crossfade; separate the clips so removal sticks.
-        drift::Clip *fromClip = nullptr;
-        drift::Clip *toClip = nullptr;
-        for (drift::Clip &clip : track.clips) {
+        TonDron::Clip *fromClip = nullptr;
+        TonDron::Clip *toClip = nullptr;
+        for (TonDron::Clip &clip : track.clips) {
             if (clip.id == transition.fromClipId)
                 fromClip = &clip;
             else if (clip.id == transition.toClipId)
                 toClip = &clip;
         }
-        if (fromClip && toClip && drift::clipsPhysicallyOverlap(*fromClip, *toClip))
+        if (fromClip && toClip && TonDron::clipsPhysicallyOverlap(*fromClip, *toClip))
             toClip->timelineStart = fromClip->timelineEnd();
 
         track.transitions.removeAt(i);
@@ -7274,27 +7274,27 @@ void AppController::setTransitionDuration(int trackIndex, const QString &transit
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::Project before = m_project;
-    for (drift::Transition &transition : track.transitions) {
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::Project before = m_project;
+    for (TonDron::Transition &transition : track.transitions) {
         if (transition.id != transitionId)
             continue;
 
-        const drift::TimeUs durationUs =
-            qMax<drift::TimeUs>(drift::secondsToUs(0.1), drift::secondsToUs(durationSeconds));
-        drift::Clip *fromClip = nullptr;
-        drift::Clip *toClip = nullptr;
-        for (drift::Clip &clip : track.clips) {
+        const TonDron::TimeUs durationUs =
+            qMax<TonDron::TimeUs>(TonDron::secondsToUs(0.1), TonDron::secondsToUs(durationSeconds));
+        TonDron::Clip *fromClip = nullptr;
+        TonDron::Clip *toClip = nullptr;
+        for (TonDron::Clip &clip : track.clips) {
             if (clip.id == transition.fromClipId)
                 fromClip = &clip;
             else if (clip.id == transition.toClipId)
                 toClip = &clip;
         }
 
-        if (fromClip && toClip && drift::clipsPhysicallyOverlap(*fromClip, *toClip)) {
-            const drift::TimeUs maxOverlap =
-                qMin(fromClip->timelineDuration, toClip->timelineDuration) - drift::secondsToUs(0.05);
-            const drift::TimeUs clamped = qBound(drift::secondsToUs(0.1), durationUs, qMax(drift::secondsToUs(0.1), maxOverlap));
+        if (fromClip && toClip && TonDron::clipsPhysicallyOverlap(*fromClip, *toClip)) {
+            const TonDron::TimeUs maxOverlap =
+                qMin(fromClip->timelineDuration, toClip->timelineDuration) - TonDron::secondsToUs(0.05);
+            const TonDron::TimeUs clamped = qBound(TonDron::secondsToUs(0.1), durationUs, qMax(TonDron::secondsToUs(0.1), maxOverlap));
             toClip->timelineStart = fromClip->timelineEnd() - clamped;
             transition.durationUs = clamped;
         } else {
@@ -7315,9 +7315,9 @@ void AppController::setTransitionKind(int trackIndex, const QString &transitionI
     if (!transitionDefForId(kind))
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    const drift::Project before = m_project;
-    for (drift::Transition &transition : track.transitions) {
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::Project before = m_project;
+    for (TonDron::Transition &transition : track.transitions) {
         if (transition.id == transitionId) {
             if (transition.kindId == kind)
                 return;
@@ -7337,7 +7337,7 @@ namespace {
 QVariant coerceTransitionParam(const TransitionPresetEntry *def, const QString &key, double value)
 {
     if (def) {
-        for (const drift::EffectParamSpec &param : def->meta.parameters) {
+        for (const TonDron::EffectParamSpec &param : def->meta.parameters) {
             if (param.key == key)
                 return param.isBoolean() ? QVariant(value > 0.5) : QVariant(value);
         }
@@ -7345,9 +7345,9 @@ QVariant coerceTransitionParam(const TransitionPresetEntry *def, const QString &
     return value;
 }
 
-drift::Transition *findTransition(drift::Track &track, const QString &transitionId)
+TonDron::Transition *findTransition(TonDron::Track &track, const QString &transitionId)
 {
-    for (drift::Transition &transition : track.transitions) {
+    for (TonDron::Transition &transition : track.transitions) {
         if (transition.id == transitionId)
             return &transition;
     }
@@ -7362,7 +7362,7 @@ void AppController::previewSetTransitionParam(int trackIndex, const QString &tra
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size() || key.isEmpty())
         return;
 
-    drift::Transition *transition = findTransition(m_project.tracks()[trackIndex], transitionId);
+    TonDron::Transition *transition = findTransition(m_project.tracks()[trackIndex], transitionId);
     if (!transition)
         return;
 
@@ -7380,12 +7380,12 @@ void AppController::setTransitionParam(int trackIndex, const QString &transition
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size() || key.isEmpty())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    drift::Transition *transition = findTransition(track, transitionId);
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Transition *transition = findTransition(track, transitionId);
     if (!transition)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     transition->parameters.insert(
         key, coerceTransitionParam(transitionDefForId(transition->kindId), key, value));
     pushProjectEdit(before, tr("Edit transition"));
@@ -7398,14 +7398,14 @@ QVariantMap AppController::transitionBetweenClips(int trackIndex, int clipIndex)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return {};
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     const int partnerIndex = findTransitionPartnerIndex(track, clipIndex);
     if (partnerIndex < 0)
         return {};
 
     const QString fromId = track.clips.at(clipIndex).id;
     const QString toId = track.clips.at(partnerIndex).id;
-    for (const drift::Transition &transition : track.transitions) {
+    for (const TonDron::Transition &transition : track.transitions) {
         if (transition.fromClipId == fromId && transition.toClipId == toId)
             return transitionToMap(track, transition);
     }
@@ -7420,7 +7420,7 @@ QVariantList AppController::transitionKinds() const
     result.reserve(catalog.size());
     for (const TransitionPresetEntry &def : catalog) {
         QVariantList params;
-        for (const drift::EffectParamSpec &p : def.meta.parameters) {
+        for (const TonDron::EffectParamSpec &p : def.meta.parameters) {
             params.append(QVariantMap{
                 {QStringLiteral("key"), p.key},
                 {QStringLiteral("label"), p.label},
@@ -7492,13 +7492,13 @@ void AppController::setClipKeyframe(int trackIndex, int clipIndex, const QString
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    const drift::Project before = m_project;
-    const drift::TimeUs rel = qMax<drift::TimeUs>(0, drift::secondsToUs(atSeconds) - clip.timelineStart);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs rel = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(atSeconds) - clip.timelineStart);
     if (!writeClipPropValue(clip, prop, rel, value, m_autoKeyEnabled, /*force=*/true))
         return;
     pushProjectEdit(before, tr("Add keyframe"));
@@ -7510,18 +7510,18 @@ void AppController::removeClipKeyframe(int trackIndex, int clipIndex, const QStr
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/false);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/false);
     if (!kt)
         return;
 
-    const drift::Project before = m_project;
-    const drift::TimeUs rel = qMax<drift::TimeUs>(0, drift::secondsToUs(atSeconds) - clip.timelineStart);
-    const drift::TimeUs nearest = kt->nearestKeyframe(rel, kKeyframeToleranceUs);
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs rel = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(atSeconds) - clip.timelineStart);
+    const TonDron::TimeUs nearest = kt->nearestKeyframe(rel, kKeyframeToleranceUs);
     if (nearest < 0)
         return;
     kt->removeKeyframe(nearest);
@@ -7535,21 +7535,21 @@ void AppController::previewMoveClipKeyframe(int trackIndex, int clipIndex, const
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/false);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/false);
     if (!kt)
         return;
 
     if (!m_previewDragActive)
         beginPreviewDrag(tr("Move keyframe"));
 
-    const drift::TimeUs fromRel = qMax<drift::TimeUs>(0, drift::secondsToUs(fromSeconds) - clip.timelineStart);
-    const drift::TimeUs toRel = qMax<drift::TimeUs>(0, drift::secondsToUs(toSeconds) - clip.timelineStart);
-    const drift::TimeUs nearest = kt->nearestKeyframe(fromRel, kKeyframeToleranceUs);
+    const TonDron::TimeUs fromRel = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(fromSeconds) - clip.timelineStart);
+    const TonDron::TimeUs toRel = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(toSeconds) - clip.timelineStart);
+    const TonDron::TimeUs nearest = kt->nearestKeyframe(fromRel, kKeyframeToleranceUs);
     if (nearest >= 0)
         kt->removeKeyframe(nearest);
     kt->setKeyframe(toRel, value);
@@ -7558,23 +7558,23 @@ void AppController::previewMoveClipKeyframe(int trackIndex, int clipIndex, const
 
 // Locates a single key for the tangent editors. `atSeconds` is a timeline position; keys are
 // stored clip-relative, and the strip reports them on the timeline, so it converts back here.
-drift::Keyframe<double> *AppController::keyframeAt(int trackIndex, int clipIndex,
+TonDron::Keyframe<double> *AppController::keyframeAt(int trackIndex, int clipIndex,
                                                    const QString &prop, double atSeconds)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return nullptr;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return nullptr;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/false);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/false);
     if (!kt || kt->isEmpty())
         return nullptr;
 
-    const drift::TimeUs local = drift::secondsToUs(atSeconds) - clip.timelineStart;
-    const drift::TimeUs at = kt->nearestKeyframe(local, drift::kUsPerSecond / 60);
+    const TonDron::TimeUs local = TonDron::secondsToUs(atSeconds) - clip.timelineStart;
+    const TonDron::TimeUs at = kt->nearestKeyframe(local, TonDron::kUsPerSecond / 60);
     if (at < 0)
         return nullptr;
     return kt->keyframeRef(at);
@@ -7583,11 +7583,11 @@ drift::Keyframe<double> *AppController::keyframeAt(int trackIndex, int clipIndex
 // Handles are authored in seconds on the QML side and stored in µs. Directions are enforced
 // here rather than trusted from the caller: an out-handle reaching backwards (or an in-handle
 // forwards) would fold the segment and make the curve multi-valued in time.
-void AppController::applyTangents(drift::Keyframe<double> &key, double inDx, double inDy,
+void AppController::applyTangents(TonDron::Keyframe<double> &key, double inDx, double inDy,
                                   double outDx, double outDy, bool corner)
 {
-    key.inDx = qMin(0.0, static_cast<double>(drift::secondsToUs(inDx)));
-    key.outDx = qMax(0.0, static_cast<double>(drift::secondsToUs(outDx)));
+    key.inDx = qMin(0.0, static_cast<double>(TonDron::secondsToUs(inDx)));
+    key.outDx = qMax(0.0, static_cast<double>(TonDron::secondsToUs(outDx)));
     key.inDy = inDy;
     key.outDy = outDy;
     key.corner = corner;
@@ -7604,16 +7604,16 @@ double AppController::propertyValueAt(int trackIndex, int clipIndex, const QStri
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return fallback;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return fallback;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    const drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop);
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    const TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop);
     if (!kt || kt->isEmpty())
         return propertyBaseValue(trackIndex, clipIndex, prop, fallback);
 
-    return kt->evaluateAt(drift::secondsToUs(atSeconds) - clip.timelineStart);
+    return kt->evaluateAt(TonDron::secondsToUs(atSeconds) - clip.timelineStart);
 }
 
 // What an unkeyed property evaluates to. These mirror the defaults the compositor passes to
@@ -7636,9 +7636,9 @@ double AppController::propertyBaseValue(int trackIndex, int clipIndex, const QSt
     // Effect params fall back to the effect's own static value, which is what the compositor
     // reads for an unkeyed param.
     if (trackIndex >= 0 && trackIndex < m_project.tracks().size()) {
-        const drift::Track &track = m_project.tracks().at(trackIndex);
+        const TonDron::Track &track = m_project.tracks().at(trackIndex);
         if (clipIndex >= 0 && clipIndex < track.clips.size()) {
-            const drift::Clip &clip = track.clips.at(clipIndex);
+            const TonDron::Clip &clip = track.clips.at(clipIndex);
             int effectIndex = -1;
             QString paramKey;
             if (parseEffectProp(prop, &effectIndex, &paramKey)
@@ -7658,12 +7658,12 @@ QVariantList AppController::clipKeyframes(int trackIndex, int clipIndex, const Q
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return out;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return out;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
-    const drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop);
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
+    const TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop);
     if (!kt)
         return out;
 
@@ -7676,11 +7676,11 @@ bool AppController::clipPropertyKeyframesEnabled(int trackIndex, int clipIndex,
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return true;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return true;
 
-    const drift::KeyframeTrack<double> *kt =
+    const TonDron::KeyframeTrack<double> *kt =
         keyframeTrackForProp(track.clips.at(clipIndex), prop);
     return kt ? kt->enabled() : true;
 }
@@ -7697,7 +7697,7 @@ void AppController::setClipPropertyKeyframesEnabled(int trackIndex, int clipInde
     {
         // With no keys there is no animation to switch off, and minting an empty track just to
         // hold the flag would make an untouched property look animated.
-        const drift::KeyframeTrack<double> *kt =
+        const TonDron::KeyframeTrack<double> *kt =
             keyframeTrackForProp(m_project.tracks().at(trackIndex).clips.at(clipIndex), prop);
         if (!kt || kt->isEmpty() || kt->enabled() == enabled)
             return;
@@ -7706,8 +7706,8 @@ void AppController::setClipPropertyKeyframesEnabled(int trackIndex, int clipInde
     // The snapshot is taken before any mutable reference into the project: QList is implicitly
     // shared, so writing through a reference obtained earlier would land in the copy as well and
     // leave undo with nothing to restore.
-    const drift::Project before = m_project;
-    drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+    const TonDron::Project before = m_project;
+    TonDron::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
     keyframeTrackForProp(clip, prop, /*createIfMissing=*/false)->setEnabled(enabled);
     pushProjectEdit(before, enabled ? tr("Enable keyframes")
                                     : tr("Disable keyframes"));
@@ -7732,11 +7732,11 @@ QStringList AppController::clipAnimatedProperties(int trackIndex, int clipIndex)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return out;
 
-    const drift::Track &track = m_project.tracks().at(trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return out;
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
 
     static const QStringList transformProps = {
         QStringLiteral("x"),       QStringLiteral("y"),       QStringLiteral("width"),
@@ -7744,7 +7744,7 @@ QStringList AppController::clipAnimatedProperties(int trackIndex, int clipIndex)
         QStringLiteral("volume"),
     };
     for (const QString &prop : transformProps) {
-        const drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop);
+        const TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop);
         if (!kt || kt->isEmpty())
             continue;
         if (kt->keyframes().size() == 1 && kt->keyframes().firstKey() == 0)
@@ -7753,7 +7753,7 @@ QStringList AppController::clipAnimatedProperties(int trackIndex, int clipIndex)
     }
 
     for (int i = 0; i < clip.effects.size(); ++i) {
-        const QMap<QString, drift::KeyframeTrack<double>> &params = clip.effects.at(i).paramKeyframes;
+        const QMap<QString, TonDron::KeyframeTrack<double>> &params = clip.effects.at(i).paramKeyframes;
         for (auto it = params.constBegin(); it != params.constEnd(); ++it) {
             if (!it.value().isEmpty())
                 out.append(QStringLiteral("fx.%1.%2").arg(i).arg(it.key()));
@@ -7768,24 +7768,24 @@ void AppController::setKeyframeInterpolation(int trackIndex, int clipIndex, cons
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    drift::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/true);
+    TonDron::Clip &clip = track.clips[clipIndex];
+    TonDron::KeyframeTrack<double> *kt = keyframeTrackForProp(clip, prop, /*createIfMissing=*/true);
     if (!kt || kt->isEmpty())
         return;
 
     // Presets act on the key at the playhead. Without one there is nothing to shape — the mode
     // is no longer a property-wide setting that can be armed ahead of the first key.
-    const drift::TimeUs local = m_playheadUs - clip.timelineStart;
-    const drift::TimeUs at = kt->nearestKeyframe(local, drift::kUsPerSecond / 30);
+    const TonDron::TimeUs local = m_playheadUs - clip.timelineStart;
+    const TonDron::TimeUs at = kt->nearestKeyframe(local, TonDron::kUsPerSecond / 30);
     if (at < 0)
         return;
 
-    const drift::Project before = m_project;
-    kt->setEasing(at, drift::interpolationFromString(mode));
+    const TonDron::Project before = m_project;
+    kt->setEasing(at, TonDron::interpolationFromString(mode));
     pushProjectEdit(before, tr("Keyframe easing changed"));
     finishEdit(tr("Keyframe easing updated"));
 }
@@ -7794,11 +7794,11 @@ void AppController::setKeyframeTangents(int trackIndex, int clipIndex, const QSt
                                         double atSeconds, double inDx, double inDy, double outDx,
                                         double outDy, bool corner)
 {
-    drift::Keyframe<double> *key = keyframeAt(trackIndex, clipIndex, prop, atSeconds);
+    TonDron::Keyframe<double> *key = keyframeAt(trackIndex, clipIndex, prop, atSeconds);
     if (!key)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     applyTangents(*key, inDx, inDy, outDx, outDy, corner);
     pushProjectEdit(before, tr("Keyframe curve changed"));
     finishEdit(tr("Keyframe curve updated"));
@@ -7808,7 +7808,7 @@ void AppController::previewSetKeyframeTangents(int trackIndex, int clipIndex, co
                                                double atSeconds, double inDx, double inDy,
                                                double outDx, double outDy, bool corner)
 {
-    drift::Keyframe<double> *key = keyframeAt(trackIndex, clipIndex, prop, atSeconds);
+    TonDron::Keyframe<double> *key = keyframeAt(trackIndex, clipIndex, prop, atSeconds);
     if (!key)
         return;
 
@@ -7821,11 +7821,11 @@ void AppController::previewSetKeyframeTangents(int trackIndex, int clipIndex, co
 void AppController::setKeyframeHold(int trackIndex, int clipIndex, const QString &prop,
                                     double atSeconds, bool hold)
 {
-    drift::Keyframe<double> *key = keyframeAt(trackIndex, clipIndex, prop, atSeconds);
+    TonDron::Keyframe<double> *key = keyframeAt(trackIndex, clipIndex, prop, atSeconds);
     if (!key || key->hold == hold)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     key->hold = hold;
     pushProjectEdit(before, tr("Keyframe hold changed"));
     finishEdit(hold ? tr("Keyframe holds") : tr("Keyframe interpolates"));
@@ -7836,15 +7836,15 @@ void AppController::resetClipTransform(int trackIndex, int clipIndex)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type == drift::ClipType::Audio)
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type == TonDron::ClipType::Audio)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.opacity = {};
     clip.transformX = {};
     clip.transformY = {};
@@ -7863,7 +7863,7 @@ QVariantList AppController::effectCatalog() const
     QVariantList out;
     for (const EffectPresetEntry &def : ::effectCatalog()) {
         QVariantList params;
-        for (const drift::EffectParamSpec &p : def.meta.parameters) {
+        for (const TonDron::EffectParamSpec &p : def.meta.parameters) {
             params.append(QVariantMap{
                 {QStringLiteral("key"), p.key},
                 {QStringLiteral("label"), p.label},
@@ -7905,7 +7905,7 @@ void AppController::addEffect(int trackIndex, int clipIndex, const QString &effe
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
@@ -7913,15 +7913,15 @@ void AppController::addEffect(int trackIndex, int clipIndex, const QString &effe
     if (!def)
         return;
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.name = def->filterName;
     effect.catalogId = def->meta.id;
     for (auto it = def->fixedParams.constBegin(); it != def->fixedParams.constEnd(); ++it)
         effect.parameters.insert(it.key(), it.value());
-    for (const drift::EffectParamSpec &p : def->meta.parameters)
+    for (const TonDron::EffectParamSpec &p : def->meta.parameters)
         effect.parameters.insert(p.key, p.defaultVariant());
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     track.clips[clipIndex].effects.append(effect);
     m_selectedTrack = trackIndex;
     m_selectedClip = clipIndex;
@@ -7932,15 +7932,15 @@ void AppController::addEffect(int trackIndex, int clipIndex, const QString &effe
 
 namespace {
 
-drift::Effect effectFromCatalogEntry(const EffectPresetEntry &def,
+TonDron::Effect effectFromCatalogEntry(const EffectPresetEntry &def,
                                      const QMap<QString, QVariant> &overrides)
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.name = def.filterName;
     effect.catalogId = def.meta.id;
     for (auto it = def.fixedParams.constBegin(); it != def.fixedParams.constEnd(); ++it)
         effect.parameters.insert(it.key(), it.value());
-    for (const drift::EffectParamSpec &p : def.meta.parameters) {
+    for (const TonDron::EffectParamSpec &p : def.meta.parameters) {
         const auto overrideIt = overrides.constFind(p.key);
         if (overrideIt != overrides.constEnd())
             effect.parameters.insert(p.key, overrideIt.value());
@@ -7956,15 +7956,15 @@ bool templateSyncNeedsBeats(const QString &sync)
            || sync == QLatin1String("bar");
 }
 
-bool clipHasMatte(const drift::Clip &clip)
+bool clipHasMatte(const TonDron::Clip &clip)
 {
-    return clip.mask.shape == drift::MaskShape::Matte && !clip.mask.mattePath.isEmpty();
+    return clip.mask.shape == TonDron::MaskShape::Matte && !clip.mask.mattePath.isEmpty();
 }
 
-drift::Clip deriveMaskedClip(const drift::Clip &source, const drift::Mask &matte, bool invert,
+TonDron::Clip deriveMaskedClip(const TonDron::Clip &source, const TonDron::Mask &matte, bool invert,
                              const QString &suffix)
 {
-    drift::Clip clip = source;
+    TonDron::Clip clip = source;
     clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     clip.linkId.clear();
     clip.effects.clear();
@@ -7978,8 +7978,8 @@ drift::Clip deriveMaskedClip(const drift::Clip &source, const drift::Mask &matte
     return clip;
 }
 
-void applyTemplateLayersToClip(drift::Clip &clip, const QList<EffectTemplateLayer> &layers,
-                               const QString &sync, const QList<drift::TimeUs> &syncPoints)
+void applyTemplateLayersToClip(TonDron::Clip &clip, const QList<EffectTemplateLayer> &layers,
+                               const QString &sync, const QList<TonDron::TimeUs> &syncPoints)
 {
     const int baseEffectIndex = clip.effects.size();
     for (const EffectTemplateLayer &layer : layers) {
@@ -8000,28 +8000,28 @@ void applyTemplateLayersToClip(drift::Clip &clip, const QList<EffectTemplateLaye
 
         const QString prop =
             QStringLiteral("fx.%1.%2").arg(effectIndex).arg(layer.pulse.param);
-        const drift::TimeUs decayUs =
-            static_cast<drift::TimeUs>(qMax(layer.pulse.decayMs, 0)) * 1000;
+        const TonDron::TimeUs decayUs =
+            static_cast<TonDron::TimeUs>(qMax(layer.pulse.decayMs, 0)) * 1000;
         if (sync == QLatin1String("clip") && syncPoints.size() >= 2) {
             writeClipPropValue(clip, prop, syncPoints.first(), layer.pulse.peak, false, true);
             writeClipPropValue(clip, prop, syncPoints.last(), layer.pulse.rest, false, true);
             continue;
         }
-        for (drift::TimeUs t : syncPoints) {
+        for (TonDron::TimeUs t : syncPoints) {
             writeClipPropValue(clip, prop, t, layer.pulse.peak, false, true);
             writeClipPropValue(clip, prop, t + decayUs, layer.pulse.rest, false, true);
         }
     }
 }
 
-void applyTemplateSpeedPulse(drift::Clip &clip, const EffectTemplateSpeedPulse &pulse,
-                             const QString &sync, const QList<drift::TimeUs> &syncPoints)
+void applyTemplateSpeedPulse(TonDron::Clip &clip, const EffectTemplateSpeedPulse &pulse,
+                             const QString &sync, const QList<TonDron::TimeUs> &syncPoints)
 {
     if (!pulse.valid || clip.timelineDuration <= 0)
         return;
 
     const double baseSpeed = clip.effectiveSpeed();
-    QList<drift::SpeedPoint> points;
+    QList<TonDron::SpeedPoint> points;
     points.append({0.0, baseSpeed, 0.0, 0.0, 0.0, 0.0, false});
     points.append({1.0, baseSpeed, 0.0, 0.0, 0.0, 0.0, false});
 
@@ -8036,15 +8036,15 @@ void applyTemplateSpeedPulse(drift::Clip &clip, const EffectTemplateSpeedPulse &
         points.append({pos, speed, 0.0, 0.0, 0.0, 0.0, true});
     };
 
-    const drift::TimeUs decayUs =
-        static_cast<drift::TimeUs>(qMax(pulse.decayMs, 0)) * 1000;
+    const TonDron::TimeUs decayUs =
+        static_cast<TonDron::TimeUs>(qMax(pulse.decayMs, 0)) * 1000;
     const double dur = static_cast<double>(clip.timelineDuration);
 
     if (sync == QLatin1String("clip") && syncPoints.size() >= 2) {
         addPoint(0.0, pulse.peak);
         addPoint(static_cast<double>(syncPoints.last()) / dur, pulse.rest);
     } else {
-        for (drift::TimeUs t : syncPoints) {
+        for (TonDron::TimeUs t : syncPoints) {
             addPoint(static_cast<double>(t) / dur, pulse.peak);
             addPoint(static_cast<double>(t + decayUs) / dur, pulse.rest);
         }
@@ -8063,7 +8063,7 @@ const EffectTemplateTrack *trackForRole(const EffectTemplateEntry &entry, const 
     return nullptr;
 }
 
-bool clipsShareTemplateSource(const drift::Clip &a, const drift::Clip &b)
+bool clipsShareTemplateSource(const TonDron::Clip &a, const TonDron::Clip &b)
 {
     return a.path == b.path && a.srcIn == b.srcIn && a.srcOut == b.srcOut
            && a.timelineStart == b.timelineStart && a.timelineDuration == b.timelineDuration;
@@ -8086,13 +8086,13 @@ struct TemplateStackRefs
     bool valid() const { return fgTrack >= 0 && bgTrack >= 0; }
 };
 
-TemplateStackRefs findExistingTemplateStack(const drift::Project &project, const drift::Clip &source)
+TemplateStackRefs findExistingTemplateStack(const TonDron::Project &project, const TonDron::Clip &source)
 {
     TemplateStackRefs stack;
     for (int t = 0; t < project.tracks().size(); ++t) {
-        const drift::Track &track = project.tracks().at(t);
+        const TonDron::Track &track = project.tracks().at(t);
         for (int c = 0; c < track.clips.size(); ++c) {
-            const drift::Clip &clip = track.clips.at(c);
+            const TonDron::Clip &clip = track.clips.at(c);
             if (!clipsShareTemplateSource(clip, source))
                 continue;
             if (clip.name.endsWith(QStringLiteral(" (fg)"))) {
@@ -8109,11 +8109,11 @@ TemplateStackRefs findExistingTemplateStack(const drift::Project &project, const
     return stack;
 }
 
-void resetTemplateDerivedClip(drift::Clip &clip, double opacity)
+void resetTemplateDerivedClip(TonDron::Clip &clip, double opacity)
 {
     clip.effects.clear();
     clip.opacity.setKeyframe(0, opacity);
-    clip.speedCurve = drift::SpeedCurve::flat(1.0);
+    clip.speedCurve = TonDron::SpeedCurve::flat(1.0);
     clip.syncDurationFromSpeedCurve();
 }
 
@@ -8177,7 +8177,7 @@ QVariantList AppController::effectTemplateCategories() const
     return out;
 }
 
-bool AppController::beatAnalysisReadyForClip(const drift::Clip &clip, const QString &sync) const
+bool AppController::beatAnalysisReadyForClip(const TonDron::Clip &clip, const QString &sync) const
 {
     if (sync == QLatin1String("clip"))
         return true;
@@ -8186,9 +8186,9 @@ bool AppController::beatAnalysisReadyForClip(const drift::Clip &clip, const QStr
 
     const double rangeStart = m_beatAnalysis.value(QStringLiteral("rangeStart")).toDouble();
     const double rangeDur = m_beatAnalysis.value(QStringLiteral("rangeDuration")).toDouble();
-    const double clipStart = drift::usToSeconds(clip.timelineStart);
+    const double clipStart = TonDron::usToSeconds(clip.timelineStart);
     const double clipEnd =
-        drift::usToSeconds(clip.timelineStart + clip.timelineDuration);
+        TonDron::usToSeconds(clip.timelineStart + clip.timelineDuration);
     if (clipStart < rangeStart - 0.001 || clipEnd > rangeStart + rangeDur + 0.001)
         return false;
 
@@ -8203,18 +8203,18 @@ bool AppController::resolveTemplateApplyTarget(int *trackIndex, int *clipIndex) 
         return false;
     if (*trackIndex < 0 || *trackIndex >= m_project.tracks().size())
         return false;
-    const drift::Track &track = m_project.tracks().at(*trackIndex);
+    const TonDron::Track &track = m_project.tracks().at(*trackIndex);
     if (*clipIndex < 0 || *clipIndex >= track.clips.size())
         return false;
 
-    const drift::Clip &selected = track.clips.at(*clipIndex);
+    const TonDron::Clip &selected = track.clips.at(*clipIndex);
     if (!isDerivedTemplateClipName(selected.name))
         return false;
 
     for (int t = 0; t < m_project.tracks().size(); ++t) {
-        const drift::Track &candidateTrack = m_project.tracks().at(t);
+        const TonDron::Track &candidateTrack = m_project.tracks().at(t);
         for (int c = 0; c < candidateTrack.clips.size(); ++c) {
-            const drift::Clip &candidate = candidateTrack.clips.at(c);
+            const TonDron::Clip &candidate = candidateTrack.clips.at(c);
             if (!clipsShareTemplateSource(candidate, selected))
                 continue;
             if (isDerivedTemplateClipName(candidate.name))
@@ -8230,21 +8230,21 @@ bool AppController::resolveTemplateApplyTarget(int *trackIndex, int *clipIndex) 
 void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
                                                 const EffectTemplateEntry &entry,
                                                 const QString &mattePath,
-                                                drift::TimeUs matteSrcOffsetUs)
+                                                TonDron::TimeUs matteSrcOffsetUs)
 {
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip sourceClip = track.clips[clipIndex];
-    const drift::Project before = m_project;
+    const TonDron::Clip sourceClip = track.clips[clipIndex];
+    const TonDron::Project before = m_project;
 
-    drift::Mask matte;
+    TonDron::Mask matte;
     if (!mattePath.isEmpty()) {
-        matte.shape = drift::MaskShape::Matte;
+        matte.shape = TonDron::MaskShape::Matte;
         matte.mattePath = mattePath;
         matte.matteSrcOffsetUs = matteSrcOffsetUs;
     } else if (clipHasMatte(sourceClip)) {
@@ -8252,25 +8252,25 @@ void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
     }
 
     const bool segmented = entry.requiresSegmentation || entry.usesMultiTrack();
-    const bool haveMatte = matte.shape == drift::MaskShape::Matte && !matte.mattePath.isEmpty();
+    const bool haveMatte = matte.shape == TonDron::MaskShape::Matte && !matte.mattePath.isEmpty();
 
-    QList<drift::TimeUs> syncPoints;
-    const drift::TimeUs clipStart = sourceClip.timelineStart;
-    const drift::TimeUs clipEnd = clipStart + sourceClip.timelineDuration;
+    QList<TonDron::TimeUs> syncPoints;
+    const TonDron::TimeUs clipStart = sourceClip.timelineStart;
+    const TonDron::TimeUs clipEnd = clipStart + sourceClip.timelineDuration;
     if (entry.sync == QLatin1String("clip")) {
         syncPoints.append(0);
         if (sourceClip.timelineDuration > 0)
             syncPoints.append(sourceClip.timelineDuration);
     } else if (entry.sync == QLatin1String("onset")) {
         for (const AudioOnset &onset : std::as_const(m_beatAnalysisRaw.onsets)) {
-            const drift::TimeUs at = drift::secondsToUs(onset.seconds);
+            const TonDron::TimeUs at = TonDron::secondsToUs(onset.seconds);
             if (at >= clipStart && at < clipEnd)
                 syncPoints.append(at - clipStart);
         }
     } else {
         int beatIndex = 0;
         for (double beatSeconds : std::as_const(m_beatAnalysisRaw.beats)) {
-            const drift::TimeUs at = drift::secondsToUs(beatSeconds);
+            const TonDron::TimeUs at = TonDron::secondsToUs(beatSeconds);
             if (at >= clipStart && at < clipEnd) {
                 if (entry.sync == QLatin1String("bar")) {
                     const int rel = beatIndex - m_beatAnalysisRaw.firstDownbeat;
@@ -8284,7 +8284,7 @@ void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
         }
     }
 
-    auto applyTrackLayers = [&](drift::Clip &clip, const EffectTemplateTrack &trackDef) {
+    auto applyTrackLayers = [&](TonDron::Clip &clip, const EffectTemplateTrack &trackDef) {
         applyTemplateLayersToClip(clip, trackDef.layers, entry.sync, syncPoints);
         if (trackDef.opacity < 0.999)
             clip.opacity.setKeyframe(0, trackDef.opacity);
@@ -8306,8 +8306,8 @@ void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
         if (reuseStack) {
             track.clips[clipIndex].opacity.setKeyframe(0, 0.0);
 
-            drift::Clip &fgClip = m_project.tracks()[existingStack.fgTrack].clips[existingStack.fgClip];
-            drift::Clip &bgClip = m_project.tracks()[existingStack.bgTrack].clips[existingStack.bgClip];
+            TonDron::Clip &fgClip = m_project.tracks()[existingStack.fgTrack].clips[existingStack.fgClip];
+            TonDron::Clip &bgClip = m_project.tracks()[existingStack.bgTrack].clips[existingStack.bgClip];
             resetTemplateDerivedClip(fgClip, 1.0);
             resetTemplateDerivedClip(bgClip, 1.0);
             fgClip.mask = matte;
@@ -8324,7 +8324,7 @@ void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
 
             for (int i = 0; i < existingStack.clones.size(); ++i) {
                 const auto &ref = existingStack.clones.at(i);
-                drift::Clip &clone = m_project.tracks()[ref.first].clips[ref.second];
+                TonDron::Clip &clone = m_project.tracks()[ref.first].clips[ref.second];
                 const double opacity = i < entry.clones.opacities.size()
                                            ? entry.clones.opacities.at(i)
                                            : 0.25;
@@ -8355,12 +8355,12 @@ void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
             track.clips[clipIndex].opacity.setKeyframe(0, 0.0);
 
             const int fgTrack =
-                drift::insertTrackAboveForClipType(m_project, trackIndex, drift::ClipType::Video);
+                TonDron::insertTrackAboveForClipType(m_project, trackIndex, TonDron::ClipType::Video);
             m_project.tracks()[fgTrack].clips.append(
                 deriveMaskedClip(sourceClip, matte, false, QStringLiteral(" (fg)")));
 
             const int bgTrack =
-                drift::insertTrackAboveForClipType(m_project, fgTrack + 1, drift::ClipType::Video);
+                TonDron::insertTrackAboveForClipType(m_project, fgTrack + 1, TonDron::ClipType::Video);
             m_project.tracks()[bgTrack].clips.append(
                 deriveMaskedClip(sourceClip, matte, true, QStringLiteral(" (bg)")));
 
@@ -8375,9 +8375,9 @@ void AppController::applyEffectTemplateInternal(int trackIndex, int clipIndex,
             if (entry.clones.count > 0) {
                 int insertAbove = fgTrack + 1;
                 for (int i = 0; i < entry.clones.count; ++i) {
-                    const int cloneTrack = drift::insertTrackAboveForClipType(
-                        m_project, insertAbove, drift::ClipType::Video);
-                    drift::Clip clone =
+                    const int cloneTrack = TonDron::insertTrackAboveForClipType(
+                        m_project, insertAbove, TonDron::ClipType::Video);
+                    TonDron::Clip clone =
                         deriveMaskedClip(sourceClip, matte, false, QStringLiteral(" (clone)"));
                     const double opacity = i < entry.clones.opacities.size()
                                                ? entry.clones.opacities.at(i)
@@ -8435,17 +8435,17 @@ void AppController::applyEffectTemplate(int trackIndex, int clipIndex, const QSt
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    const drift::Track &track = m_project.tracks()[trackIndex];
+    const TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    const drift::Clip &clip = track.clips[clipIndex];
+    const TonDron::Clip &clip = track.clips[clipIndex];
 
     if (templateSyncNeedsBeats(entry->sync) && !beatAnalysisReadyForClip(clip, entry->sync)) {
         m_pendingEffectTemplate = PendingEffectTemplate{trackIndex, clipIndex, templateId};
         if (!m_beatAnalysisRunning) {
-            analyzeBeats(drift::usToSeconds(clip.timelineStart),
-                         drift::usToSeconds(clip.timelineDuration));
+            analyzeBeats(TonDron::usToSeconds(clip.timelineStart),
+                         TonDron::usToSeconds(clip.timelineDuration));
         }
         return;
     }
@@ -8477,15 +8477,15 @@ void AppController::removeEffect(int trackIndex, int clipIndex, int effectIndex)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.effects.size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.effects.removeAt(effectIndex);
     dropKeyframeGraphPropertiesForEffect(effectIndex);
     pushProjectEdit(before, tr("Remove effect"));
@@ -8497,17 +8497,17 @@ void AppController::setEffectEnabled(int trackIndex, int clipIndex, int effectIn
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.effects.size())
         return;
     if (clip.effects[effectIndex].enabled == enabled)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.effects[effectIndex].enabled = enabled;
     pushProjectEdit(before, enabled ? tr("Enable effect")
                                     : tr("Disable effect"));
@@ -8519,18 +8519,18 @@ void AppController::moveEffect(int trackIndex, int clipIndex, int fromIndex, int
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (fromIndex < 0 || fromIndex >= clip.effects.size())
         return;
     toIndex = qBound(0, toIndex, clip.effects.size() - 1);
     if (fromIndex == toIndex)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.effects.move(fromIndex, toIndex);
     remapKeyframeGraphPropertiesForEffectMove(fromIndex, toIndex);
     pushProjectEdit(before, tr("Reorder effect"));
@@ -8543,19 +8543,19 @@ void AppController::setEffectParam(int trackIndex, int clipIndex, int effectInde
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.effects.size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     const EffectPresetEntry *def = effectDefForId(clip.effects[effectIndex].catalogId);
     bool asBoolean = false;
     if (def) {
-        for (const drift::EffectParamSpec &param : def->meta.parameters) {
+        for (const TonDron::EffectParamSpec &param : def->meta.parameters) {
             if (param.key == key) {
                 asBoolean = param.isBoolean();
                 break;
@@ -8579,11 +8579,11 @@ void AppController::setEffectColorParam(int trackIndex, int clipIndex, int effec
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.effects.size())
         return;
 
@@ -8591,7 +8591,7 @@ void AppController::setEffectColorParam(int trackIndex, int clipIndex, int effec
     if (!def)
         return;
     const auto specIt = std::find_if(def->meta.parameters.cbegin(), def->meta.parameters.cend(),
-                                     [&](const drift::EffectParamSpec &p) { return p.key == key; });
+                                     [&](const TonDron::EffectParamSpec &p) { return p.key == key; });
     if (specIt == def->meta.parameters.cend() || !specIt->isColor())
         return;
 
@@ -8601,7 +8601,7 @@ void AppController::setEffectColorParam(int trackIndex, int clipIndex, int effec
     if (!color.isValid())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.effects[effectIndex].parameters.insert(key, color.name(QColor::HexRgb));
     pushProjectEdit(before, tr("Edit effect"));
     finishEdit(tr("Effect updated"));
@@ -8612,7 +8612,7 @@ QVariantList AppController::audioEffectCatalog() const
     QVariantList out;
     for (const AudioEffectEntry &def : ::audioEffectCatalog()) {
         QVariantList params;
-        for (const drift::EffectParamSpec &p : def.parameters) {
+        for (const TonDron::EffectParamSpec &p : def.parameters) {
             params.append(QVariantMap{
                 {QStringLiteral("key"), p.key},
                 {QStringLiteral("label"), p.label},
@@ -8654,7 +8654,7 @@ void AppController::addAudioEffect(int trackIndex, int clipIndex, const QString 
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
@@ -8662,13 +8662,13 @@ void AppController::addAudioEffect(int trackIndex, int clipIndex, const QString 
     if (!def)
         return;
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.name = def->displayName;
     effect.catalogId = def->id;
-    for (const drift::EffectParamSpec &p : def->parameters)
+    for (const TonDron::EffectParamSpec &p : def->parameters)
         effect.parameters.insert(p.key, p.defaultValue);
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     track.clips[clipIndex].audioEffects.append(effect);
     m_selectedTrack = trackIndex;
     m_selectedClip = clipIndex;
@@ -8682,15 +8682,15 @@ void AppController::removeAudioEffect(int trackIndex, int clipIndex, int effectI
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.audioEffects.size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.audioEffects.removeAt(effectIndex);
     pushProjectEdit(before, tr("Remove audio effect"));
     finishEdit(tr("Audio effect removed"));
@@ -8701,17 +8701,17 @@ void AppController::setAudioEffectEnabled(int trackIndex, int clipIndex, int eff
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.audioEffects.size())
         return;
     if (clip.audioEffects[effectIndex].enabled == enabled)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.audioEffects[effectIndex].enabled = enabled;
     pushProjectEdit(before, enabled ? tr("Enable audio effect")
                                     : tr("Disable audio effect"));
@@ -8724,18 +8724,18 @@ void AppController::moveAudioEffect(int trackIndex, int clipIndex, int fromIndex
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (fromIndex < 0 || fromIndex >= clip.audioEffects.size())
         return;
     toIndex = qBound(0, toIndex, clip.audioEffects.size() - 1);
     if (fromIndex == toIndex)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.audioEffects.move(fromIndex, toIndex);
     pushProjectEdit(before, tr("Reorder audio effect"));
     finishEdit(tr("Audio effect reordered"));
@@ -8747,11 +8747,11 @@ void AppController::previewSetAudioEffectParam(int trackIndex, int clipIndex, in
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.audioEffects.size())
         return;
     if (key.isEmpty())
@@ -8772,15 +8772,15 @@ void AppController::setAudioEffectParam(int trackIndex, int clipIndex, int effec
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Track &track = m_project.tracks()[trackIndex];
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return;
 
-    drift::Clip &clip = track.clips[clipIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
     if (effectIndex < 0 || effectIndex >= clip.audioEffects.size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     clip.audioEffects[effectIndex].parameters.insert(key, value);
     pushProjectEdit(before, tr("Edit audio effect"));
     finishEdit(tr("Audio effect updated"));
@@ -8793,7 +8793,7 @@ void AppController::setTrackMuted(int trackIndex, bool muted)
     if (m_project.tracks()[trackIndex].muted == muted)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.tracks()[trackIndex].muted = muted;
     pushProjectEdit(before, tr("Track mute"));
     finishEdit(muted ? tr("Track muted") : tr("Track unmuted"));
@@ -8806,7 +8806,7 @@ void AppController::setTrackHidden(int trackIndex, bool hidden)
     if (m_project.tracks()[trackIndex].hidden == hidden)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.tracks()[trackIndex].hidden = hidden;
     pushProjectEdit(before, tr("Track visibility"));
     finishEdit(hidden ? tr("Track hidden") : tr("Track shown"));
@@ -8882,7 +8882,7 @@ void AppController::moveTrack(int fromIndex, int toIndex)
     if (fromIndex == toIndex)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.tracks().move(fromIndex, toIndex);
 
     auto remap = [fromIndex, toIndex](int index) -> int {
@@ -8913,7 +8913,7 @@ void AppController::removeTrack(int trackIndex)
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.tracks().removeAt(trackIndex);
 
     // Indices at or after the removed track shift down by one; anything that
@@ -8957,8 +8957,8 @@ void AppController::addTrack(const QString &type)
         return;
     }
 
-    const drift::Project before = m_project;
-    m_project.tracks().prepend(drift::Track{.type = drift::trackTypeFromString(normalized)});
+    const TonDron::Project before = m_project;
+    m_project.tracks().prepend(TonDron::Track{.type = TonDron::trackTypeFromString(normalized)});
     pushProjectEdit(before, tr("Add track"));
     finishEdit(tr("Track added"));
 }
@@ -8966,9 +8966,9 @@ void AppController::addTrack(const QString &type)
 QVariantList AppController::bookmarks() const
 {
     QVariantList result;
-    for (const drift::Bookmark &bookmark : m_project.bookmarks()) {
+    for (const TonDron::Bookmark &bookmark : m_project.bookmarks()) {
         result.append(QVariantMap{
-            {QStringLiteral("seconds"), drift::usToSeconds(bookmark.timeUs)},
+            {QStringLiteral("seconds"), TonDron::usToSeconds(bookmark.timeUs)},
             {QStringLiteral("label"), bookmark.label},
         });
     }
@@ -8977,12 +8977,12 @@ QVariantList AppController::bookmarks() const
 
 double AppController::workAreaInSeconds() const
 {
-    return m_project.workAreaInUs() >= 0 ? drift::usToSeconds(m_project.workAreaInUs()) : -1.0;
+    return m_project.workAreaInUs() >= 0 ? TonDron::usToSeconds(m_project.workAreaInUs()) : -1.0;
 }
 
 double AppController::workAreaOutSeconds() const
 {
-    return m_project.workAreaOutUs() >= 0 ? drift::usToSeconds(m_project.workAreaOutUs()) : -1.0;
+    return m_project.workAreaOutUs() >= 0 ? TonDron::usToSeconds(m_project.workAreaOutUs()) : -1.0;
 }
 
 void AppController::setLoopWorkAreaEnabled(bool enabled)
@@ -8998,8 +8998,8 @@ void AppController::setLoopWorkAreaEnabled(bool enabled)
 
 void AppController::markWorkAreaIn()
 {
-    const drift::Project before = m_project;
-    const drift::TimeUs at = qBound<drift::TimeUs>(0, m_playheadUs, qMax(m_project.durationUs(), drift::TimeUs{0}));
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs at = qBound<TonDron::TimeUs>(0, m_playheadUs, qMax(m_project.durationUs(), TonDron::TimeUs{0}));
     m_project.setWorkAreaInUs(at);
     if (m_project.workAreaOutUs() >= 0 && m_project.workAreaOutUs() <= at)
         m_project.setWorkAreaOutUs(-1);
@@ -9010,8 +9010,8 @@ void AppController::markWorkAreaIn()
 
 void AppController::markWorkAreaOut()
 {
-    const drift::Project before = m_project;
-    const drift::TimeUs at = qBound<drift::TimeUs>(0, m_playheadUs, qMax(m_project.durationUs(), drift::TimeUs{0}));
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs at = qBound<TonDron::TimeUs>(0, m_playheadUs, qMax(m_project.durationUs(), TonDron::TimeUs{0}));
     m_project.setWorkAreaOutUs(at);
     if (m_project.workAreaInUs() < 0 || m_project.workAreaInUs() >= at)
         m_project.setWorkAreaInUs(0);
@@ -9041,7 +9041,7 @@ void AppController::clearWorkArea()
     if (!m_project.hasWorkArea() && m_project.workAreaInUs() < 0 && m_project.workAreaOutUs() < 0)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.clearWorkArea();
     pushProjectEdit(before, tr("Clear work area"));
     finishEdit(tr("Work area cleared"));
@@ -9055,9 +9055,9 @@ void AppController::toggleLoopWorkArea()
 
 void AppController::addBookmark(double seconds, const QString &label)
 {
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.bookmarks().append({
-        .timeUs = qMax<drift::TimeUs>(0, drift::secondsToUs(seconds)),
+        .timeUs = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(seconds)),
         .label = label.isEmpty() ? QStringLiteral("Bookmark") : label,
     });
     pushProjectEdit(before, tr("Add bookmark"));
@@ -9069,7 +9069,7 @@ void AppController::removeBookmark(int index)
     if (index < 0 || index >= m_project.bookmarks().size())
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.bookmarks().removeAt(index);
     pushProjectEdit(before, tr("Remove bookmark"));
     finishEdit(tr("Bookmark removed"));
@@ -9080,13 +9080,13 @@ void AppController::updateBookmark(int index, double seconds, const QString &lab
     if (index < 0 || index >= m_project.bookmarks().size())
         return;
 
-    const drift::TimeUs timeUs = qMax<drift::TimeUs>(0, drift::secondsToUs(seconds));
+    const TonDron::TimeUs timeUs = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(seconds));
     const QString resolvedLabel = label.isEmpty() ? QStringLiteral("Bookmark") : label;
-    drift::Bookmark &bookmark = m_project.bookmarks()[index];
+    TonDron::Bookmark &bookmark = m_project.bookmarks()[index];
     if (bookmark.timeUs == timeUs && bookmark.label == resolvedLabel)
         return;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     bookmark.timeUs = timeUs;
     bookmark.label = resolvedLabel;
     pushProjectEdit(before, tr("Edit bookmark"));
@@ -9102,13 +9102,13 @@ void AppController::goToBookmark(int index)
 
 namespace {
 
-int nearestBookmarkIndex(const QList<drift::Bookmark> &bookmarks, drift::TimeUs timeUs,
-                         drift::TimeUs maxDistanceUs)
+int nearestBookmarkIndex(const QList<TonDron::Bookmark> &bookmarks, TonDron::TimeUs timeUs,
+                         TonDron::TimeUs maxDistanceUs)
 {
     int bestIndex = -1;
-    drift::TimeUs bestDistance = maxDistanceUs;
+    TonDron::TimeUs bestDistance = maxDistanceUs;
     for (int i = 0; i < bookmarks.size(); ++i) {
-        const drift::TimeUs distance = qAbs(bookmarks.at(i).timeUs - timeUs);
+        const TonDron::TimeUs distance = qAbs(bookmarks.at(i).timeUs - timeUs);
         if (distance <= bestDistance) {
             bestDistance = distance;
             bestIndex = i;
@@ -9117,14 +9117,14 @@ int nearestBookmarkIndex(const QList<drift::Bookmark> &bookmarks, drift::TimeUs 
     return bestIndex;
 }
 
-int nextBookmarkIndex(const QList<drift::Bookmark> &bookmarks, drift::TimeUs playheadUs)
+int nextBookmarkIndex(const QList<TonDron::Bookmark> &bookmarks, TonDron::TimeUs playheadUs)
 {
     int bestIndex = -1;
-    drift::TimeUs bestTime = 0;
+    TonDron::TimeUs bestTime = 0;
     int earliestIndex = -1;
-    drift::TimeUs earliestTime = 0;
+    TonDron::TimeUs earliestTime = 0;
     for (int i = 0; i < bookmarks.size(); ++i) {
-        const drift::TimeUs timeUs = bookmarks.at(i).timeUs;
+        const TonDron::TimeUs timeUs = bookmarks.at(i).timeUs;
         if (earliestIndex < 0 || timeUs < earliestTime) {
             earliestIndex = i;
             earliestTime = timeUs;
@@ -9139,14 +9139,14 @@ int nextBookmarkIndex(const QList<drift::Bookmark> &bookmarks, drift::TimeUs pla
     return bestIndex >= 0 ? bestIndex : earliestIndex;
 }
 
-int previousBookmarkIndex(const QList<drift::Bookmark> &bookmarks, drift::TimeUs playheadUs)
+int previousBookmarkIndex(const QList<TonDron::Bookmark> &bookmarks, TonDron::TimeUs playheadUs)
 {
     int bestIndex = -1;
-    drift::TimeUs bestTime = 0;
+    TonDron::TimeUs bestTime = 0;
     int latestIndex = -1;
-    drift::TimeUs latestTime = 0;
+    TonDron::TimeUs latestTime = 0;
     for (int i = 0; i < bookmarks.size(); ++i) {
-        const drift::TimeUs timeUs = bookmarks.at(i).timeUs;
+        const TonDron::TimeUs timeUs = bookmarks.at(i).timeUs;
         if (latestIndex < 0 || timeUs > latestTime) {
             latestIndex = i;
             latestTime = timeUs;
@@ -9180,7 +9180,7 @@ void AppController::goToPreviousBookmark()
 void AppController::toggleBookmarkAtPlayhead()
 {
     const int near = nearestBookmarkIndex(m_project.bookmarks(), m_playheadUs,
-                                          drift::kSnapThresholdUs);
+                                          TonDron::kSnapThresholdUs);
     if (near >= 0) {
         removeBookmark(near);
         return;
@@ -9193,7 +9193,7 @@ void AppController::toggleBookmarkAtPlayhead()
 void AppController::removeBookmarkNearPlayhead()
 {
     const int near = nearestBookmarkIndex(m_project.bookmarks(), m_playheadUs,
-                                          drift::kSnapThresholdUs);
+                                          TonDron::kSnapThresholdUs);
     if (near >= 0)
         removeBookmark(near);
 }
@@ -9239,10 +9239,10 @@ void AppController::freezeFrameAtPlayhead()
     setPlaying(false);
 
     setLastMessage(tr("Capturing freeze frame…"));
-    const drift::TimeUs playheadUs = m_playheadUs;
+    const TonDron::TimeUs playheadUs = m_playheadUs;
     // The worker composites off the GUI thread while editing continues, so it gets a detached
     // copy rather than a pointer into the live project.
-    const auto snapshot = std::make_shared<const drift::Project>(m_project.detachedCopy());
+    const auto snapshot = std::make_shared<const TonDron::Project>(m_project.detachedCopy());
 
     (void)QtConcurrent::run([this, snapshot, playheadUs, outPath]() {
         FrameCompositor compositor;
@@ -9253,7 +9253,7 @@ void AppController::freezeFrameAtPlayhead()
         const QImage frame = compositor.compositeAt(playheadUs);
         const bool ok = !frame.isNull() && frame.save(outPath, "PNG");
         const QString thumb =
-            ok ? MediaThumbnail::generate(outPath, drift::mediaKindToString(drift::MediaKind::Image))
+            ok ? MediaThumbnail::generate(outPath, TonDron::mediaKindToString(TonDron::MediaKind::Image))
                : QString();
         const QSize size = frame.size();
 
@@ -9266,12 +9266,12 @@ void AppController::freezeFrameAtPlayhead()
                     return;
                 }
 
-                const drift::Project before = m_project;
+                const TonDron::Project before = m_project;
 
-                drift::MediaAsset asset;
+                TonDron::MediaAsset asset;
                 asset.name = QStringLiteral("Freeze frame");
                 asset.path = outPath;
-                asset.kind = drift::MediaKind::Image;
+                asset.kind = TonDron::MediaKind::Image;
                 asset.width = size.width();
                 asset.height = size.height();
                 asset.thumbnailPath = thumb;
@@ -9282,25 +9282,25 @@ void AppController::freezeFrameAtPlayhead()
 
                 // Inserted at the top: track 0 composites in front, so a freeze frame on a freshly
                 // appended track would sit behind the video it was captured from and show nothing.
-                const int trackIndex = drift::ensureTrackForClipType(m_project, drift::ClipType::Image, true);
+                const int trackIndex = TonDron::ensureTrackForClipType(m_project, TonDron::ClipType::Image, true);
 
-                drift::Track &track = m_project.tracks()[trackIndex];
-                const drift::TimeUs start = drift::resolveClipStart(m_project, track, -1, playheadUs,
-                                                                    drift::kImageClipDurationUs, m_snapEnabled,
+                TonDron::Track &track = m_project.tracks()[trackIndex];
+                const TonDron::TimeUs start = TonDron::resolveClipStart(m_project, track, -1, playheadUs,
+                                                                    TonDron::kImageClipDurationUs, m_snapEnabled,
                                                                     playheadUs);
 
-                drift::Clip freezeClip;
+                TonDron::Clip freezeClip;
                 freezeClip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
                 freezeClip.assetId = assetId;
-                freezeClip.type = drift::ClipType::Image;
+                freezeClip.type = TonDron::ClipType::Image;
                 freezeClip.name = QStringLiteral("Freeze frame");
                 freezeClip.path = outPath;
                 freezeClip.thumbnailPath = thumb;
                 freezeClip.filmstripPath = thumb;
                 freezeClip.timelineStart = start;
-                freezeClip.timelineDuration = drift::kImageClipDurationUs;
+                freezeClip.timelineDuration = TonDron::kImageClipDurationUs;
                 freezeClip.srcIn = 0;
-                freezeClip.srcOut = drift::kImageClipDurationUs;
+                freezeClip.srcOut = TonDron::kImageClipDurationUs;
                 fitClipLayoutToCanvas(freezeClip, size.width(), size.height(), m_project.width(),
                                       m_project.height());
 
@@ -9339,17 +9339,17 @@ void AppController::pasteAtPlayhead()
 {
     if (m_clipboard.isEmpty())
         return;
-    const drift::Project before = m_project;
-    drift::TimeUs anchor = LLONG_MAX;
+    const TonDron::Project before = m_project;
+    TonDron::TimeUs anchor = LLONG_MAX;
     for (const ClipboardItem &item : m_clipboard)
         anchor = qMin(anchor, item.clip.timelineStart);
-    const drift::TimeUs shift = m_playheadUs - anchor;
+    const TonDron::TimeUs shift = m_playheadUs - anchor;
     QList<QPair<int, int>> inserted;
 
     for (const ClipboardItem &item : m_clipboard) {
-        drift::Clip clip = item.clip;
+        TonDron::Clip clip = item.clip;
         clip.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        clip.timelineStart = qMax<drift::TimeUs>(0, clip.timelineStart + shift);
+        clip.timelineStart = qMax<TonDron::TimeUs>(0, clip.timelineStart + shift);
 
         int targetTrack = -1;
         for (int i = 0; i < m_project.tracks().size(); ++i) {
@@ -9359,10 +9359,10 @@ void AppController::pasteAtPlayhead()
             }
         }
         if (targetTrack < 0)
-            targetTrack = drift::ensureTrackForClipType(m_project, clip.type, true);
+            targetTrack = TonDron::ensureTrackForClipType(m_project, clip.type, true);
         if (targetTrack < 0 || !m_project.tracks()[targetTrack].allowsClipType(clip.type))
             continue;
-        drift::Track &track = m_project.tracks()[targetTrack];
+        TonDron::Track &track = m_project.tracks()[targetTrack];
         track.clips.append(clip);
         inserted.append(qMakePair(targetTrack, track.clips.size() - 1));
     }
@@ -9385,23 +9385,23 @@ void AppController::nudgeSelection(double deltaSeconds)
         pairs.append(qMakePair(m_selectedTrack, m_selectedClip));
     if (pairs.isEmpty())
         return;
-    const drift::Project before = m_project;
-    const drift::TimeUs deltaUs = drift::secondsToUs(deltaSeconds);
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs deltaUs = TonDron::secondsToUs(deltaSeconds);
     QSet<QString> movedIds;
     for (const QPair<int, int> &pair : pairs) {
         if (!isValidClipIndex(pair.first, pair.second))
             continue;
-        drift::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
-        clip.timelineStart = qMax<drift::TimeUs>(0, clip.timelineStart + deltaUs);
+        TonDron::Clip &clip = m_project.tracks()[pair.first].clips[pair.second];
+        clip.timelineStart = qMax<TonDron::TimeUs>(0, clip.timelineStart + deltaUs);
         movedIds.insert(clip.id);
     }
     if (!m_allowClipOverlap) {
         for (const QPair<int, int> &pair : pairs) {
             if (!isValidClipIndex(pair.first, pair.second))
                 continue;
-            drift::Track &track = m_project.tracks()[pair.first];
-            drift::Clip &clip = track.clips[pair.second];
-            clip.timelineStart = drift::clampClipStartNoOverlap(track, movedIds, clip.timelineStart,
+            TonDron::Track &track = m_project.tracks()[pair.first];
+            TonDron::Clip &clip = track.clips[pair.second];
+            clip.timelineStart = TonDron::clampClipStartNoOverlap(track, movedIds, clip.timelineStart,
                                                                 clip.timelineDuration);
         }
     }
@@ -9661,8 +9661,8 @@ constexpr int kBeatAnalysisRate = 22050;
 // buffer contiguous, so that one stays, but holding the interleaved stereo alongside it doubled
 // the peak for no reason — at the ten-minute ceiling MCP allows that is 106 MB of scratch to
 // produce 53 MB of mono.
-AudioBeatAnalysis runBeatAnalysis(const drift::Project &snap, drift::TimeUs startUs,
-                                  drift::TimeUs durUs, double startSeconds)
+AudioBeatAnalysis runBeatAnalysis(const TonDron::Project &snap, TonDron::TimeUs startUs,
+                                  TonDron::TimeUs durUs, double startSeconds)
 {
     const int frames =
         static_cast<int>((static_cast<double>(durUs) / 1'000'000.0) * kBeatAnalysisRate);
@@ -9677,8 +9677,8 @@ AudioBeatAnalysis runBeatAnalysis(const drift::Project &snap, drift::TimeUs star
     QVector<float> window(static_cast<qsizetype>(kWindowFrames) * 2);
     for (int done = 0; done < frames;) {
         const int want = qMin(kWindowFrames, frames - done);
-        const drift::TimeUs at =
-            startUs + static_cast<drift::TimeUs>(done) * drift::kUsPerSecond / kBeatAnalysisRate;
+        const TonDron::TimeUs at =
+            startUs + static_cast<TonDron::TimeUs>(done) * TonDron::kUsPerSecond / kBeatAnalysisRate;
         mixer.mix(at, want, kBeatAnalysisRate, window.data());
         for (int i = 0; i < want; ++i)
             mono[done + i] = 0.5f * (window[i * 2] + window[i * 2 + 1]);
@@ -9768,8 +9768,8 @@ QVariantList AppController::subtitleWaveformPeaks(double startSeconds, double du
     // Cap so extreme zoom doesn't spawn multi-megabyte peak lists / mix jobs.
     const int buckets = qBound(1, sampleCount, 8192);
 
-    const drift::TimeUs startUs = drift::secondsToUs(startSeconds);
-    const drift::TimeUs durUs = drift::secondsToUs(durSeconds);
+    const TonDron::TimeUs startUs = TonDron::secondsToUs(startSeconds);
+    const TonDron::TimeUs durUs = TonDron::secondsToUs(durSeconds);
     const QString key = QStringLiteral("%1:%2:%3").arg(startUs).arg(durUs).arg(buckets);
 
     const auto cached = m_subtitleWaveformCache.constFind(key);
@@ -9780,7 +9780,7 @@ QVariantList AppController::subtitleWaveformPeaks(double startSeconds, double du
         m_subtitleWaveformPending.insert(key);
         AppController *self = const_cast<AppController *>(this);
         // Snapshot the project so the off-thread mixer never races the live one.
-        const drift::Project snap = m_project;
+        const TonDron::Project snap = m_project;
         (void)QtConcurrent::run([self, snap, startUs, durUs, buckets, key, startSeconds, durSeconds] {
             const int rate = 8000; // enough for voice; keeps the render cheap
             const qint64 frames =
@@ -9799,8 +9799,8 @@ QVariantList AppController::subtitleWaveformPeaks(double startSeconds, double du
                 peaks = MediaWaveform::voicePeaks(
                     frames, rate, peakBuckets,
                     [&mixer, startUs, rate](float *out, qint64 frameOffset, int maxFrames) {
-                        const drift::TimeUs at =
-                            startUs + frameOffset * drift::kUsPerSecond / rate;
+                        const TonDron::TimeUs at =
+                            startUs + frameOffset * TonDron::kUsPerSecond / rate;
                         mixer.mix(at, maxFrames, rate, out);
                         return maxFrames;
                     });
@@ -9824,11 +9824,11 @@ QVariantList AppController::subtitleWaveformPeaks(double startSeconds, double du
 QByteArray AppController::audioLayoutFingerprint() const
 {
     QCryptographicHash hash(QCryptographicHash::Sha1);
-    for (const drift::Track &track : m_project.tracks()) {
-        if (track.type != drift::TrackType::Audio && track.type != drift::TrackType::Video)
+    for (const TonDron::Track &track : m_project.tracks()) {
+        if (track.type != TonDron::TrackType::Audio && track.type != TonDron::TrackType::Video)
             continue;
         hash.addData(track.muted ? "m" : "-");
-        for (const drift::Clip &clip : track.clips) {
+        for (const TonDron::Clip &clip : track.clips) {
             const QString row = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9")
                                     .arg(clip.assetId)
                                     .arg(clip.timelineStart)
@@ -9873,8 +9873,8 @@ void AppController::analyzeBeats(double startSeconds, double durSeconds)
         return;
     }
 
-    const drift::TimeUs startUs = drift::secondsToUs(startSeconds);
-    const drift::TimeUs durUs = drift::secondsToUs(durSeconds);
+    const TonDron::TimeUs startUs = TonDron::secondsToUs(startSeconds);
+    const TonDron::TimeUs durUs = TonDron::secondsToUs(durSeconds);
     const quint64 generation = ++m_beatAnalysisGeneration;
 
     m_beatAnalysisRunning = true;
@@ -9884,7 +9884,7 @@ void AppController::analyzeBeats(double startSeconds, double durSeconds)
     // contract as subtitleWaveformPeaks. The fingerprint is taken from that same snapshot,
     // so an edit landing mid-analysis is caught by the staleness check rather than being
     // baked in as the state the result supposedly describes.
-    const drift::Project snap = m_project;
+    const TonDron::Project snap = m_project;
     const QByteArray fingerprint = audioLayoutFingerprint();
     (void)QtConcurrent::run([this, snap, startUs, durUs, startSeconds, durSeconds, generation,
                              fingerprint] {
@@ -9935,10 +9935,10 @@ void AppController::applyBeatAnalysis(const AudioBeatAnalysis &analysis, double 
         const PendingEffectTemplate pending = *m_pendingEffectTemplate;
         const EffectTemplateEntry *entry = effectTemplateForId(pending.templateId);
         if (entry && pending.trackIndex >= 0 && pending.trackIndex < m_project.tracks().size()) {
-            const drift::Track &track = m_project.tracks()[pending.trackIndex];
+            const TonDron::Track &track = m_project.tracks()[pending.trackIndex];
             if (pending.clipIndex >= 0 && pending.clipIndex < track.clips.size()
                 && beatAnalysisReadyForClip(track.clips[pending.clipIndex], entry->sync)) {
-                const drift::Clip &clip = track.clips[pending.clipIndex];
+                const TonDron::Clip &clip = track.clips[pending.clipIndex];
                 const bool needsSegment =
                     (entry->requiresSegmentation || entry->usesMultiTrack()) && !clipHasMatte(clip);
                 if (needsSegment) {
@@ -9962,16 +9962,16 @@ void AppController::rebuildBeatSnapTargets()
 
     if (m_beatGridVisible) {
         for (double b : std::as_const(m_beatAnalysisRaw.beats))
-            m_beatSnapTargets.append(drift::secondsToUs(b));
+            m_beatSnapTargets.append(TonDron::secondsToUs(b));
     }
     if (!m_onsetsVisible)
         return;
 
     for (const AudioOnset &o : std::as_const(m_beatAnalysisRaw.onsets)) {
-        const drift::TimeUs at = drift::secondsToUs(o.seconds);
+        const TonDron::TimeUs at = TonDron::secondsToUs(o.seconds);
         bool crowded = false;
-        for (drift::TimeUs existing : std::as_const(m_beatSnapTargets)) {
-            if (qAbs(existing - at) < drift::kSnapThresholdUs) {
+        for (TonDron::TimeUs existing : std::as_const(m_beatSnapTargets)) {
+            if (qAbs(existing - at) < TonDron::kSnapThresholdUs) {
                 crowded = true;
                 break;
             }
@@ -9981,10 +9981,10 @@ void AppController::rebuildBeatSnapTargets()
     }
 }
 
-QList<drift::TimeUs> AppController::extraSnapTargets() const
+QList<TonDron::TimeUs> AppController::extraSnapTargets() const
 {
-    QList<drift::TimeUs> targets = m_beatSnapTargets;
-    for (const drift::Bookmark &bookmark : m_project.bookmarks())
+    QList<TonDron::TimeUs> targets = m_beatSnapTargets;
+    for (const TonDron::Bookmark &bookmark : m_project.bookmarks())
         targets.append(bookmark.timeUs);
     if (m_project.hasWorkArea()) {
         targets.append(m_project.workAreaInUs());
@@ -10037,8 +10037,8 @@ void AppController::restoreFilmstripsAfterLoad()
     if (!m_assetLibrary)
         return;
 
-    for (drift::Track &track : m_project.tracks()) {
-        for (drift::Clip &clip : track.clips) {
+    for (TonDron::Track &track : m_project.tracks()) {
+        for (TonDron::Clip &clip : track.clips) {
             if (!clip.filmstripPath.isEmpty())
                 continue;
             const int assetIndex = assetIndexForClip(clip);
@@ -10140,7 +10140,7 @@ bool AppController::applyProjectJson(const QByteArray &data, QString *error)
     // Parse into a local and check before touching anything: a project we end up rejecting must
     // leave the open one exactly as it was, session state included.
     QString parseError;
-    drift::Project parsed = drift::Project::fromJson(root, &parseError);
+    TonDron::Project parsed = TonDron::Project::fromJson(root, &parseError);
     if (!parseError.isEmpty()) {
         if (error)
             *error = parseError;
@@ -10151,10 +10151,10 @@ bool AppController::applyProjectJson(const QByteArray &data, QString *error)
     m_project = std::move(parsed);
 
     // Stickers moved out of the QRC and into an addon, so projects saved before that store paths
-    // like ":/qt/qml/Drift/resources/stickers/grinning.png" that no longer resolve. Repoint them
+    // like ":/qt/qml/TonDron/resources/stickers/grinning.png" that no longer resolve. Repoint them
     // at the installed pack; a sticker with no installed pack keeps its old path and simply fails
     // to load, which is the same outcome as a missing media file.
-    for (drift::MediaAsset &asset : m_project.assets()) {
+    for (TonDron::MediaAsset &asset : m_project.assets()) {
         const QString migrated = resolveLegacyStickerPath(asset.path);
         if (!migrated.isEmpty())
             asset.path = migrated;
@@ -10170,8 +10170,8 @@ bool AppController::applyProjectJson(const QByteArray &data, QString *error)
     // elsewhere will not have. The glyph sequence is what was saved, so re-derive the path — the
     // render is cached, and without the font addon it comes back empty and the clip fails to load
     // like any other missing file.
-    for (drift::Track &track : m_project.tracks()) {
-        for (drift::Clip &clip : track.clips) {
+    for (TonDron::Track &track : m_project.tracks()) {
+        for (TonDron::Clip &clip : track.clips) {
             if (clip.emoji.isEmpty())
                 continue;
             const QString path = emojiImagePath(clip.emoji);
@@ -10205,7 +10205,7 @@ bool AppController::applyProjectJson(const QByteArray &data, QString *error)
     }
 
     if (root.contains(QStringLiteral("playheadUs"))) {
-        setPlayheadUs(static_cast<drift::TimeUs>(root.value(QStringLiteral("playheadUs")).toDouble()));
+        setPlayheadUs(static_cast<TonDron::TimeUs>(root.value(QStringLiteral("playheadUs")).toDouble()));
     } else {
         setPlayheadSeconds(root.value(QStringLiteral("playheadSeconds")).toDouble());
     }
@@ -10227,9 +10227,9 @@ bool AppController::applyProjectJson(const QByteArray &data, QString *error)
     return true;
 }
 
-drift::bundle::WriteRequest AppController::buildWriteRequest(bool embedSource) const
+TonDron::bundle::WriteRequest AppController::buildWriteRequest(bool embedSource) const
 {
-    drift::bundle::WriteRequest request;
+    TonDron::bundle::WriteRequest request;
     request.document = QJsonDocument::fromJson(serializeProjectJson()).object();
     request.projectId = m_project.id();
     request.title = m_project.name();
@@ -10237,13 +10237,13 @@ drift::bundle::WriteRequest AppController::buildWriteRequest(bool embedSource) c
     request.description = m_project.description();
     request.createdAt = m_project.createdAt();
     request.modifiedAt = m_project.modifiedAt();
-    request.addons = drift::bundle::collectAddons(m_project);
-    request.media = drift::bundle::collectMedia(m_project, embedSource);
+    request.addons = TonDron::bundle::collectAddons(m_project);
+    request.media = TonDron::bundle::collectMedia(m_project, embedSource);
 
     // Without this a plain Save of a project that arrived as a package would drop its media back
     // to references into the extraction dir, which the startup sweep is free to delete.
     if (!embedSource) {
-        for (drift::bundle::MediaEntry &entry : request.media) {
+        for (TonDron::bundle::MediaEntry &entry : request.media) {
             if (m_embeddedSources.contains(entry.originalPath))
                 entry.embedded = true;
         }
@@ -10251,10 +10251,10 @@ drift::bundle::WriteRequest AppController::buildWriteRequest(bool embedSource) c
     return request;
 }
 
-void AppController::rememberEmbeddedSources(const QList<drift::bundle::MediaEntry> &media)
+void AppController::rememberEmbeddedSources(const QList<TonDron::bundle::MediaEntry> &media)
 {
     m_embeddedSources.clear();
-    for (const drift::bundle::MediaEntry &entry : media) {
+    for (const TonDron::bundle::MediaEntry &entry : media) {
         if (entry.embedded)
             m_embeddedSources.insert(entry.originalPath);
     }
@@ -10274,9 +10274,9 @@ void AppController::saveProject(const QUrl &url)
 
     m_project.setModifiedAt(QDateTime::currentDateTimeUtc());
 
-    const drift::bundle::WriteRequest request = buildWriteRequest(/*embedSource=*/false);
+    const TonDron::bundle::WriteRequest request = buildWriteRequest(/*embedSource=*/false);
     QString error;
-    if (!drift::bundle::write(path, request, {}, &error)) {
+    if (!TonDron::bundle::write(path, request, {}, &error)) {
         setLastMessage(error, QStringLiteral("error"));
         return;
     }
@@ -10309,7 +10309,7 @@ void AppController::packageProject(const QUrl &url)
 
     // The whole request is built here, on the GUI thread: the worker copies gigabytes and must not
     // be reading the project while the timeline is free to change under it.
-    const drift::bundle::WriteRequest request = buildWriteRequest(/*embedSource=*/true);
+    const TonDron::bundle::WriteRequest request = buildWriteRequest(/*embedSource=*/true);
 
     (void)QtConcurrent::run([this, path, request]() {
         QString error;
@@ -10326,7 +10326,7 @@ void AppController::packageProject(const QUrl &url)
                 Qt::QueuedConnection);
             return true;
         };
-        const bool ok = drift::bundle::write(path, request, progress, &error);
+        const bool ok = TonDron::bundle::write(path, request, progress, &error);
         QMetaObject::invokeMethod(
             this,
             [this, ok, error, path, request]() {
@@ -10366,8 +10366,8 @@ void AppController::loadProject(const QUrl &url)
     }
 
     QString error;
-    const std::optional<drift::bundle::BundleInfo> info =
-        drift::bundle::readManifest(path, &error);
+    const std::optional<TonDron::bundle::BundleInfo> info =
+        TonDron::bundle::readManifest(path, &error);
     if (!info) {
         setLastMessage(error, QStringLiteral("error"));
         return;
@@ -10380,7 +10380,7 @@ void AppController::loadProject(const QUrl &url)
         QDir(base).filePath(QStringLiteral("projects/%1/media").arg(info->projectId));
 
     const int generation = ++m_loadGeneration;
-    const drift::bundle::BundleInfo bundle = *info;
+    const TonDron::bundle::BundleInfo bundle = *info;
 
     auto finishLoad = [this, path, bundle, generation](const QHash<QString, QString> &remap,
                                                        const QString &extractError, bool extractOk) {
@@ -10401,8 +10401,8 @@ void AppController::loadProject(const QUrl &url)
         }
 
         m_embeddedSources.clear();
-        for (const drift::bundle::MediaEntry &entry : bundle.media) {
-            if (entry.embedded && entry.role == drift::bundle::MediaRole::Source)
+        for (const TonDron::bundle::MediaEntry &entry : bundle.media) {
+            if (entry.embedded && entry.role == TonDron::bundle::MediaRole::Source)
                 m_embeddedSources.insert(remap.value(entry.originalPath, entry.originalPath));
         }
 
@@ -10423,7 +10423,7 @@ void AppController::loadProject(const QUrl &url)
     (void)QtConcurrent::run([this, path, destDir, generation, finishLoad]() {
         QString error;
         QHash<QString, QString> remap;
-        const bool ok = drift::bundle::extract(path, destDir, {}, &remap, &error);
+        const bool ok = TonDron::bundle::extract(path, destDir, {}, &remap, &error);
         QMetaObject::invokeMethod(
             this,
             [finishLoad, remap, error, ok, generation, this]() {
@@ -10435,11 +10435,11 @@ void AppController::loadProject(const QUrl &url)
     });
 }
 
-void AppController::reportMissingAddons(const QList<drift::bundle::AddonRef> &addons)
+void AppController::reportMissingAddons(const QList<TonDron::bundle::AddonRef> &addons)
 {
     QVariantList missing;
-    for (const drift::bundle::AddonRef &addon : addons) {
-        if (drift::addon::installedAddon(addon.id))
+    for (const TonDron::bundle::AddonRef &addon : addons) {
+        if (TonDron::addon::installedAddon(addon.id))
             continue;
         missing.append(QVariantMap{
             {QStringLiteral("id"), addon.id},
@@ -10469,15 +10469,15 @@ void AppController::remapProjectPaths(const QHash<QString, QString> &remap)
         return true;
     };
 
-    for (drift::MediaAsset &asset : m_project.assets()) {
+    for (TonDron::MediaAsset &asset : m_project.assets()) {
         if (repoint(asset.path)) {
             asset.thumbnailPath.clear();
             asset.filmstripPath.clear();
         }
     }
 
-    for (drift::Track &track : m_project.tracks()) {
-        for (drift::Clip &clip : track.clips) {
+    for (TonDron::Track &track : m_project.tracks()) {
+        for (TonDron::Clip &clip : track.clips) {
             repoint(clip.mask.mattePath);
             repoint(clip.faceTrackPath);
             if (repoint(clip.path)) {
@@ -10497,7 +10497,7 @@ void AppController::newProject()
     // Whole-document replacement rather than resetToDefaultTimeline(), which only clears the
     // tracks — the asset pool, name, canvas size, bookmarks, work area and background all used to
     // survive into the "new" project.
-    m_project = drift::Project{};
+    m_project = TonDron::Project{};
     m_project.setAuthor(QSettings().value(QStringLiteral("authorName")).toString());
     m_embeddedSources.clear();
     if (m_assetLibrary)
@@ -10711,7 +10711,7 @@ bool AppController::restoreLastSessionIfEnabled()
     if (!m_reopenLastProject)
         return false;
 
-    // Unsaved (or crashed) session takes priority over the last clean .drift path.
+    // Unsaved (or crashed) session takes priority over the last clean .TonDron path.
     if (m_recoveryAvailable) {
         restoreAutosave();
         return true;
@@ -10951,7 +10951,7 @@ void AppController::exportWithSettings(const QUrl &outputUrl, const QVariantMap 
     setLastMessage(tr("Exporting…"));
 
     // Snapshot the project so edits during export can't race the encoder.
-    const drift::Project snapshot = m_project;
+    const TonDron::Project snapshot = m_project;
 
     (void)QtConcurrent::run([this, snapshot, exportSettings, outputPath]() {
         QString error;
@@ -11024,7 +11024,7 @@ QString AppController::mcpStdioSnippet() const
         {QStringLiteral("args"), QJsonArray{QStringLiteral("--mcp-stdio")}},
     };
     const QJsonObject root{
-        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("drift"), server}}},
+        {QStringLiteral("mcpServers"), QJsonObject{{QStringLiteral("TonDron"), server}}},
     };
     return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
 }
@@ -11068,7 +11068,7 @@ void AppController::copyMcpStdioSnippet()
 
 QString AppController::mcpAgentGuide() const
 {
-    QString guide = drift::mcp::agentGuideText();
+    QString guide = TonDron::mcp::agentGuideText();
     if (m_mcp && m_mcp->running()) {
         guide += QStringLiteral("\nThis session:\nURL: %1\nToken: %2\n")
                      .arg(mcpUrl(), mcpToken());
@@ -11086,9 +11086,9 @@ void AppController::rebuildMcpClipIndexIfNeeded() const
     if (m_mcpClipIndexRevision == m_mcpEditRevision)
         return;
     m_mcpClipIndex.clear();
-    const QList<drift::Track> &tracks = m_project.tracks();
+    const QList<TonDron::Track> &tracks = m_project.tracks();
     for (int t = 0; t < tracks.size(); ++t) {
-        const QList<drift::Clip> &clips = tracks.at(t).clips;
+        const QList<TonDron::Clip> &clips = tracks.at(t).clips;
         for (int c = 0; c < clips.size(); ++c)
             m_mcpClipIndex.insert(clips.at(c).id, {t, c});
     }
@@ -11114,15 +11114,15 @@ QVariantMap AppController::mcpCompactClip(int trackIndex, int clipIndex, bool in
 {
     if (!isValidClipIndex(trackIndex, clipIndex))
         return {};
-    const drift::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Clip &clip = m_project.tracks().at(trackIndex).clips.at(clipIndex);
     QVariantMap out{
         {QStringLiteral("id"), clip.id},
-        {QStringLiteral("kind"), drift::clipTypeToString(clip.type)},
+        {QStringLiteral("kind"), TonDron::clipTypeToString(clip.type)},
         {QStringLiteral("name"), clip.name},
-        {QStringLiteral("start"), drift::usToSeconds(clip.timelineStart)},
-        {QStringLiteral("duration"), drift::usToSeconds(clip.timelineDuration)},
-        {QStringLiteral("inPoint"), drift::usToSeconds(clip.srcIn)},
-        {QStringLiteral("outPoint"), drift::usToSeconds(clip.srcOut)},
+        {QStringLiteral("start"), TonDron::usToSeconds(clip.timelineStart)},
+        {QStringLiteral("duration"), TonDron::usToSeconds(clip.timelineDuration)},
+        {QStringLiteral("inPoint"), TonDron::usToSeconds(clip.srcIn)},
+        {QStringLiteral("outPoint"), TonDron::usToSeconds(clip.srcOut)},
         {QStringLiteral("assetId"), clip.assetId},
     };
     if (!includeCanvas)
@@ -11142,20 +11142,20 @@ QVariantMap AppController::mcpCompactClip(int trackIndex, int clipIndex, bool in
 
 QJsonObject AppController::mcpInspect(bool includeClips, int sinceRevision, bool detail) const
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     if (sinceRevision >= 0 && sinceRevision == m_mcpEditRevision)
         return ok({{QStringLiteral("unchanged"), true}, {QStringLiteral("revision"), m_mcpEditRevision}});
 
     int clipCount = 0;
     QJsonArray trackRows;
-    const QList<drift::Track> &projectTracks = m_project.tracks();
+    const QList<TonDron::Track> &projectTracks = m_project.tracks();
     const QVariantList trackModels = detail ? tracks() : QVariantList{};
     for (int t = 0; t < projectTracks.size(); ++t) {
-        const drift::Track &track = projectTracks.at(t);
+        const TonDron::Track &track = projectTracks.at(t);
         clipCount += track.clips.size();
         QJsonObject row{
             {QStringLiteral("i"), t},
-            {QStringLiteral("type"), drift::trackTypeToString(track.type)},
+            {QStringLiteral("type"), TonDron::trackTypeToString(track.type)},
             {QStringLiteral("clips"), track.clips.size()},
             {QStringLiteral("muted"), track.muted},
             {QStringLiteral("hidden"), track.hidden},
@@ -11208,7 +11208,7 @@ QJsonObject AppController::mcpInspect(bool includeClips, int sinceRevision, bool
         {QStringLiteral("w"), m_project.width()},
         {QStringLiteral("h"), m_project.height()},
         {QStringLiteral("fps"), m_project.fps()},
-        {QStringLiteral("dur"), drift::usToSeconds(m_project.durationUs())},
+        {QStringLiteral("dur"), TonDron::usToSeconds(m_project.durationUs())},
         {QStringLiteral("playhead"), playheadSeconds()},
         {QStringLiteral("playing"), playing()},
         {QStringLiteral("overlap"), m_allowClipOverlap},
@@ -11276,12 +11276,12 @@ QJsonObject AppController::mcpInspect(bool includeClips, int sinceRevision, bool
 
 bool AppController::mcpSetWorkArea(double inSeconds, double outSeconds)
 {
-    const drift::TimeUs inUs = qMax<drift::TimeUs>(0, drift::secondsToUs(inSeconds));
-    const drift::TimeUs outUs = drift::secondsToUs(outSeconds);
+    const TonDron::TimeUs inUs = qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(inSeconds));
+    const TonDron::TimeUs outUs = TonDron::secondsToUs(outSeconds);
     if (outUs <= inUs)
         return false;
 
-    const drift::Project before = m_project;
+    const TonDron::Project before = m_project;
     m_project.setWorkAreaInUs(inUs);
     m_project.setWorkAreaOutUs(outUs);
     pushProjectEdit(before, QStringLiteral("Work area"));
@@ -11300,13 +11300,13 @@ bool AppController::mcpSetClipCanvas(int trackIndex, int clipIndex, const QVaria
     if (!isValidClipIndex(trackIndex, clipIndex))
         return false;
 
-    drift::Track &track = m_project.tracks()[trackIndex];
-    drift::Clip &clip = track.clips[clipIndex];
-    if (clip.type == drift::ClipType::Audio)
+    TonDron::Track &track = m_project.tracks()[trackIndex];
+    TonDron::Clip &clip = track.clips[clipIndex];
+    if (clip.type == TonDron::ClipType::Audio)
         return false;
 
-    const drift::Project before = m_project;
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+    const TonDron::Project before = m_project;
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
     bool any = false;
     auto write = [&](const QString &patchKey, const QString &prop) {
         if (!patch.contains(patchKey))
@@ -11334,12 +11334,12 @@ bool AppController::mcpSetClipCanvas(int trackIndex, int clipIndex, const QVaria
 
 QJsonObject AppController::mcpCaptureFrame(double atSeconds, bool full)
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     setPlaying(false);
 
-    const drift::TimeUs timeUs =
-        atSeconds < 0.0 ? m_playheadUs : qMax<drift::TimeUs>(0, drift::secondsToUs(atSeconds));
-    const auto snapshot = std::make_shared<const drift::Project>(m_project.detachedCopy());
+    const TonDron::TimeUs timeUs =
+        atSeconds < 0.0 ? m_playheadUs : qMax<TonDron::TimeUs>(0, TonDron::secondsToUs(atSeconds));
+    const auto snapshot = std::make_shared<const TonDron::Project>(m_project.detachedCopy());
     FrameCompositor::RenderOptions options;
     if (!full) {
         const int longEdge = qMax(snapshot->width(), snapshot->height());
@@ -11361,7 +11361,7 @@ QJsonObject AppController::mcpCaptureFrame(double atSeconds, bool full)
         return textResult(err("capture_failed", QStringLiteral("Compositor returned no frame")), true);
 
     const QJsonObject meta = ok({
-        {QStringLiteral("at"), drift::usToSeconds(timeUs)},
+        {QStringLiteral("at"), TonDron::usToSeconds(timeUs)},
         {QStringLiteral("w"), frame->width()},
         {QStringLiteral("h"), frame->height()},
         {QStringLiteral("full"), full},
@@ -11443,7 +11443,7 @@ QVector<float> reduceRawPeaks(const QVector<float> &src, int buckets)
 QJsonObject peaksReply(const QVector<float> &peaks, double startSeconds, double durSeconds,
                        const QString &source)
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     if (peaks.isEmpty())
         return err("not_found", QStringLiteral("No audio decoded for that range"));
 
@@ -11490,20 +11490,20 @@ QVector<float> blockingSourcePeaks(const QString &path, double startSeconds, dou
 
 QJsonObject AppController::mcpWaveformForClip(int trackIndex, int clipIndex, int buckets) const
 {
-    using namespace drift::mcp;
-    const QList<drift::Track> &tracks = m_project.tracks();
+    using namespace TonDron::mcp;
+    const QList<TonDron::Track> &tracks = m_project.tracks();
     if (trackIndex < 0 || trackIndex >= tracks.size())
         return err("not_found", QStringLiteral("No such track"));
-    const drift::Track &track = tracks.at(trackIndex);
+    const TonDron::Track &track = tracks.at(trackIndex);
     if (clipIndex < 0 || clipIndex >= track.clips.size())
         return err("not_found", QStringLiteral("No such clip"));
 
-    const drift::Clip &clip = track.clips.at(clipIndex);
+    const TonDron::Clip &clip = track.clips.at(clipIndex);
     if (clip.path.isEmpty())
         return err("type_mismatch", QStringLiteral("Clip has no media file (text or shape clip)"));
 
-    const double srcIn = drift::usToSeconds(clip.srcIn);
-    const double span = drift::usToSeconds(clip.srcOut - clip.srcIn);
+    const double srcIn = TonDron::usToSeconds(clip.srcIn);
+    const double span = TonDron::usToSeconds(clip.srcOut - clip.srcIn);
     if (span <= 0.0)
         return err("type_mismatch", QStringLiteral("Clip has no source span"));
 
@@ -11514,14 +11514,14 @@ QJsonObject AppController::mcpWaveformForClip(int trackIndex, int clipIndex, int
 QJsonObject AppController::mcpWaveformForAsset(const QString &assetId, double startSeconds,
                                                double durSeconds, int buckets) const
 {
-    using namespace drift::mcp;
-    const drift::MediaAsset *asset = m_project.asset(assetId);
+    using namespace TonDron::mcp;
+    const TonDron::MediaAsset *asset = m_project.asset(assetId);
     if (!asset)
         return err("not_found", QStringLiteral("Unknown asset"));
     if (asset->path.isEmpty())
         return err("type_mismatch", QStringLiteral("Asset has no file"));
 
-    const double total = drift::usToSeconds(asset->durationUs);
+    const double total = TonDron::usToSeconds(asset->durationUs);
     const double start = qMax(0.0, startSeconds);
     const double span = durSeconds > 0.0 ? qMin(durSeconds, total - start) : total - start;
     if (span <= 0.0)
@@ -11538,7 +11538,7 @@ QJsonObject AppController::mcpWaveformForAsset(const QString &assetId, double st
 QJsonObject AppController::mcpWaveformForTimeline(double startSeconds, double durSeconds,
                                                   int buckets) const
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     if (durSeconds <= 0.0)
         return err("bad_args", QStringLiteral("duration must be > 0"));
     if (durSeconds > kMcpMaxWaveformSeconds) {
@@ -11547,13 +11547,13 @@ QJsonObject AppController::mcpWaveformForTimeline(double startSeconds, double du
     }
 
     const double start = qMax(0.0, startSeconds);
-    const drift::TimeUs startUs = drift::secondsToUs(start);
+    const TonDron::TimeUs startUs = TonDron::secondsToUs(start);
     const int rate = 8000; // envelope only; the sample rate does not change where the peaks land
     const qint64 frames = static_cast<qint64>(durSeconds * rate);
     if (frames <= 0)
         return err("bad_args", QStringLiteral("duration is too short to measure"));
 
-    const drift::Project snap = m_project;
+    const TonDron::Project snap = m_project;
     auto raw = std::make_shared<QVector<float>>();
     QEventLoop loop;
     (void)QtConcurrent::run([snap, startUs, frames, rate, buckets, raw, &loop]() {
@@ -11563,7 +11563,7 @@ QJsonObject AppController::mcpWaveformForTimeline(double startSeconds, double du
         *raw = MediaWaveform::mixedPeaks(
             frames, rate, peakBuckets,
             [&mixer, startUs, rate](float *out, qint64 frameOffset, int maxFrames) {
-                const drift::TimeUs at = startUs + frameOffset * drift::kUsPerSecond / rate;
+                const TonDron::TimeUs at = startUs + frameOffset * TonDron::kUsPerSecond / rate;
                 mixer.mix(at, maxFrames, rate, out);
                 return maxFrames;
             });
@@ -11580,7 +11580,7 @@ QJsonObject AppController::mcpWaveformForTimeline(double startSeconds, double du
 
 QJsonObject AppController::mcpBeatPayload() const
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     if (m_beatAnalysis.isEmpty())
         return err("not_found", QStringLiteral("No beat analysis yet — call detect_beats first"));
 
@@ -11627,7 +11627,7 @@ QJsonObject AppController::mcpBeatPayload() const
 
 QJsonObject AppController::mcpDetectBeats(double startSeconds, double durSeconds, bool force)
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     if (durSeconds < AudioOnsets::kMinAnalysisSec) {
         return err("bad_args", QStringLiteral("duration must be >= %1 seconds to find a tempo")
                                    .arg(AudioOnsets::kMinAnalysisSec));
@@ -11656,14 +11656,14 @@ QJsonObject AppController::mcpDetectBeats(double startSeconds, double durSeconds
     if (m_beatAnalysisRunning)
         return err("conflict", QStringLiteral("A beat analysis is already running"));
 
-    const drift::TimeUs startUs = drift::secondsToUs(start);
-    const drift::TimeUs durUs = drift::secondsToUs(durSeconds);
+    const TonDron::TimeUs startUs = TonDron::secondsToUs(start);
+    const TonDron::TimeUs durUs = TonDron::secondsToUs(durSeconds);
     const quint64 generation = ++m_beatAnalysisGeneration;
 
     m_beatAnalysisRunning = true;
     emit beatAnalysisChanged();
 
-    const drift::Project snap = m_project;
+    const TonDron::Project snap = m_project;
     const QByteArray fingerprint = audioLayoutFingerprint();
 
     auto analysis = std::make_shared<AudioBeatAnalysis>();
@@ -11691,7 +11691,7 @@ QJsonObject AppController::mcpDetectBeats(double startSeconds, double durSeconds
 
 QJsonObject AppController::mcpSetBeatLayers(bool grid, bool onsets)
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     setBeatGridVisible(grid);
     setOnsetsVisible(onsets);
     return ok({
@@ -11741,8 +11741,8 @@ int AppController::mcpBookmarkBeats(double startSeconds, double durSeconds, cons
     const double from = qMax(0.0, startSeconds);
     const double to = from + durSeconds;
 
-    const drift::Project before = m_project;
-    QList<drift::Bookmark> marks = m_project.bookmarks();
+    const TonDron::Project before = m_project;
+    QList<TonDron::Bookmark> marks = m_project.bookmarks();
     int added = 0;
     int n = 1;
     for (double t : times) {
@@ -11750,18 +11750,18 @@ int AppController::mcpBookmarkBeats(double startSeconds, double durSeconds, cons
             ++n;
             continue;
         }
-        const drift::TimeUs at = drift::secondsToUs(t);
+        const TonDron::TimeUs at = TonDron::secondsToUs(t);
         // Bookmarks are snap targets themselves; stacking several inside one snap threshold
         // would make the magnet ambiguous rather than stronger.
         const bool crowded = std::any_of(marks.cbegin(), marks.cend(),
-                                         [at](const drift::Bookmark &b) {
-                                             return qAbs(b.timeUs - at) < drift::kSnapThresholdUs;
+                                         [at](const TonDron::Bookmark &b) {
+                                             return qAbs(b.timeUs - at) < TonDron::kSnapThresholdUs;
                                          });
         if (crowded) {
             ++n;
             continue;
         }
-        marks.append(drift::Bookmark{at, QStringLiteral("%1 %2").arg(labelPrefix).arg(n)});
+        marks.append(TonDron::Bookmark{at, QStringLiteral("%1 %2").arg(labelPrefix).arg(n)});
         ++added;
         ++n;
     }
@@ -11769,7 +11769,7 @@ int AppController::mcpBookmarkBeats(double startSeconds, double durSeconds, cons
         return 0;
 
     std::sort(marks.begin(), marks.end(),
-              [](const drift::Bookmark &a, const drift::Bookmark &b) { return a.timeUs < b.timeUs; });
+              [](const TonDron::Bookmark &a, const TonDron::Bookmark &b) { return a.timeUs < b.timeUs; });
     m_project.bookmarks() = marks;
     pushProjectEdit(before, QStringLiteral("Bookmark beats"));
     finishEdit(QStringLiteral("Bookmark beats"));
@@ -11779,7 +11779,7 @@ int AppController::mcpBookmarkBeats(double startSeconds, double durSeconds, cons
 QJsonObject AppController::mcpSetClipVolume(int trackIndex, int clipIndex, double value,
                                             bool atGiven, double atSeconds)
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     if (trackIndex < 0 || trackIndex >= m_project.tracks().size())
         return err("not_found", QStringLiteral("No such track"));
     if (clipIndex < 0 || clipIndex >= m_project.tracks().at(trackIndex).clips.size())
@@ -11795,9 +11795,9 @@ QJsonObject AppController::mcpSetClipVolume(int trackIndex, int clipIndex, doubl
         // Without one it is an ordinary level change, which is the slider's contract, not the
         // diamond's: no key on an un-animated clip, retarget the only key on a clip that has
         // one, and on a genuinely animated clip retarget whichever key is at the playhead.
-        const drift::Project before = m_project;
-        drift::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
-        const drift::TimeUs relative = qMax<drift::TimeUs>(0, m_playheadUs - clip.timelineStart);
+        const TonDron::Project before = m_project;
+        TonDron::Clip &clip = m_project.tracks()[trackIndex].clips[clipIndex];
+        const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, m_playheadUs - clip.timelineStart);
         if (!writeClipPropValue(clip, QStringLiteral("volume"), relative, clamped,
                                 /*autoKey=*/false, /*force=*/false)) {
             return err("bad_args",
@@ -11808,7 +11808,7 @@ QJsonObject AppController::mcpSetClipVolume(int trackIndex, int clipIndex, doubl
         finishEdit(QStringLiteral("Set volume"));
     }
 
-    const drift::Clip &after = m_project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Clip &after = m_project.tracks().at(trackIndex).clips.at(clipIndex);
     QJsonObject reply{
         {QStringLiteral("id"), after.id},
         {QStringLiteral("value"), round3(clamped)},
@@ -11821,43 +11821,43 @@ QJsonObject AppController::mcpSetClipVolume(int trackIndex, int clipIndex, doubl
 
 QJsonObject AppController::mcpAudioSummary() const
 {
-    using namespace drift::mcp;
+    using namespace TonDron::mcp;
     QJsonArray trackRows;
     int audioClips = 0;
 
-    const QList<drift::Track> &tracks = m_project.tracks();
+    const QList<TonDron::Track> &tracks = m_project.tracks();
     for (int t = 0; t < tracks.size(); ++t) {
-        const drift::Track &track = tracks.at(t);
+        const TonDron::Track &track = tracks.at(t);
         // Same rule the mixer applies: audio clips always, video clips unless their embedded
         // audio is suppressed. Anything else on the timeline is silent by construction.
-        if (track.type != drift::TrackType::Audio && track.type != drift::TrackType::Video)
+        if (track.type != TonDron::TrackType::Audio && track.type != TonDron::TrackType::Video)
             continue;
 
         QJsonArray clipRows;
         for (int c = 0; c < track.clips.size(); ++c) {
-            const drift::Clip &clip = track.clips.at(c);
-            const bool carries = clip.type == drift::ClipType::Audio
-                                 || (clip.type == drift::ClipType::Video
+            const TonDron::Clip &clip = track.clips.at(c);
+            const bool carries = clip.type == TonDron::ClipType::Audio
+                                 || (clip.type == TonDron::ClipType::Video
                                      && !clip.suppressEmbeddedAudio);
             if (!carries)
                 continue;
 
             if (m_assetLibrary)
                 m_assetLibrary->ensureAudioPresence(clip.assetId);
-            const drift::MediaAsset *asset = m_project.asset(clip.assetId);
+            const TonDron::MediaAsset *asset = m_project.asset(clip.assetId);
 
             QJsonObject row{
                 {QStringLiteral("clip"), clip.id},
-                {QStringLiteral("start"), round3(drift::usToSeconds(clip.timelineStart))},
-                {QStringLiteral("dur"), round3(drift::usToSeconds(clip.timelineDuration))},
-                {QStringLiteral("type"), drift::clipTypeToString(clip.type)},
+                {QStringLiteral("start"), round3(TonDron::usToSeconds(clip.timelineStart))},
+                {QStringLiteral("dur"), round3(TonDron::usToSeconds(clip.timelineDuration))},
+                {QStringLiteral("type"), TonDron::clipTypeToString(clip.type)},
                 {QStringLiteral("volumeKeys"), clip.volume.keyframes().size()},
                 {QStringLiteral("audioEffects"), clip.audioEffects.size()},
             };
             if (clip.fadeInUs > 0)
-                row.insert(QStringLiteral("fadeIn"), round3(drift::usToSeconds(clip.fadeInUs)));
+                row.insert(QStringLiteral("fadeIn"), round3(TonDron::usToSeconds(clip.fadeInUs)));
             if (clip.fadeOutUs > 0)
-                row.insert(QStringLiteral("fadeOut"), round3(drift::usToSeconds(clip.fadeOutUs)));
+                row.insert(QStringLiteral("fadeOut"), round3(TonDron::usToSeconds(clip.fadeOutUs)));
             if (asset) {
                 row.insert(QStringLiteral("hasAudio"), asset->hasAudio);
                 if (asset->sampleRate > 0)
@@ -11873,7 +11873,7 @@ QJsonObject AppController::mcpAudioSummary() const
             continue;
         trackRows.append(QJsonObject{
             {QStringLiteral("i"), t},
-            {QStringLiteral("type"), drift::trackTypeToString(track.type)},
+            {QStringLiteral("type"), TonDron::trackTypeToString(track.type)},
             {QStringLiteral("muted"), track.muted},
             {QStringLiteral("items"), clipRows},
         });
@@ -11891,7 +11891,7 @@ QJsonObject AppController::mcpAudioSummary() const
 
     return ok({
         {QStringLiteral("sampleRate"), m_project.sampleRate()},
-        {QStringLiteral("dur"), round3(drift::usToSeconds(m_project.durationUs()))},
+        {QStringLiteral("dur"), round3(TonDron::usToSeconds(m_project.durationUs()))},
         {QStringLiteral("audioClips"), audioClips},
         {QStringLiteral("tracks"), trackRows},
         {QStringLiteral("beats"), beats},

@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
-// Title, author and description — the metadata stamped into the .drift bundle. Author defaults
+// Title, author and description — the metadata stamped into the .TonDron bundle. Author defaults
 // from the last one used, so it is typed once rather than per project.
 ThemedDialog {
     id: root

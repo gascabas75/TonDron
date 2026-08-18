@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 import "."
 
 // Live-lyrics style subtitle editor. The list auto-scrolls and highlights the cue

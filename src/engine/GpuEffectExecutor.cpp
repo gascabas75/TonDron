@@ -9,7 +9,7 @@
 #include <cmath>
 #include <vector>
 
-using namespace drift::gl;
+using namespace TonDron::gl;
 
 namespace {
 
@@ -62,7 +62,7 @@ void GpuEffectExecutor::releaseGl()
 }
 
 QImage GpuEffectExecutor::apply(const EffectPresetEntry &def, const QImage &input,
-                                const QMap<QString, QVariant> &parameters, drift::TimeUs timeUs)
+                                const QMap<QString, QVariant> &parameters, TonDron::TimeUs timeUs)
 {
     if (!def.isGpu)
         return input;
@@ -70,7 +70,7 @@ QImage GpuEffectExecutor::apply(const EffectPresetEntry &def, const QImage &inpu
 }
 
 QImage GpuEffectExecutor::applyChain(const QList<ChainStep> &steps, const QImage &input,
-                                     drift::TimeUs timeUs)
+                                     TonDron::TimeUs timeUs)
 {
     if (input.isNull() || steps.isEmpty() || !ensureContext())
         return input;
@@ -114,9 +114,9 @@ QImage GpuEffectExecutor::applyChain(const QList<ChainStep> &steps, const QImage
     return result;
 }
 
-QImage GpuEffectExecutor::apply(const QString &cacheKey, const drift::GpuEffectDefinition &gpu,
+QImage GpuEffectExecutor::apply(const QString &cacheKey, const TonDron::GpuEffectDefinition &gpu,
                                 const QList<QImage> &sources, const QMap<QString, QVariant> &parameters,
-                                drift::TimeUs timeUs, double progress, bool *okOut)
+                                TonDron::TimeUs timeUs, double progress, bool *okOut)
 {
     if (okOut)
         *okOut = false;

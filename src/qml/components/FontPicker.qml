@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Window
-import Drift
+import TonDron
 
 // A font selector that previews each family in its own face and groups them by catalog category.
 // ThemedComboBox cannot do this: its delegate binds a single `root.font` for every row.

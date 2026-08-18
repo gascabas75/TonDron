@@ -30,12 +30,12 @@ extern "C" {
 
 namespace {
 
-void resolveExportRange(const drift::Project &project, const ExportSettings &settings,
-                        drift::TimeUs *startUsOut, drift::TimeUs *endUsOut, QString *errorOut)
+void resolveExportRange(const TonDron::Project &project, const ExportSettings &settings,
+                        TonDron::TimeUs *startUsOut, TonDron::TimeUs *endUsOut, QString *errorOut)
 {
-    const drift::TimeUs projectDuration = project.durationUs();
-    drift::TimeUs startUs = settings.startUs;
-    drift::TimeUs endUs = settings.endUs;
+    const TonDron::TimeUs projectDuration = project.durationUs();
+    TonDron::TimeUs startUs = settings.startUs;
+    TonDron::TimeUs endUs = settings.endUs;
 
     if (startUs == 0 && endUs == 0) {
         startUs = 0;
@@ -396,7 +396,7 @@ QByteArray audioOnlyMuxerName(const QString &container)
     return container.toUtf8();
 }
 
-// Drift's SDR pipeline is BT.709 limited-range end-to-end (GPU NV12 decode + export).
+// TonDron's SDR pipeline is BT.709 limited-range end-to-end (GPU NV12 decode + export).
 void applySdrBt709Tags(AVCodecContext *vctx)
 {
     if (!vctx)
@@ -446,7 +446,7 @@ void applyExportMetadata(AVFormatContext *fmt, const ExportSettings &settings)
     setIf("comment", settings.metadataComment);
 }
 
-bool runAudioOnlyExport(const drift::Project &project, const ExportSettings &settings, const QString &outputPath,
+bool runAudioOnlyExport(const TonDron::Project &project, const ExportSettings &settings, const QString &outputPath,
                         QString *errorOut, const Exporter::ProgressFn &onProgress)
 {
     const AudioCodecDef *adef = findAudioDef(settings.audioCodecId);
@@ -464,10 +464,10 @@ bool runAudioOnlyExport(const drift::Project &project, const ExportSettings &set
     }
 
     const int sampleRate = project.sampleRate() > 0 ? project.sampleRate() : 48000;
-    drift::TimeUs rangeStartUs = 0;
-    drift::TimeUs rangeEndUs = 0;
+    TonDron::TimeUs rangeStartUs = 0;
+    TonDron::TimeUs rangeEndUs = 0;
     resolveExportRange(project, settings, &rangeStartUs, &rangeEndUs, errorOut);
-    const drift::TimeUs durationUs = rangeEndUs - rangeStartUs;
+    const TonDron::TimeUs durationUs = rangeEndUs - rangeStartUs;
     if (durationUs <= 0)
         return false;
 
@@ -608,8 +608,8 @@ bool runAudioOnlyExport(const drift::Project &project, const ExportSettings &set
             const int64_t chunkSamples = qMin<int64_t>(frameSize * 8, totalAudioSamples - audioSamplesGenerated);
             const size_t base = audioBuffer.size();
             audioBuffer.resize(base + static_cast<size_t>(chunkSamples) * 2);
-            const drift::TimeUs audioStartUs = rangeStartUs
-                + static_cast<drift::TimeUs>((audioSamplesGenerated * drift::kUsPerSecond) / sampleRate);
+            const TonDron::TimeUs audioStartUs = rangeStartUs
+                + static_cast<TonDron::TimeUs>((audioSamplesGenerated * TonDron::kUsPerSecond) / sampleRate);
             mixer.mix(audioStartUs, static_cast<int>(chunkSamples), sampleRate, audioBuffer.data() + base);
             audioSamplesGenerated += chunkSamples;
             if (!flushAudioFrames(false))
@@ -654,7 +654,7 @@ cleanup:
     return ok;
 }
 
-constexpr drift::TimeUs kMaxGifDurationUs = 60 * drift::kUsPerSecond;
+constexpr TonDron::TimeUs kMaxGifDurationUs = 60 * TonDron::kUsPerSecond;
 
 AVFrame *rgbaImageToFrame(const QImage &image, int64_t pts)
 {
@@ -753,7 +753,7 @@ bool setupGifPaletteGraph(AVFilterGraph **graphOut, AVFilterContext **srcOut, AV
     return true;
 }
 
-bool runGifExport(const drift::Project &project, const ExportSettings &settings, const QString &outputPath,
+bool runGifExport(const TonDron::Project &project, const ExportSettings &settings, const QString &outputPath,
                   QString *errorOut, const Exporter::ProgressFn &onProgress)
 {
     const AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_GIF);
@@ -782,10 +782,10 @@ bool runGifExport(const drift::Project &project, const ExportSettings &settings,
     const AVRational frameTb{frameRate.den, frameRate.num};
     const double fpsValue = av_q2d(frameRate);
 
-    drift::TimeUs rangeStartUs = 0;
-    drift::TimeUs rangeEndUs = 0;
+    TonDron::TimeUs rangeStartUs = 0;
+    TonDron::TimeUs rangeEndUs = 0;
     resolveExportRange(project, settings, &rangeStartUs, &rangeEndUs, errorOut);
-    const drift::TimeUs durationUs = rangeEndUs - rangeStartUs;
+    const TonDron::TimeUs durationUs = rangeEndUs - rangeStartUs;
     if (durationUs <= 0)
         return false;
     if (durationUs > kMaxGifDurationUs) {
@@ -876,7 +876,7 @@ bool runGifExport(const drift::Project &project, const ExportSettings &settings,
                 break;
             }
 
-            const drift::TimeUs t = rangeStartUs + static_cast<drift::TimeUs>(
+            const TonDron::TimeUs t = rangeStartUs + static_cast<TonDron::TimeUs>(
                 std::llround(static_cast<double>(i) * 1e6 * frameRate.den / frameRate.num));
             QImage img = compositor.compositeAt(t);
             if (img.isNull()) {
@@ -1291,13 +1291,13 @@ ExportSettings Exporter::settingsFromMap(const QVariantMap &map)
     if (map.contains(QStringLiteral("metadataComment")))
         s.metadataComment = map.value(QStringLiteral("metadataComment")).toString();
     if (map.contains(QStringLiteral("startUs")))
-        s.startUs = static_cast<drift::TimeUs>(map.value(QStringLiteral("startUs")).toDouble());
+        s.startUs = static_cast<TonDron::TimeUs>(map.value(QStringLiteral("startUs")).toDouble());
     if (map.contains(QStringLiteral("endUs")))
-        s.endUs = static_cast<drift::TimeUs>(map.value(QStringLiteral("endUs")).toDouble());
+        s.endUs = static_cast<TonDron::TimeUs>(map.value(QStringLiteral("endUs")).toDouble());
     return s;
 }
 
-bool Exporter::run(const drift::Project &project, const ExportSettings &settings, const QString &outputPath,
+bool Exporter::run(const TonDron::Project &project, const ExportSettings &settings, const QString &outputPath,
                    QString *errorOut, const ProgressFn &onProgress)
 {
     if (settings.gifExport)
@@ -1344,10 +1344,10 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
     const double fpsValue = av_q2d(frameRate);
 
     const int sampleRate = project.sampleRate() > 0 ? project.sampleRate() : 48000;
-    drift::TimeUs rangeStartUs = 0;
-    drift::TimeUs rangeEndUs = 0;
+    TonDron::TimeUs rangeStartUs = 0;
+    TonDron::TimeUs rangeEndUs = 0;
     resolveExportRange(project, settings, &rangeStartUs, &rangeEndUs, errorOut);
-    const drift::TimeUs durationUs = rangeEndUs - rangeStartUs;
+    const TonDron::TimeUs durationUs = rangeEndUs - rangeStartUs;
     if (durationUs <= 0)
         return false;
 
@@ -1545,7 +1545,7 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
                 break;
             }
 
-            const drift::TimeUs t = rangeStartUs + static_cast<drift::TimeUs>(
+            const TonDron::TimeUs t = rangeStartUs + static_cast<TonDron::TimeUs>(
                 std::llround(static_cast<double>(i) * 1e6 * frameRate.den / frameRate.num));
             QImage img = compositor.compositeAt(t);
             if (img.isNull()) {
@@ -1579,9 +1579,9 @@ bool Exporter::run(const drift::Project &project, const ExportSettings &settings
             if (need > 0) {
                 const size_t base = audioBuffer.size();
                 audioBuffer.resize(base + static_cast<size_t>(need) * 2);
-                const drift::TimeUs audioStartUs = rangeStartUs
-                    + static_cast<drift::TimeUs>(
-                        (static_cast<int64_t>(audioSamplesGenerated) * drift::kUsPerSecond) / sampleRate);
+                const TonDron::TimeUs audioStartUs = rangeStartUs
+                    + static_cast<TonDron::TimeUs>(
+                        (static_cast<int64_t>(audioSamplesGenerated) * TonDron::kUsPerSecond) / sampleRate);
                 mixer.mix(audioStartUs, need, sampleRate, audioBuffer.data() + base);
                 audioSamplesGenerated = targetSamples;
             }

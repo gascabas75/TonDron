@@ -4,7 +4,7 @@
 #include <cmath>
 
 namespace {
-constexpr drift::TimeUs kMaxPreviewFrameStalenessUs = 100'000;
+constexpr TonDron::TimeUs kMaxPreviewFrameStalenessUs = 100'000;
 constexpr double kAdaptiveScaleMin = 0.25;
 constexpr double kAdaptiveScaleStepDown = 0.75;
 constexpr double kAdaptiveScaleStepUp = 1.25;
@@ -24,8 +24,8 @@ CompositorWorker::CompositorWorker(QObject *parent)
 {
 }
 
-void CompositorWorker::composite(drift::TimeUs timeUs, FrameCompositor::RenderOptions options,
-                                 std::shared_ptr<const drift::Project> snapshot)
+void CompositorWorker::composite(TonDron::TimeUs timeUs, FrameCompositor::RenderOptions options,
+                                 std::shared_ptr<const TonDron::Project> snapshot)
 {
     // Keep the shared tree alive for the whole frame; setProject only borrows.
     m_snapshot = std::move(snapshot);
@@ -44,8 +44,8 @@ CompositorService::CompositorService(QObject *parent)
     : QObject(parent)
     , m_worker(new CompositorWorker)
 {
-    qRegisterMetaType<drift::TimeUs>("drift::TimeUs");
-    qRegisterMetaType<std::shared_ptr<const drift::Project>>("std::shared_ptr<const drift::Project>");
+    qRegisterMetaType<TonDron::TimeUs>("TonDron::TimeUs");
+    qRegisterMetaType<std::shared_ptr<const TonDron::Project>>("std::shared_ptr<const TonDron::Project>");
     qRegisterMetaType<FrameCompositor::RenderOptions>("FrameCompositor::RenderOptions");
     qRegisterMetaType<GpuFrameTexture>("GpuFrameTexture");
     m_worker->moveToThread(&m_thread);
@@ -62,7 +62,7 @@ CompositorService::~CompositorService()
     m_worker = nullptr;
 }
 
-void CompositorService::setProject(const drift::Project *project)
+void CompositorService::setProject(const TonDron::Project *project)
 {
     m_project = project;
     invalidateSnapshot();
@@ -159,7 +159,7 @@ void CompositorService::noteFrameLate(bool late)
     }
 }
 
-void CompositorService::dispatch(drift::TimeUs timeUs, const FrameCompositor::RenderOptions &options)
+void CompositorService::dispatch(TonDron::TimeUs timeUs, const FrameCompositor::RenderOptions &options)
 {
     if (!m_project)
         return;
@@ -168,18 +168,18 @@ void CompositorService::dispatch(drift::TimeUs timeUs, const FrameCompositor::Re
         // One uniquely-owned snapshot per generation; subsequent ticks only bump
         // the shared_ptr. Plain Project copy would keep sharing QMap/QList with
         // the live tree — unsafe once the GUI mutates while the worker reads.
-        m_sharedSnapshot = std::make_shared<drift::Project>(m_project->detachedCopy());
+        m_sharedSnapshot = std::make_shared<TonDron::Project>(m_project->detachedCopy());
         m_snapshotGeneration = m_liveGeneration;
     }
 
     m_renderElapsed.start();
     QMetaObject::invokeMethod(m_worker, "composite", Qt::QueuedConnection,
-                              Q_ARG(drift::TimeUs, timeUs),
+                              Q_ARG(TonDron::TimeUs, timeUs),
                               Q_ARG(FrameCompositor::RenderOptions, options),
-                              Q_ARG(std::shared_ptr<const drift::Project>, m_sharedSnapshot));
+                              Q_ARG(std::shared_ptr<const TonDron::Project>, m_sharedSnapshot));
 }
 
-void CompositorService::requestComposite(drift::TimeUs timeUs, FrameCompositor::RenderOptions options)
+void CompositorService::requestComposite(TonDron::TimeUs timeUs, FrameCompositor::RenderOptions options)
 {
     options.previewScale = qBound(0.1, options.previewScale, 1.0);
 
@@ -208,10 +208,10 @@ void CompositorService::requestComposite(drift::TimeUs timeUs, FrameCompositor::
     dispatch(timeUs, effectiveOptions(options));
 }
 
-void CompositorService::onWorkerFrameReady(const GpuFrameTexture &frame, drift::TimeUs timeUs)
+void CompositorService::onWorkerFrameReady(const GpuFrameTexture &frame, TonDron::TimeUs timeUs)
 {
     const qint64 renderMs = m_renderElapsed.isValid() ? m_renderElapsed.elapsed() : 0;
-    const drift::TimeUs latest = m_pendingTimeUs.load(std::memory_order_acquire);
+    const TonDron::TimeUs latest = m_pendingTimeUs.load(std::memory_order_acquire);
     FrameCompositor::RenderOptions latestOptions;
     latestOptions.previewScale =
         static_cast<double>(m_pendingPreviewScalePercent.load(std::memory_order_acquire)) / 100.0;

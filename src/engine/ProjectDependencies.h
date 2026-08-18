@@ -5,14 +5,14 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 class Project;
 }
 
 // What a project needs from outside its own document, in the shape ProjectBundle wants: every file
 // it points at, and every addon that must be installed for it to render as saved.
 
-namespace drift::bundle {
+namespace TonDron::bundle {
 
 // Every external file the project references, in document order: source media first, then the
 // derived artifacts (mattes, face tracks). `embedded` is preset — derived artifacts are always
@@ -27,4 +27,4 @@ QList<MediaEntry> collectMedia(const Project &project, bool embedSource);
 // dependency — the model that produced them is not needed again.
 QList<AddonRef> collectAddons(const Project &project);
 
-} // namespace drift::bundle
+} // namespace TonDron::bundle

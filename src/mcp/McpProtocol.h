@@ -7,7 +7,7 @@
 
 #include <functional>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 
 using ToolHandler = std::function<QJsonObject(const QString &name, const QJsonObject &args)>;
 
@@ -17,4 +17,4 @@ QJsonValue handleJsonRpc(const QJsonValue &body, const QString &toolbox, const T
 
 QJsonArray toolsForEndpoint(const QString &toolbox);
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

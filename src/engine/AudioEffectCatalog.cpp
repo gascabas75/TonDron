@@ -96,7 +96,7 @@ std::optional<AudioEffectEntry> loadManifest(const QString &packageDir, QString 
     }
     // Reject at load rather than at playback: a manifest naming a processor nobody implements would
     // otherwise show up in the browser and then do nothing.
-    if (!drift::audiofx::hasProcessor(entry.processorId)) {
+    if (!TonDron::audiofx::hasProcessor(entry.processorId)) {
         if (errorOut)
             *errorOut = QStringLiteral("unknown processor '%1'").arg(entry.processorId);
         return std::nullopt;
@@ -148,7 +148,7 @@ QList<AudioEffectEntry> scanDirectories(const QStringList &rootDirs)
                          qPrintable(error.isEmpty() ? QStringLiteral("invalid package") : error));
                 continue;
             }
-            // Higher-priority roots (installed addons, DRIFT_*_DIR) intentionally supersede the
+            // Higher-priority roots (installed addons, TonDron_*_DIR) intentionally supersede the
             // bundled <appDir>/audio-effects copy — expected, so silent.
             if (seenIds.contains(entry->id))
                 continue;
@@ -175,7 +175,7 @@ void ensureLoaded()
 
 QStringList defaultAudioEffectSearchPaths()
 {
-    return GpuPackageParse::defaultSearchPaths(QStringLiteral("DRIFT_AUDIO_EFFECTS_DIR"),
+    return GpuPackageParse::defaultSearchPaths(QStringLiteral("TonDron_AUDIO_EFFECTS_DIR"),
                                                QStringLiteral("audio-effects"),
                                                QStringLiteral("audio-effects"));
 }
@@ -203,11 +203,11 @@ const AudioEffectEntry *audioEffectDefForId(const QString &id)
     return nullptr;
 }
 
-QMap<QString, QVariant> resolvedAudioEffectParameters(const drift::Effect &effect,
+QMap<QString, QVariant> resolvedAudioEffectParameters(const TonDron::Effect &effect,
                                                       const AudioEffectEntry &def)
 {
     QMap<QString, QVariant> values;
-    for (const drift::EffectParamSpec &spec : def.parameters) {
+    for (const TonDron::EffectParamSpec &spec : def.parameters) {
         const auto it = effect.parameters.constFind(spec.key);
         values.insert(spec.key, it != effect.parameters.constEnd() ? it.value()
                                                                     : QVariant(spec.defaultValue));
@@ -215,19 +215,19 @@ QMap<QString, QVariant> resolvedAudioEffectParameters(const drift::Effect &effec
     return values;
 }
 
-QVector<drift::AudioEffectSpec> audioEffectSpecsFor(const QList<drift::Effect> &effects)
+QVector<TonDron::AudioEffectSpec> audioEffectSpecsFor(const QList<TonDron::Effect> &effects)
 {
-    QVector<drift::AudioEffectSpec> specs;
+    QVector<TonDron::AudioEffectSpec> specs;
     specs.reserve(effects.size());
 
-    for (const drift::Effect &effect : effects) {
+    for (const TonDron::Effect &effect : effects) {
         if (!effect.enabled)
             continue;
         const AudioEffectEntry *def = audioEffectDefForId(effect.catalogId);
         if (!def)
             continue; // addon not installed — pass the audio through untouched
 
-        drift::AudioEffectSpec spec;
+        TonDron::AudioEffectSpec spec;
         spec.processorId = def->processorId;
         spec.prerollMs = def->prerollMs;
 

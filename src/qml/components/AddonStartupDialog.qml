@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Essential packs + update nudge. Never opens by itself — the Extras icon in the header pulses
 // while there is something to show, and the user opens this from there (same pattern as the
@@ -159,7 +159,7 @@ ThemedDialog {
                 size: "sm"
                 visible: root.showEssential
                 text: qsTr("Install the essential packs for effects, transitions, and audio. "
-                           + "You can keep using Drift without them — installing unlocks updates "
+                           + "You can keep using TonDron without them — installing unlocks updates "
                            + "when they improve.")
             }
 

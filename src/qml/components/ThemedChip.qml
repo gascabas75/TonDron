@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Selectable pill/chip used for aspect presets, speed presets, category filters, etc.
 // Variants:

@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace drift {
+namespace TonDron {
 
 using TimeUs = int64_t;
 
@@ -24,4 +24,4 @@ constexpr TimeUs frameDurationUs(int fps)
     return fps > 0 ? kUsPerSecond / fps : kUsPerSecond / 30;
 }
 
-} // namespace drift
+} // namespace TonDron

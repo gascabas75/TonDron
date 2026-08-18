@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Small circular progress ring drawn on a Canvas. value is 0..1.
 //

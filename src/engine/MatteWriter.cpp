@@ -12,7 +12,7 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
-namespace drift {
+namespace TonDron {
 
 struct MatteWriter::Impl
 {
@@ -275,4 +275,4 @@ QString newMattePath()
     return QDir(dir).filePath(id + QStringLiteral(".mp4"));
 }
 
-} // namespace drift
+} // namespace TonDron

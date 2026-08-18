@@ -11,10 +11,10 @@
 // recorded in addons/installed.json; the catalogs then pick them up through
 // GpuPackageParse::defaultSearchPaths(), which appends addonRootsForKind() to its usual roots.
 //
-// This lives in driftengine deliberately: reading the registry must work in tools/ and tests/
+// This lives in TonDronengine deliberately: reading the registry must work in tools/ and tests/
 // with no network stack. Downloading is the app layer's job (src/models/AddonManager).
 
-namespace drift::addon {
+namespace TonDron::addon {
 
 struct InstalledProvide
 {
@@ -53,4 +53,4 @@ void reloadAddonRegistry();
 bool recordInstalledAddon(const PackageInfo &info, QString *error);
 bool forgetInstalledAddon(const QString &id, QString *error);
 
-} // namespace drift::addon
+} // namespace TonDron::addon

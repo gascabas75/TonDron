@@ -3,7 +3,7 @@
 
 #include "EmojiTable.h"
 
-namespace drift::emoji {
+namespace TonDron::emoji {
 
 const char *const kGroups[] = {
     "Smileys & Emotion",
@@ -1936,4 +1936,4 @@ const TableEntry kTable[] = {
 };
 const int kTableSize = 1914;
 
-} // namespace drift::emoji
+} // namespace TonDron::emoji

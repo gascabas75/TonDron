@@ -35,26 +35,26 @@ float softClip(float sample)
     return std::copysign(shaped, sample);
 }
 
-double volumeForClip(const drift::Clip &clip, drift::TimeUs timelineUs)
+double volumeForClip(const TonDron::Clip &clip, TonDron::TimeUs timelineUs)
 {
     if (clip.volume.isEmpty())
         return 1.0;
-    const drift::TimeUs relative = qMax<drift::TimeUs>(0, timelineUs - clip.timelineStart);
+    const TonDron::TimeUs relative = qMax<TonDron::TimeUs>(0, timelineUs - clip.timelineStart);
     return qBound(0.0, clip.volume.evaluateAt(relative), 2.0);
 }
 
-double transitionGainForClip(const drift::Track &track, const drift::Clip &clip, drift::TimeUs timelineUs)
+double transitionGainForClip(const TonDron::Track &track, const TonDron::Clip &clip, TonDron::TimeUs timelineUs)
 {
-    drift::TimeUs windowStart = 0;
-    drift::TimeUs windowEnd = 0;
-    const drift::Transition *transition = drift::activeTransitionAt(track, timelineUs, windowStart, windowEnd);
+    TonDron::TimeUs windowStart = 0;
+    TonDron::TimeUs windowEnd = 0;
+    const TonDron::Transition *transition = TonDron::activeTransitionAt(track, timelineUs, windowStart, windowEnd);
     if (!transition)
         return 1.0;
 
-    const double p = drift::transitionProgress(timelineUs, windowStart, windowEnd);
+    const double p = TonDron::transitionProgress(timelineUs, windowStart, windowEnd);
     const TransitionPresetEntry *def = transitionDefForId(transition->kindId);
     const QString curve = def ? def->audioCurve : QStringLiteral("crossfade");
-    const drift::TransitionAudioGains gains = drift::transitionAudioGains(curve, p);
+    const TonDron::TransitionAudioGains gains = TonDron::transitionAudioGains(curve, p);
     if (clip.id == transition->fromClipId)
         return gains.outgoing;
     if (clip.id == transition->toClipId)
@@ -62,11 +62,11 @@ double transitionGainForClip(const drift::Track &track, const drift::Clip &clip,
     return 1.0;
 }
 
-constexpr drift::TimeUs kTimelineGapToleranceUs = 2'000; // ~2 ms: allow frame rounding between blocks
+constexpr TonDron::TimeUs kTimelineGapToleranceUs = 2'000; // ~2 ms: allow frame rounding between blocks
 
-drift::TimeUs framesToUs(int frames, int sampleRate)
+TonDron::TimeUs framesToUs(int frames, int sampleRate)
 {
-    return static_cast<drift::TimeUs>(static_cast<int64_t>(frames) * drift::kUsPerSecond / sampleRate);
+    return static_cast<TonDron::TimeUs>(static_cast<int64_t>(frames) * TonDron::kUsPerSecond / sampleRate);
 }
 
 // Everything about a clip that decides where a timeline position lands in its source. When one of
@@ -74,7 +74,7 @@ drift::TimeUs framesToUs(int frames, int sampleRate)
 // stream has to restart — that is what makes dragging the speed slider during playback safe.
 // The curve is sampled through speedAt(), which is const and allocation-free by design, rather
 // than by walking its point list while the GUI thread may be rewriting it.
-quint64 clipAudioIdentity(const drift::Clip &clip)
+quint64 clipAudioIdentity(const TonDron::Clip &clip)
 {
     return qHashMulti(0, clip.path, clip.srcIn, clip.srcOut, clip.timelineStart, clip.timelineDuration,
                       clip.reverse, clip.speed, clip.speedCurve.isEmpty(), clip.speedCurve.speedAt(0.0),
@@ -86,21 +86,21 @@ quint64 clipAudioIdentity(const drift::Clip &clip)
 
 // Silence outside the clip means this is safe to call for a preroll window that runs off the
 // clip's front edge.
-QVector<float> AudioMixer::readClipAudio(const drift::Clip &clip, drift::TimeUs winStartUs, int outFrames,
-                                         int sampleRate, drift::ClipAudioRetimer *retimer)
+QVector<float> AudioMixer::readClipAudio(const TonDron::Clip &clip, TonDron::TimeUs winStartUs, int outFrames,
+                                         int sampleRate, TonDron::ClipAudioRetimer *retimer)
 {
     QVector<float> out(outFrames * 2, 0.0f);
     if (outFrames <= 0)
         return out;
 
-    const drift::TimeUs winDurUs = framesToUs(outFrames, sampleRate);
-    const drift::TimeUs winEndUs = winStartUs + winDurUs;
+    const TonDron::TimeUs winDurUs = framesToUs(outFrames, sampleRate);
+    const TonDron::TimeUs winEndUs = winStartUs + winDurUs;
     if (winEndUs <= clip.timelineStart || winStartUs >= clip.timelineEnd())
         return out; // window is entirely outside the clip — pure silence
 
     // Clamp the window to the clip; frames before the clip's start stay as the leading zeros above.
-    const drift::TimeUs playStartUs = qMax(winStartUs, clip.timelineStart);
-    const int leadFrames = static_cast<int>(((playStartUs - winStartUs) * sampleRate) / drift::kUsPerSecond);
+    const TonDron::TimeUs playStartUs = qMax(winStartUs, clip.timelineStart);
+    const int leadFrames = static_cast<int>(((playStartUs - winStartUs) * sampleRate) / TonDron::kUsPerSecond);
     const int wantFrames = outFrames - leadFrames;
     if (wantFrames <= 0)
         return out;
@@ -116,10 +116,10 @@ QVector<float> AudioMixer::readClipAudio(const drift::Clip &clip, drift::TimeUs 
         // for 1023 frames to fill 1024. The frame left behind stayed at the buffer's initial zero,
         // putting a single-sample dropout on every block boundary: a periodic impulse, which is a
         // harmonic comb all the way to Nyquist.
-        const drift::TimeUs sourceSpanUs = qMax<drift::TimeUs>(1, framesToUs(wantFrames, sampleRate));
+        const TonDron::TimeUs sourceSpanUs = qMax<TonDron::TimeUs>(1, framesToUs(wantFrames, sampleRate));
         // Reverse reads the block ahead of the mapped position and flips it below.
-        const drift::TimeUs sourceStartUs =
-            clip.reverse ? qMax<drift::TimeUs>(0, clip.timelineToSourceUs(playStartUs) - sourceSpanUs)
+        const TonDron::TimeUs sourceStartUs =
+            clip.reverse ? qMax<TonDron::TimeUs>(0, clip.timelineToSourceUs(playStartUs) - sourceSpanUs)
                          : clip.timelineToSourceUs(playStartUs);
 
         const int got = ClipReaderPool::instance().readAudioInterleaved(
@@ -140,7 +140,7 @@ QVector<float> AudioMixer::readClipAudio(const drift::Clip &clip, drift::TimeUs 
     // the mapping is the curve's integral, so the audio cannot slowly slide against the picture
     // over a long ramp. The exception is the final, partly-overhanging block — timelineToSourceUs
     // clamps at the clip's end, so differencing there would under-report the rate.
-    const drift::TimeUs blockEndUs = playStartUs + framesToUs(wantFrames, sampleRate);
+    const TonDron::TimeUs blockEndUs = playStartUs + framesToUs(wantFrames, sampleRate);
     double tempo = clip.effectiveSpeed();
     if (clip.hasSpeedCurve()) {
         tempo = blockEndUs <= clip.timelineEnd()
@@ -151,7 +151,7 @@ QVector<float> AudioMixer::readClipAudio(const drift::Clip &clip, drift::TimeUs 
                                                             clip.srcOut - clip.srcIn);
     }
 
-    drift::ClipAudioBlock block;
+    TonDron::ClipAudioBlock block;
     block.identity = clipAudioIdentity(clip);
     block.sampleRate = sampleRate;
     block.timelineStartUs = playStartUs;
@@ -164,7 +164,7 @@ QVector<float> AudioMixer::readClipAudio(const drift::Clip &clip, drift::TimeUs 
     const QString path = clip.path;
     retimer->process(
         block,
-        [&path, sampleRate](drift::TimeUs sourceStartUs, int frames, float *dst) {
+        [&path, sampleRate](TonDron::TimeUs sourceStartUs, int frames, float *dst) {
             return ClipReaderPool::instance().readAudioInterleaved(path, sourceStartUs, frames, sampleRate,
                                                                    dst);
         },
@@ -174,7 +174,7 @@ QVector<float> AudioMixer::readClipAudio(const drift::Clip &clip, drift::TimeUs 
 
 namespace {
 
-void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, drift::TimeUs timelineStartUs,
+void accumulateClipAudio(const TonDron::Clip &clip, const TonDron::Track &track, TonDron::TimeUs timelineStartUs,
                          int sampleCount, int sampleRate, float *mixBuffer,
                          QMutex &stateMutex,
                          QHash<QString, std::shared_ptr<ClipAudioState>> &clipAudio)
@@ -182,8 +182,8 @@ void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, dri
     if (clip.path.isEmpty())
         return;
 
-    const drift::TimeUs bufferEndUs = timelineStartUs + static_cast<drift::TimeUs>(
-                                                            (static_cast<int64_t>(sampleCount) * drift::kUsPerSecond)
+    const TonDron::TimeUs bufferEndUs = timelineStartUs + static_cast<TonDron::TimeUs>(
+                                                            (static_cast<int64_t>(sampleCount) * TonDron::kUsPerSecond)
                                                             / sampleRate);
 
     const bool overlaps = clip.containsTime(timelineStartUs) || clip.containsTime(bufferEndUs - 1)
@@ -191,8 +191,8 @@ void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, dri
     if (!overlaps)
         return;
 
-    const drift::TimeUs blockDurUs = static_cast<drift::TimeUs>(
-        (static_cast<int64_t>(sampleCount) * drift::kUsPerSecond) / sampleRate);
+    const TonDron::TimeUs blockDurUs = static_cast<TonDron::TimeUs>(
+        (static_cast<int64_t>(sampleCount) * TonDron::kUsPerSecond) / sampleRate);
 
     // Hold a strong reference rather than pointing into the hash. mix() runs on the audio thread
     // while resetClipAudioState() clears this hash from the GUI thread on every seek, play and
@@ -217,9 +217,9 @@ void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, dri
 
     QVector<float> chunk;
     if (!clip.audioEffects.isEmpty()) {
-        drift::AudioEffectRack &rack = state.rack;
+        TonDron::AudioEffectRack &rack = state.rack;
 
-        const drift::TimeUs lastEndUs = rack.lastTimelineEndUs();
+        const TonDron::TimeUs lastEndUs = rack.lastTimelineEndUs();
         const bool continuous = lastEndUs >= 0
                                 && qAbs(timelineStartUs - lastEndUs) <= kTimelineGapToleranceUs;
 
@@ -231,9 +231,9 @@ void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, dri
             // lines up a latent stage instead of leaving it permanently late.
             const int primeFrames = rack.primeFrames();
             if (primeFrames > 0) {
-                const drift::TimeUs primeStartUs =
+                const TonDron::TimeUs primeStartUs =
                     timelineStartUs
-                    - static_cast<drift::TimeUs>((static_cast<int64_t>(primeFrames) * drift::kUsPerSecond)
+                    - static_cast<TonDron::TimeUs>((static_cast<int64_t>(primeFrames) * TonDron::kUsPerSecond)
                                                  / sampleRate);
                 // The preroll window ends exactly where this block starts, so the retimer sees one
                 // continuous stream across the two reads and does not restart between them.
@@ -253,8 +253,8 @@ void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, dri
 
     const int frames = qMin(sampleCount, chunk.size() / 2);
     for (int i = 0; i < frames; ++i) {
-        const drift::TimeUs sampleTimeUs =
-            timelineStartUs + static_cast<drift::TimeUs>((static_cast<int64_t>(i) * drift::kUsPerSecond) / sampleRate);
+        const TonDron::TimeUs sampleTimeUs =
+            timelineStartUs + static_cast<TonDron::TimeUs>((static_cast<int64_t>(i) * TonDron::kUsPerSecond) / sampleRate);
         const float gain = static_cast<float>(volumeForClip(clip, sampleTimeUs)
                                               * transitionGainForClip(track, clip, sampleTimeUs)
                                               * clip.fadeMultiplier(sampleTimeUs));
@@ -265,7 +265,7 @@ void accumulateClipAudio(const drift::Clip &clip, const drift::Track &track, dri
 
 } // namespace
 
-void AudioMixer::setProject(const drift::Project *project)
+void AudioMixer::setProject(const TonDron::Project *project)
 {
     if (m_project != project) {
         QMutexLocker locker(&m_clipAudioMutex);
@@ -280,7 +280,7 @@ void AudioMixer::resetClipAudioState()
     m_clipAudio.clear();
 }
 
-void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleRate,
+void AudioMixer::mix(TonDron::TimeUs timelineStartUs, int sampleCount, int sampleRate,
                      float *interleavedStereoOut) const
 {
     if (!interleavedStereoOut || sampleCount <= 0 || !m_project)
@@ -288,17 +288,17 @@ void AudioMixer::mix(drift::TimeUs timelineStartUs, int sampleCount, int sampleR
 
     std::memset(interleavedStereoOut, 0, static_cast<size_t>(sampleCount) * 2 * sizeof(float));
 
-    for (const drift::Track &track : m_project->tracks()) {
+    for (const TonDron::Track &track : m_project->tracks()) {
         if (track.muted || track.hidden)
             continue;
 
-        if (track.type == drift::TrackType::Audio) {
-            for (const drift::Clip &clip : track.clips)
+        if (track.type == TonDron::TrackType::Audio) {
+            for (const TonDron::Clip &clip : track.clips)
                 accumulateClipAudio(clip, track, timelineStartUs, sampleCount, sampleRate,
                                       interleavedStereoOut, m_clipAudioMutex, m_clipAudio);
-        } else if (track.type == drift::TrackType::Video) {
-            for (const drift::Clip &clip : track.clips) {
-                if (clip.type == drift::ClipType::Video && !clip.suppressEmbeddedAudio)
+        } else if (track.type == TonDron::TrackType::Video) {
+            for (const TonDron::Clip &clip : track.clips) {
+                if (clip.type == TonDron::ClipType::Video && !clip.suppressEmbeddedAudio)
                     accumulateClipAudio(clip, track, timelineStartUs, sampleCount, sampleRate,
                                           interleavedStereoOut, m_clipAudioMutex, m_clipAudio);
             }

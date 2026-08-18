@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace drift {
+namespace TonDron {
 
 // Writes interleaved float PCM to a lossless FLAC file, consumed afterwards as ordinary media by
 // ClipReaderPool (and, for denoise previews, by QtMultimedia).
@@ -50,4 +50,4 @@ QString newDenoisePath(const QString &suffix = QString());
 // are orphaned by a crash or a closed window. Called once at startup.
 void sweepDenoisePreviews();
 
-} // namespace drift
+} // namespace TonDron

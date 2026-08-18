@@ -5,7 +5,7 @@
 
 #include <initializer_list>
 
-namespace drift {
+namespace TonDron {
 namespace {
 
 // Paths below are authored on a 0..1 grid and mapped onto the bounds, so every shape stretches
@@ -323,4 +323,4 @@ QString shapeSvgPath(const ShapeStyle &style, const QRectF &bounds)
     return out.trimmed();
 }
 
-} // namespace drift
+} // namespace TonDron

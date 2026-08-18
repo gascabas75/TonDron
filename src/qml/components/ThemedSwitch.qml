@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Themed on/off switch. Replaces the raw QtQuick.Controls.Basic `Switch`
 // instances, which shipped completely unstyled and looked foreign next to every

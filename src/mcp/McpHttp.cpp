@@ -8,7 +8,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 
-namespace drift::mcp {
+namespace TonDron::mcp {
 namespace {
 
 QByteArray headerValue(const QByteArray &header, const QByteArray &name)
@@ -286,4 +286,4 @@ void McpHttp::handleRequest(QTcpSocket *socket, const QByteArray &header, const 
     writeResponse(socket, 200, "OK", "application/json", payload + '\n', keepAlive);
 }
 
-} // namespace drift::mcp
+} // namespace TonDron::mcp

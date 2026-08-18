@@ -5,7 +5,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 // Parse SubRip (.srt) text into clip-local cues. Accepts HH:MM:SS,mmm or HH:MM:SS.mmm
 // timestamps, UTF-8 (with or without BOM), and multi-line cue bodies. Invalid or empty
@@ -17,4 +17,4 @@ bool parseSrtFile(const QString &path, QList<SubtitleCue> *outCues, QString *err
 QString writeSrt(const QList<SubtitleCue> &cues);
 bool writeSrtFile(const QString &path, const QList<SubtitleCue> &cues, QString *error = nullptr);
 
-} // namespace drift
+} // namespace TonDron

@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace drift {
+namespace TonDron {
 
 TimeUs snapTime(const Project &project, TimeUs time, bool snapEnabled, TimeUs playheadUs,
                 const QList<TimeUs> &extraTargets)
@@ -421,4 +421,4 @@ void rebaseClipLayout(Project &project, int oldWidth, int oldHeight, double orig
     }
 }
 
-} // namespace drift
+} // namespace TonDron

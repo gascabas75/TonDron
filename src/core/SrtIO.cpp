@@ -9,7 +9,7 @@
 
 #include <utility>
 
-namespace drift {
+namespace TonDron {
 namespace {
 
 QString formatSrtTimestamp(TimeUs us)
@@ -213,4 +213,4 @@ bool writeSrtFile(const QString &path, const QList<SubtitleCue> &cues, QString *
     return true;
 }
 
-} // namespace drift
+} // namespace TonDron

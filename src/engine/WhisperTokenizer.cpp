@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -90,4 +90,4 @@ QString WhisperTokenizer::decode(const std::vector<int> &tokens) const
     return QString::fromUtf8(bytes);
 }
 
-} // namespace drift
+} // namespace TonDron

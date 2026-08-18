@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
-import Drift
+import TonDron
 
 // Live progress for background Whisper subtitle generation. Opens when generation
 // starts and closes when it ends; the reject button cancels the run.

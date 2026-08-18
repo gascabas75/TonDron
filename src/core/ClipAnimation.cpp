@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 QString clipAnimKindToString(ClipAnimKind kind)
 {
@@ -247,4 +247,4 @@ ClipAnimSample evaluateClipAnimation(TimeUs timelineStart, TimeUs timelineDurati
     return sample;
 }
 
-} // namespace drift
+} // namespace TonDron

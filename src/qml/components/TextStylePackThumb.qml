@@ -1,5 +1,5 @@
 import QtQuick
-import Drift
+import TonDron
 
 // Shared style-pack thumbnail: dark canvas so light glyphs stay legible in both themes.
 Item {

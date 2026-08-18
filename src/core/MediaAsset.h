@@ -4,7 +4,7 @@
 
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 enum class MediaKind { Video, Audio, Image, Other };
 
@@ -39,4 +39,4 @@ struct MediaAsset
     QString filmstripPath;
 };
 
-} // namespace drift
+} // namespace TonDron

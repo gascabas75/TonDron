@@ -6,7 +6,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 enum class TextAlign { Left, Center, Right };
 enum class TextVAlign { Top, Middle, Bottom };
@@ -161,4 +161,4 @@ const QList<TextPreset> &textPresets();
 const TextPreset *textPresetForId(const QString &id);
 const TextStyle *textStyleForPresetId(const QString &id);
 
-} // namespace drift
+} // namespace TonDron

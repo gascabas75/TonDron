@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Window
-import Drift
+import TonDron
 import "assets"
 
 // Beat-synced multi-effect presets: category chips + card grid.

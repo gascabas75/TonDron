@@ -16,7 +16,7 @@ TransitionPresetEntry loadPackage(const QString &packageDir, QString *errorOut =
 // Scan each root for immediate subdirectories that contain transition.json.
 QList<TransitionPresetEntry> scanDirectories(const QStringList &rootDirs);
 
-// Default search roots: DRIFT_TRANSITIONS_DIR, <appDir>/transitions, <AppDataLocation>/transitions.
+// Default search roots: TonDron_TRANSITIONS_DIR, <appDir>/transitions, <AppDataLocation>/transitions.
 QStringList defaultSearchPaths();
 
 } // namespace TransitionPackageLoader

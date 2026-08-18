@@ -104,11 +104,11 @@ QList<QPair<QString, QString>> transitionCategories()
     return g_categories;
 }
 
-QMap<QString, QVariant> resolvedTransitionParameters(const drift::Transition &transition,
+QMap<QString, QVariant> resolvedTransitionParameters(const TonDron::Transition &transition,
                                                      const TransitionPresetEntry &def)
 {
     QMap<QString, QVariant> params = def.fixedParams;
-    for (const drift::EffectParamSpec &spec : def.meta.parameters)
+    for (const TonDron::EffectParamSpec &spec : def.meta.parameters)
         params.insert(spec.key, spec.defaultVariant());
     for (auto it = transition.parameters.constBegin(); it != transition.parameters.constEnd(); ++it)
         params.insert(it.key(), it.value());

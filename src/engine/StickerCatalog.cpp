@@ -15,7 +15,7 @@
 
 namespace {
 
-constexpr char kLegacyQrcPrefix[] = ":/qt/qml/Drift/resources/stickers/";
+constexpr char kLegacyQrcPrefix[] = ":/qt/qml/TonDron/resources/stickers/";
 
 QMutex g_mutex;
 QList<StickerPack> g_packs;
@@ -78,7 +78,7 @@ void rebuildLocked(const QStringList &packageRoots)
     g_initialized = true;
 
     const QStringList roots = packageRoots.isEmpty()
-        ? GpuPackageParse::defaultSearchPaths(QStringLiteral("DRIFT_STICKERS_DIR"),
+        ? GpuPackageParse::defaultSearchPaths(QStringLiteral("TonDron_STICKERS_DIR"),
                                               QStringLiteral("stickers"), QStringLiteral("stickers"))
         : packageRoots;
 
@@ -91,7 +91,7 @@ void rebuildLocked(const QStringList &packageRoots)
             StickerPack pack;
             if (!loadPackage(dir.filePath(name), &pack))
                 continue;
-            // First root wins, so DRIFT_STICKERS_DIR shadows an installed addon.
+            // First root wins, so TonDron_STICKERS_DIR shadows an installed addon.
             const bool duplicate = std::any_of(g_packs.cbegin(), g_packs.cend(),
                                                [&](const StickerPack &p) { return p.id == pack.id; });
             if (!duplicate)

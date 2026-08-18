@@ -10,9 +10,9 @@
 #include <functional>
 #include <optional>
 
-// The .drift container: a whole project as one transferable file.
+// The .TonDron container: a whole project as one transferable file.
 //
-//   0    "DRIFTPRJ"          8   magic
+//   0    "TonDronPRJ"          8   magic
 //   8    containerVersion    4   uint32 LE, currently 1 — framing revision, not the format semver
 //   12   manifestStored      4   uint32 LE
 //   16   manifestRaw         4   uint32 LE
@@ -25,7 +25,7 @@
 // not to the file. Absolute offsets would be circular: the manifest states them, and its own
 // compressed length is what shifts them.
 //
-// Unlike .driftpkg this is not signed — a user document is not distributed code — and it does not
+// Unlike .TonDronpkg this is not signed — a user document is not distributed code — and it does not
 // compress solidly: H.264/FLAC/JPEG bytes gain nothing from zstd, so media is stored raw at
 // absolute offsets and only text (the manifest, face-track JSON) is compressed. Storing raw at
 // known offsets also keeps a future read-in-place AVIO path possible.
@@ -33,7 +33,7 @@
 // Hashes live in a trailer rather than the manifest so writing is a single pass: the layout only
 // needs each file's size, which stat gives, while the digest falls out of the copy.
 
-namespace drift::bundle {
+namespace TonDron::bundle {
 
 // Bumped only by this file. Major is the compatibility gate: a reader refuses a larger major and
 // warns on a larger minor.
@@ -121,4 +121,4 @@ std::optional<BundleInfo> readManifest(const QString &path, QString *error);
 bool extract(const QString &path, const QString &destDir, const ProgressFn &progress,
              QHash<QString, QString> *pathRemap, QString *error);
 
-} // namespace drift::bundle
+} // namespace TonDron::bundle

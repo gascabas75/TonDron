@@ -6,7 +6,7 @@
 #include <QRectF>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 // Every shape fills `bounds` exactly, so a "square" or "circle" is a rectangle or ellipse in a
 // square box rather than a path that forces its own aspect. Callers inset `bounds` by half the
@@ -14,7 +14,7 @@ namespace drift {
 QPainterPath shapePath(const ShapeStyle &style, const QRectF &bounds);
 
 // The same path serialized as an SVG "d" string, for QML's PathSvg. Sharing shapePath() is what
-// keeps the assets-panel thumbnails and the composited frame from drifting apart.
+// keeps the assets-panel thumbnails and the composited frame from TonDroning apart.
 QString shapeSvgPath(const ShapeStyle &style, const QRectF &bounds);
 
 // Regular n-gon inscribed in `bounds`, first vertex at the top. Shared with mask rendering.
@@ -23,4 +23,4 @@ QPainterPath regularPolygonPath(const QRectF &bounds, int sides, double rotation
 // Heart filling `bounds`. Shared with mask rendering.
 QPainterPath heartPath(const QRectF &bounds);
 
-} // namespace drift
+} // namespace TonDron

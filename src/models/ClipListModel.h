@@ -28,7 +28,7 @@ public:
 
     explicit ClipListModel(QObject *parent = nullptr);
 
-    void setProject(drift::Project *project);
+    void setProject(TonDron::Project *project);
     void setTrackIndex(int trackIndex);
     int trackIndex() const { return m_trackIndex; }
     void refresh();
@@ -38,6 +38,6 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
 private:
-    drift::Project *m_project = nullptr;
+    TonDron::Project *m_project = nullptr;
     int m_trackIndex = 0;
 };

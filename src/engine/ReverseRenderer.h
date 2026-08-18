@@ -6,7 +6,7 @@
 
 #include <functional>
 
-namespace drift {
+namespace TonDron {
 
 // Writes [coverInUs, coverOutUs] of sourcePath, reversed, to outPath.
 //
@@ -29,4 +29,4 @@ bool renderReversed(const QString &sourcePath, TimeUs coverInUs, TimeUs coverOut
 // Peak decoded-frame memory held while reversing a batch.
 constexpr qint64 kReverseBatchByteBudget = 256LL * 1024 * 1024;
 
-} // namespace drift
+} // namespace TonDron

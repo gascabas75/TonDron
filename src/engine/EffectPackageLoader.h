@@ -17,7 +17,7 @@ EffectPresetEntry loadPackage(const QString &packageDir, QString *errorOut = nul
 QList<EffectPresetEntry> scanDirectories(const QStringList &rootDirs);
 
 // Default search roots: <appDir>/effects, <AppDataLocation>/effects, and
-// DRIFT_EFFECTS_DIR if set (colon-separated on Unix).
+// TonDron_EFFECTS_DIR if set (colon-separated on Unix).
 QStringList defaultSearchPaths();
 
 } // namespace EffectPackageLoader

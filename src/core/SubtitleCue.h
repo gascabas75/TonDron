@@ -5,7 +5,7 @@
 #include <QList>
 #include <QString>
 
-namespace drift {
+namespace TonDron {
 
 struct SubtitleCue
 {
@@ -36,4 +36,4 @@ QString subtitleClipName(const QList<SubtitleCue> &cues);
 QList<SubtitleCue> packSubtitleCues(const QList<SubtitleCue> &cues, int maxLineWidth = 42,
                                     int maxLineCount = 1);
 
-} // namespace drift
+} // namespace TonDron

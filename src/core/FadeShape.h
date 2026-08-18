@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 // Style for edge fades and CapCut-style intro/outro progress (Linear / Smooth /
 // Natural / Custom). Natural is equal-power — nicer for audio and soft fades.
@@ -59,4 +59,4 @@ inline double shapedProgress(double t, FadeCurve curve, const FadeShape &shape)
     return t;
 }
 
-} // namespace drift
+} // namespace TonDron
