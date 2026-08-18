@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
-# Must be set before project(). Left unset, the binary is stamped with the build machine's OS
-# version and will not launch on anything older.
 set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Oldest macOS release TonDron runs on")
 
-# C is enabled for JUCE only: its modules compile a handful of C sources (zlib, flac, oggvorbis)
-# and its CMake refuses to configure without it.
 project(TonDron VERSION 0.2.2 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -17,72 +13,24 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 option(WITH_BGREMOVAL "Enable OpenCV-based background removal" OFF)
 
-# Fonts, stickers and the Whisper model used to be fetched or extracted here and shipped inside
-# the build tree — roughly 800 MB of assets every user paid for whether or not they used them.
-# They are now addons: signed .TonDronpkg archives downloaded at runtime into <AppDataLocation>/
-# addons/ (src/engine/AddonPackage, src/models/AddonManager). Nothing asset-shaped is bundled,
-# so a fresh build starts with system fonts, an empty sticker tab and no transcriber, and the
-# user installs what they want from the Addon Manager. The packaging and publishing tooling
-# lives in the TonDron-addons repo.
-#
-# Effects and transitions are the exception: they are small, they are source (GLSL reviewed
-# alongside the engine that runs them), and an editor with an empty effects browser is broken
-# rather than merely bare — so they still ship next to the binary. They are *also* addons, and an
-# installed package outranks the bundled one of the same id (see defaultSearchPaths), which is
-# what lets a shader fix go out without an app release.
-#
-# For development without downloading, point TonDron_EFFECTS_DIR, TonDron_TRANSITIONS_DIR,
-# TonDron_FONTS_DIR, TonDron_STICKERS_DIR, TonDron_EMOJI_FONT_DIR or TonDron_WHISPER_MODEL_DIR at a local
-# directory; those outrank everything, including installed addons.
-
-# --- Addon service ----------------------------------------------------------
-# Where the Addon Manager fetches from. These are the only place either value is defined —
-# src/models/AddonEndpoint.h just reads them — so a fork can point at its own Worker with:
-#
-#   cmake -B build -DTonDron_ADDON_INDEX_URL=https://addons.example.com/v1/index \
-#                  -DTonDron_ADDON_CLIENT_TOKEN=...
-#
-# Set TonDron_ADDON_INDEX_URL to an empty string to build with the addon service disabled: the
-# manager then lists nothing and installs nothing, and the app runs on locally installed or
-# side-loaded content only.
-#
-# The token is NOT a secret. It ships inside every binary and is trivially extractable; it exists
-# so the bucket cannot be crawled or hotlinked, which would cost operations for someone else's
-# benefit. That is also why it is fine in CMakeCache.txt.
 set(TonDron_ADDON_INDEX_URL "https://TonDron-addons.cutwire.org/v1/index"
     CACHE STRING "Addon index endpoint; empty disables the addon service")
 set(TonDron_ADDON_CLIENT_TOKEN "79a388bba9301cacc81cc6eb0724c81e948e1b27c69aee1b"
     CACHE STRING "Client token sent to the addon service as X-TonDron-Client")
 
-# --- Update check -----------------------------------------------------------
-# Where src/models/UpdateChecker looks for a newer release, once a day, to raise the badge in the
-# header. GitHub's releases/latest is the source of truth because the release tag already is: it
-# excludes drafts and pre-releases, and needs no service of our own.
-#
-# Set it to an empty string for builds a package manager owns — the Flatpak manifests and the Arch
-# PKGBUILD all do. There, pacman or flatpak fetches the update on its own schedule and an in-app
-# nag is noise the user cannot act on (Flathub's quality guidelines say as much).
 set(TonDron_UPDATE_FEED_URL "https://api.github.com/repos/CutWire-Studios/TonDron/releases/latest"
     CACHE STRING "Release feed polled for updates; empty disables the update check")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Test Concurrent Widgets OpenGL Network QuickEffects LinguistTools)
 find_package(FFmpeg REQUIRED)
 
-# ONNX Runtime powers auto subtitles, object segmentation, face tracking and noise removal. The
-# app links none of it: it compiles against the headers and dlopens a runtime at startup
-# (src/engine/OrtRuntime.cpp), so the CPU / CUDA / WebGPU decision belongs to the user and is made
-# by installing an addon, not by whoever configured this build. Only the headers are needed here.
 option(TonDron_FETCH_ONNXRUNTIME
     "Download prebuilt ONNX Runtime headers when they are not installed (cmake/FetchOnnxRuntime.cmake)" ON)
-# Stage a CPU runtime into <appDir>/onnxruntime so the build tree can transcribe without going
-# through the addon service. Packaged builds turn this off — they ship no runtime at all.
 option(TonDron_BUNDLE_ONNXRUNTIME
     "Stage a CPU ONNX Runtime into the build tree for development" ON)
 find_package(OnnxRuntime QUIET)
 if(TonDron_BUNDLE_ONNXRUNTIME AND OnnxRuntime_FOUND AND NOT ONNXRUNTIME_RUNTIME_LIBS
    AND TonDron_FETCH_ONNXRUNTIME)
-    # Headers with no library beside them (a headers-only system package) leave the build tree
-    # with nothing to load, which looks exactly like a broken install at runtime.
     message(STATUS "ONNX Runtime headers found without a library; downloading one to bundle")
     set(OnnxRuntime_FOUND FALSE)
 endif()
@@ -104,13 +52,9 @@ if(TonDron_BUNDLE_ONNXRUNTIME AND NOT ONNXRUNTIME_RUNTIME_LIBS)
 endif()
 
 if(WITH_BGREMOVAL)
-    # Link only modules needed for background removal — not the full OpenCV
-    # distribution (opencv_viz pulls in VTK and breaks linking on many systems).
     find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 endif()
 
-# Addon packages (.TonDronpkg) are solid-zstd compressed and Ed25519 signed. zstd upstream only
-# ships a CMake config in recent releases, so fall back to pkg-config.
 find_package(PkgConfig QUIET)
 find_package(zstd CONFIG QUIET)
 if(TARGET zstd::libzstd_shared)
@@ -125,22 +69,11 @@ else()
 endif()
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
-# SoundTouch does the pitch shifting behind the voice effects. juce_dsp has no pitch shifter, and a
-# hand-rolled granular one cancels the signal outright wherever the tap spacing lands on an odd
-# number of half-periods of the output. LGPL-2.1, whose section 3 allows use under GPL v2 or later,
-# so it is compatible with this project's GPL-3.0.
-# pkg-config first: SoundTouch's installed CMake config names include directories that do not
-# exist, and a non-existent INTERFACE_INCLUDE_DIRECTORIES entry on an imported target is a hard
-# generate-time error rather than something we can fall back from. Where there is no pkg-config at
-# all (MSVC), the CMake config below is the only path, so it gets repaired instead.
 if(PkgConfig_FOUND)
     pkg_check_modules(SOUNDTOUCH QUIET IMPORTED_TARGET soundtouch)
 endif()
 if(TARGET PkgConfig::SOUNDTOUCH)
     set(TonDron_SOUNDTOUCH_TARGET PkgConfig::SOUNDTOUCH)
-    # soundtouch.pc often exports -I.../include/soundtouch (for <SoundTouch.h>), but our sources
-    # use <soundtouch/SoundTouch.h> and need .../include. Prefer the parent when that layout is
-    # present (vcpkg on Windows with pkgconf).
     get_target_property(_st_pc_includes PkgConfig::SOUNDTOUCH INTERFACE_INCLUDE_DIRECTORIES)
     if(_st_pc_includes)
         set(_st_usable "")
@@ -165,10 +98,6 @@ if(TARGET PkgConfig::SOUNDTOUCH)
 else()
     find_package(SoundTouch CONFIG REQUIRED)
     set(TonDron_SOUNDTOUCH_TARGET SoundTouch::SoundTouch)
-    # Upstream 2.4.x exports "<prefix>/include;<prefix>/include;<prefix>/COMPONENT;<prefix>/
-    # SoundTouch" — two install() keywords that leaked into INCLUDES DESTINATION, plus a duplicate.
-    # Every packaging of that release carries it, vcpkg's included. <prefix>/include is the real
-    # one and the only one <soundtouch/SoundTouch.h> needs.
     get_target_property(_st_includes SoundTouch::SoundTouch INTERFACE_INCLUDE_DIRECTORIES)
     if(_st_includes)
         set(_st_usable "")
@@ -185,29 +114,9 @@ else()
     endif()
 endif()
 
-# --- JUCE -------------------------------------------------------------------
-# Audio effects are JUCE DSP processors (src/engine/audio). Only juce_dsp and the modules it pulls
-# in are used — deliberately NOT juce_audio_processors, which depends on juce_gui_extra ->
-# juce_gui_basics and would drag X11, freetype and fontconfig into an engine that is headless on
-# purpose. JUCE never opens the sound card here either: Qt Multimedia owns the sink, and JUCE only
-# processes float blocks inside AudioMixer.
-#
-# Acquisition mirrors ONNX Runtime above: a local tree wins, otherwise fetch. flatpak-builder runs
-# offline, so packaged builds set TonDron_JUCE_DIR at a source it vendored itself and turn the fetch
-# off (see flatpak/org.cutwire.TonDron.yml).
-# TonDron links exactly one JUCE module and calls none of JUCE's project helpers, so everything past
-# add_subdirectory(modules) is dead weight: it configures and builds juceaide, and — the part that
-# actually leaks — adds install() rules that drop JUCE's headers, its LV2 helper binary and its
-# CMake package config into any `cmake --install` prefix, i.e. into the AppImage and the distro
-# package. FORCE because it has to win over JUCE's own option() default either way it is acquired.
 set(JUCE_MODULES_ONLY ON CACHE BOOL "Only configure the JUCE modules" FORCE)
 
 option(TonDron_FETCH_JUCE "Download JUCE when TonDron_JUCE_DIR is not set" ON)
-# STRING, not PATH, on purpose: CMake rewrites a relative PATH cache entry to an absolute one
-# against the working directory of the cmake invocation — the *build* directory. The manifests
-# vendor JUCE next to CMakeLists.txt and pass `-DTonDron_JUCE_DIR=juce`, which a PATH would resolve
-# to <build>/juce and fail. As a STRING the value arrives verbatim and is resolved below, against
-# the source tree, which is what a relative path here can only sensibly mean.
 set(TonDron_JUCE_DIR "" CACHE STRING
     "JUCE source tree — absolute, or relative to this file; overrides TonDron_FETCH_JUCE")
 set(TonDron_JUCE_TAG "8.0.15" CACHE STRING "JUCE release tag to fetch when TonDron_JUCE_DIR is unset")
@@ -243,7 +152,7 @@ endif()
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
-# --- core: domain model, no GUI ---------------------------------------------
+# --- core ---
 add_library(TonDroncore STATIC
     src/core/Effect.h
     src/core/Effect.cpp
@@ -285,10 +194,6 @@ add_library(TonDroncore STATIC
 target_include_directories(TonDroncore PUBLIC src)
 target_link_libraries(TonDroncore PUBLIC Qt6::Core Qt6::Gui)
 
-# Audio effect DSP. JUCE modules compile into whatever target links them, so keeping them in a
-# library of their own is what stops JUCE's headers, its compile definitions and its build time
-# from spreading across TonDronengine. AudioEffectRack.h is the only header that leaves here and it
-# mentions no JUCE type, so TonDronengine stays JUCE-free at the source level.
 add_library(TonDronaudiodsp STATIC
     src/engine/audio/AudioEffectProcessor.h
     src/engine/audio/AudioEffectProcessor.cpp
@@ -307,25 +212,21 @@ add_library(TonDronaudiodsp STATIC
     src/engine/audio/ClipAudioRetimer.h
     src/engine/audio/ClipAudioRetimer.cpp
 )
-# Nothing here is a QObject, and AUTOMOC would otherwise scan JUCE's amalgamated sources.
 set_target_properties(TonDronaudiodsp PROPERTIES AUTOMOC OFF)
 target_include_directories(TonDronaudiodsp PUBLIC src)
 target_link_libraries(TonDronaudiodsp PUBLIC TonDroncore)
 target_link_libraries(TonDronaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
     ${TonDron_SOUNDTOUCH_TARGET})
-# JUCE_USE_CURL and JUCE_WEB_BROWSER matter: without them juce_core links libcurl on Linux, which
-# is exactly the dependency creep this split exists to prevent.
 target_compile_definitions(TonDronaudiodsp PRIVATE
     JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
     JUCE_WEB_BROWSER=0
     JUCE_MODAL_LOOPS_PERMITTED=0
-    # Otherwise every binary that links this, tools and tests included, opens with "JUCE v8.0.15".
     JUCE_DISABLE_JUCE_VERSION_PRINTING=1
 )
 
-# --- engine: FFmpeg-facing code, no QML deps -------------------------------
+# --- engine ---
 add_library(TonDronengine STATIC
     src/engine/AddonPackage.h
     src/engine/AddonPackage.cpp
@@ -421,9 +322,9 @@ add_library(TonDronengine STATIC
     src/engine/ProjectDependencies.h
     src/engine/ProjectDependencies.cpp
 )
-target_include_directories(TonDron PUBLIC src)
-target_link_libraries(TonDronengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore
-    TonDronaudiodsp onnxruntime::headers)
+
+target_include_directories(TonDronengine PUBLIC src)
+target_link_libraries(TonDronengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore TonDronaudiodsp onnxruntime::headers)
 target_link_libraries(TonDronengine PRIVATE ${TonDron_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
 target_compile_definitions(TonDronengine PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
 
@@ -433,76 +334,65 @@ if(WITH_BGREMOVAL)
     target_compile_definitions(TonDronengine PUBLIC TonDron_WITH_BGREMOVAL)
 endif()
 
-# --- application ------------------------------------------------------------
+# --- application - UNICO y DEFINITIVO ---
 qt_add_executable(TonDron
     src/main.cpp
-    src/TonDronImageProvider.cpp  
+    src/TonDronImageProvider.cpp
     src/SegmentImageProvider.cpp
-    src/SegmentImageStore.cpp  
-    src/ClipPreviewImageProvider.cpp  
-    src/ClipPreviewImageStore.cpp   
+    src/SegmentImageStore.cpp
+    src/ClipPreviewImageProvider.cpp
+    src/ClipPreviewImageStore.cpp
     src/TextStylePreviewImageProvider.cpp
-    src/models/AddonManager.cpp   
-    src/models/UpdateChecker.cpp 
+    src/models/AddonManager.cpp
+    src/models/UpdateChecker.cpp
     src/models/AppController.cpp
-    src/models/FileDialogs.cpp 
-    src/models/AssetLibrary.cpp   
-    src/models/TimelineModel.cpp    
-    src/models/ClipListModel.cpp   
-    src/mcp/McpSession.cpp    
-    src/mcp/McpCatalog.cpp    
-    src/mcp/McpProtocol.cpp   
-    src/mcp/McpHttp.cpp   
+    src/models/FileDialogs.cpp
+    src/models/AssetLibrary.cpp
+    src/models/TimelineModel.cpp
+    src/models/ClipListModel.cpp
+    src/mcp/McpSession.cpp
+    src/mcp/McpCatalog.cpp
+    src/mcp/McpProtocol.cpp
+    src/mcp/McpHttp.cpp
     src/mcp/McpDispatcher.cpp
-    src/mcp/McpDispatcherExtended.cpp   
-    src/mcp/McpServer.cpp    
-    src/mcp/McpStdio.cpp  
-    src/playback/PlaybackEngine.cpp   
-    src/playback/PlaybackClock.cpp   
-    src/playback/ClipPreviewPlayer.cpp    
-    src/playback/CompositorService.cpp  
+    src/mcp/McpDispatcherExtended.cpp
+    src/mcp/McpServer.cpp
+    src/mcp/McpStdio.cpp
+    src/playback/PlaybackEngine.cpp
+    src/playback/PlaybackClock.cpp
+    src/playback/ClipPreviewPlayer.cpp
+    src/playback/CompositorService.cpp
     src/preview/PreviewItem.cpp
 )
 
-# Windows needs the icon embedded in the PE resource section for Explorer and
-# the taskbar; setWindowIcon alone is not enough for the .exe identity.
+target_include_directories(TonDron PUBLIC src)
+target_link_libraries(TonDron PRIVATE TonDronengine)
+
 if(WIN32)
-    # qt_add_executable() forwards to add_executable() without WIN32, so the linker defaults to the
-    # console subsystem and Windows opens a console window before the GUI comes up. Qt6::EntryPoint
-    # (linked in by Qt6::Core) supplies the WinMain that forwards to main().
     set_target_properties(TonDron PROPERTIES WIN32_EXECUTABLE TRUE)
     target_sources(TonDron PRIVATE resources/windows/TonDron.rc)
     set_source_files_properties(resources/windows/TonDron.rc PROPERTIES
         OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/resources/windows/TonDron.ico")
 endif()
 
-# Without a bundle macOS runs the app as a background process, with no Dock tile or menu bar.
-# It also collides with the <build>/TonDron/ directory qt_add_qml_module(URI TonDron) writes, which
-# on case-insensitive APFS fails the link with EISDIR.
 if(APPLE)
     set(TonDron_MACOS_EXECUTABLE "TonDron")
     set(TonDron_MACOS_BUNDLE_ID "org.cutwire.TonDron")
     set(TonDron_MACOS_ICON_FILE "TonDron.icns")
-
-    # Not CMake's MACOSX_BUNDLE_* properties: the NS* and LSMinimumSystemVersion keys have none.
     configure_file(
         "${CMAKE_SOURCE_DIR}/resources/macos/Info.plist.in"
         "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
         @ONLY)
-
     set(TonDron_MACOS_ICNS "${CMAKE_SOURCE_DIR}/resources/macos/${TonDron_MACOS_ICON_FILE}")
     target_sources(TonDron PRIVATE "${TonDron_MACOS_ICNS}")
     set_source_files_properties("${TonDron_MACOS_ICNS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources")
-
     set_target_properties(TonDron PROPERTIES
         MACOSX_BUNDLE TRUE
         OUTPUT_NAME "${TonDron_MACOS_EXECUTABLE}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
 endif()
 
-# App icon for QApplication::setWindowIcon (all platforms). Rendered from TonDron_icon.png,
-# as is resources/windows/TonDron.ico — keep the two in sync when the branding changes.
 qt_add_resources(TonDron "TonDron_app_icon"
     PREFIX "/app"
     BASE resources
@@ -510,10 +400,8 @@ qt_add_resources(TonDron "TonDron_app_icon"
 )
 
 set_source_files_properties(src/qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
-# App-wide notification queue; the visual host is components/ToastHost.qml.
 set_source_files_properties(src/qml/Toasts.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
 
-# Lucide icons: SVG sources in resources/icons/ (from lucide-icons-1.25.0), PNGs for QML.
 file(GLOB TonDron_LUCIDE_ICONS RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS
      "resources/icons/*.png")
 
@@ -622,7 +510,6 @@ qt_add_qml_module(TonDron
         src/qml/components/ThemedMenuSeparator.qml
         src/qml/components/LabelledProgressRing.qml
     RESOURCES
-        # UI chrome: interface font and Lucide SVG icons (always needed, including before addons).
         resources/fonts/Inter.ttf
         ${TonDron_LUCIDE_ICONS}
 )
@@ -641,9 +528,6 @@ target_link_libraries(TonDron PRIVATE
 )
 target_include_directories(TonDron PRIVATE src src/preview)
 
-# MCP tool names, JSON schemas, agent errors and copied configs are a machine protocol and must
-# stay English. QT_EXCLUDE_FROM_TRANSLATION is a no-op until src/mcp/ exists (the mcp branch);
-# lupdate also ignores QStringLiteral, so those files only leak if someone later adds tr().
 file(GLOB TonDron_MCP_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/mcp/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/mcp/*.h")
@@ -651,8 +535,6 @@ if(TonDron_MCP_SOURCES)
     set_source_files_properties(${TonDron_MCP_SOURCES} PROPERTIES QT_EXCLUDE_FROM_TRANSLATION ON)
 endif()
 
-# Catalogs, project/SRT errors and reverse-proxy messages live on TonDronengine/TonDroncore, which
-# qt_add_translations(TonDron) does not scan on its own.
 file(GLOB TonDron_TS_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/i18n/TonDron_*.ts")
 qt_add_translations(TonDron
     TS_FILES
@@ -678,7 +560,6 @@ if(NOT TARGET update_translations AND TARGET TonDron_lupdate)
     add_custom_target(update_translations DEPENDS TonDron_lupdate)
 endif()
 
-# Defined here rather than in the header so there is exactly one place to change them.
 target_compile_definitions(TonDron PRIVATE
     TonDron_ADDON_INDEX_URL="${TonDron_ADDON_INDEX_URL}"
     TonDron_ADDON_CLIENT_TOKEN="${TonDron_ADDON_CLIENT_TOKEN}"
@@ -686,14 +567,7 @@ target_compile_definitions(TonDron PRIVATE
     TonDron_VERSION="${PROJECT_VERSION}"
 )
 
-# Ship a file-based package directory next to the binaries that load the catalog.
-#
-# Several targets share one output directory (everything under tools/, the two engine tests), so
-# the copy is registered once per destination and depended on, rather than as a POST_BUILD step per
-# target: two `cmake -E copy_directory` processes writing the same tree concurrently — which is
-# what `cmake --build --parallel` does — fail with "Error copying directory".
 function(TonDron_stage_packages target assetdir)
-    # Only TonDron is a bundle, so the shared output directory guarded against below cannot happen.
     get_target_property(_bundle ${target} MACOSX_BUNDLE)
     if(_bundle)
         add_custom_command(TARGET ${target} POST_BUILD
@@ -703,15 +577,12 @@ function(TonDron_stage_packages target assetdir)
             COMMENT "Copy ${assetdir} packages into ${target}.app/Contents/Resources")
         return()
     endif()
-
     get_target_property(_outdir ${target} RUNTIME_OUTPUT_DIRECTORY)
     if(NOT _outdir)
         set(_outdir "${CMAKE_CURRENT_BINARY_DIR}")
     endif()
     file(RELATIVE_PATH _key "${CMAKE_BINARY_DIR}" "${_outdir}/${assetdir}")
     string(MAKE_C_IDENTIFIER "TonDron_stage_${_key}" _stage)
-    # Multi-config generators (the Windows job uses Visual Studio) put binaries in <dir>/<config>,
-    # which is where the packaging step expects the staged packages as well.
     get_property(_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
     if(_multi_config)
         set(_outdir "${_outdir}/$<CONFIG>")
@@ -735,17 +606,10 @@ function(TonDron_copy_transitions target)
     TonDron_stage_packages(${target} transitions)
 endfunction()
 
-# Audio effects ship as the "audio-effects" addon, so this only makes the build tree
-# self-contained — <appDir>/audio-effects is already a search root.
 function(TonDron_copy_audio_effects target)
     TonDron_stage_packages(${target} audio-effects)
 endfunction()
 
-# Stage an ONNX Runtime into <appDir>/onnxruntime/lib, which is one of the roots
-# TonDron::ort::ensureLoaded() searches — the same relationship the bundled effects have with
-# installed effect addons, and ranked the same way: an installed Acceleration addon wins over this.
-# It is a development convenience only; packaged builds set TonDron_BUNDLE_ONNXRUNTIME=OFF and ship
-# no runtime at all.
 function(TonDron_bundle_onnxruntime target)
     if(TonDron_BUNDLE_ONNXRUNTIME AND ONNXRUNTIME_RUNTIME_LIBS)
         get_target_property(_bundle ${target} MACOSX_BUNDLE)
@@ -774,35 +638,20 @@ TonDron_copy_transitions(TonDron)
 TonDron_copy_audio_effects(TonDron)
 TonDron_bundle_onnxruntime(TonDron)
 
-# --- install (used by packaging, e.g. Flatpak; the dev workflow runs in-place) ---
 include(GNUInstallDirs)
 
-# Everything TonDron installs is tagged with the "TonDron" component, so packaging can ask for the app
-# and nothing else: `cmake --install build --component TonDron`. JUCE's modules install ~50 MB of
-# their own sources into include/JUCE-<version>, and a plain `cmake --install` has no way to say no
-# to them. (The Flatpak manifests get the same result the other way round, by cleaning up /include.)
 if(APPLE)
-    # The bundle is complete after the build. Use -DCMAKE_INSTALL_PREFIX=/Applications.
     install(TARGETS TonDron BUNDLE DESTINATION . COMPONENT TonDron)
 else()
     install(TARGETS TonDron RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
-
-    # File-based effect/transition/template/audio-effect packages ship next to the binary;
-    # the app searches <appDir>/<subdir> (GpuPackageParse::defaultSearchPaths). Installing
-    # them here (rather than via the TonDron_*_DIR env vars) keeps installed addons able to
-    # supersede the bundled copies.
     foreach(_assetdir effects transitions effect-templates audio-effects)
         install(DIRECTORY ${CMAKE_SOURCE_DIR}/${_assetdir}
                 DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
     endforeach()
-
-    # Desktop integration for Flatpak / freedesktop.
     install(FILES flatpak/org.cutwire.TonDron.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT TonDron)
     install(FILES flatpak/org.cutwire.TonDron.metainfo.xml
             DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT TonDron)
-    # 1024px source is intentionally skipped: flatpak build-export rejects icons
-    # larger than 512x512.
     foreach(_size 64 128 256 512)
         install(FILES
             flatpak/share/icons/hicolor/${_size}x${_size}/apps/org.cutwire.TonDron.png
@@ -810,9 +659,6 @@ else()
     endforeach()
 endif()
 
-# --- CLI tools (headless engine testing, no GUI) ----------------------------
 add_subdirectory(tools)
-
-# --- tests -------------------------------------------------------------------
 enable_testing()
 add_subdirectory(tests)
