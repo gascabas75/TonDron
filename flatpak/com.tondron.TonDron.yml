@@ -2,7 +2,7 @@ app-id: com.tondron.TonDron
 runtime: org.kde.Platform
 runtime-version: "6.11"
 sdk: org.kde.Sdk
-command: TonDron
+command: tondron-videoedit
 
 finish-args:
   - --share=ipc

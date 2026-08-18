@@ -335,8 +335,7 @@ if(WITH_BGREMOVAL)
 endif()
 
 # --- application - UNICO y DEFINITIVO ---
-qt_add_executable(TonDron
-set_target_properties(TonDron PROPERTIES OUTPUT_NAME "tondron-videoedit")
+qt_add_executable(tondron-videoedit
     src/main.cpp
     src/TonDronImageProvider.cpp
     src/SegmentImageProvider.cpp
@@ -367,7 +366,7 @@ set_target_properties(TonDron PROPERTIES OUTPUT_NAME "tondron-videoedit")
 )
 
 target_include_directories(TonDron PUBLIC src)
-target_link_libraries(TonDron PRIVATE TonDronengine)
+target_link_libraries(tondron-videoedit PRIVATE TonDronengine)
 
 if(WIN32)
     set_target_properties(TonDron PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -515,7 +514,7 @@ qt_add_qml_module(TonDron
         ${TonDron_LUCIDE_ICONS}
 )
 
-target_link_libraries(TonDron PRIVATE
+target_link_libraries(tondron-videoedit PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickEffects
