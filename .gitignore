@@ -60,3 +60,7 @@ android-studio-*.exe
 TonDron/
 Watermark.py
 *.exe
+*.exe
+TonDron/
+_flatpak_build/
+.flatpak-builder/
