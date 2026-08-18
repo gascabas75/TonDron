@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=TonDron-VideoEdit
+Name[es]=TonDron Editor de Video
+GenericName=Video Editor
+GenericName[es]=Editor de Video 4K
+Comment=Pro video editor for DJI Air 3S - 4K 120fps, HLG, D-Log M
+Comment[es]=Editor profesional para DJI Air 3S - 4K 120fps, HLG, D-Log M, LUTs y video vertical
+Exec=tondron-videoedit
+Icon=com.tondron.TonDron
+Type=Application
+Categories=AudioVideo;Video;Graphics;
+Keywords=video;editor;dji;drone;4k;tondron;
+Keywords[es]=video;editor;dron;dji;4k;tondron;vertical;reels;shorts;
+StartupWMClass=com.tondron.TonDron
+Terminal=false

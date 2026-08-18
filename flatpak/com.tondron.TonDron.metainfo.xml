@@ -1,196 +1,25 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!-- Copyright 2026 CutWire Studios -->
+<?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>com.tondron.TonDron</id>
-  <name>Drift</name>
-  <summary>Edit and export videos easily</summary>
-  <description>
-    <p>
-      Drift is a free desktop video editor that feels simple from the first cut.
-      Drop in video, photos, and music, add effects and stickers, generate captions
-      automatically, and export — no subscription, no watermark, and no account
-      required.
-    </p>
-    <p>
-      Great for social videos, explainers, and everyday projects. Cut subjects out of
-      a frame, animate to the beat, style text and shapes, then add fonts and stickers
-      only when you need them.
-    </p>
-    <p>What you get:</p>
-    <ul>
-      <li>Multi-track timeline — trim, split, snap, and undo as you go</li>
-      <li>Effects, transitions, and reusable look templates</li>
-      <li>Stickers, emoji, titles, and shapes for a finished look</li>
-      <li>Auto captions from speech in your video</li>
-      <li>Cut out subjects, mask clips, and key out green screens</li>
-      <li>Speed changes, reverse playback, and fades</li>
-      <li>Animate to the beat of your music</li>
-      <li>Mix audio and clean up background noise</li>
-      <li>Optional addons for fonts, stickers, and extras</li>
-      <li>Project bundles that keep your media together</li>
-    </ul>
-  </description>
-  <branding>
-    <color type="primary" scheme_preference="light">#ffc780</color>
-    <color type="primary" scheme_preference="dark">#5c3300</color>
-  </branding>
   <launchable type="desktop-id">com.tondron.TonDron.desktop</launchable>
-  <developer id="org.cutwire">
-    <name>CutWire Studios</name>
-  </developer>
+  <name>TonDron-VideoEdit</name>
+  <name xml:lang="es">TonDron Editor de Video</name>
+  <summary>Pro video editor for DJI Air 3S - 4K 120fps, HLG, D-Log M</summary>
+  <summary xml:lang="es">Editor profesional para DJI Air 3S - 4K 120fps, HLG, D-Log M y vertical</summary>
+  <description>
+    <p>TonDron-VideoEdit is optimized for DJI Air 3S. 4K 120fps, HLG HDR, D-Log M to Rec.709, custom LUTs and 9:16 vertical export.</p>
+    <p xml:lang="es">TonDron-VideoEdit está optimizado para tu DJI Air 3S. Soporta 4K 120fps, HLG HDR, conversión D-Log M a Rec.709, LUTs personalizadas y exportación vertical 9:16 lista para Instagram Reels, TikTok y YouTube Shorts. Diseño negro con verde neón #00FF88 pensado para pilotos de dron en Latinoamérica.</p>
+  </description>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <content_rating type="oars-1.1" />
-  <categories>
-    <category>AudioVideo</category>
-    <category>Video</category>
-    <category>AudioVideoEditing</category>
-  </categories>
-  <url type="homepage">https://cutwire.org/drift</url>
-  <url type="bugtracker">https://github.com/CutWire-Studios/Drift/issues</url>
-  <url type="vcs-browser">https://github.com/CutWire-Studios/Drift</url>
-  <!-- Screenshot URLs are pinned to the release tag: Flathub rejects branch-based git URLs
-       because their contents change under the published listing. -->
+  <developer_name>TonDron</developer_name>
+  <url type="homepage">https://github.com/gascabas75/TonDron</url>
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/main-window.png</image>
-      <caption>The editor with the preview, timeline and panels</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/effects-panel.png</image>
-      <caption>Browsing effects to drop onto a clip</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/transitions-panel.png</image>
-      <caption>Choosing a transition between two clips</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/text-styles.png</image>
-      <caption>Styling a title with presets and colors</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/stickers-panel.png</image>
-      <caption>Adding stickers and emoji to a shot</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/subtitle-editor.png</image>
-      <caption>Editing captions generated from speech</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/subject-cutout.png</image>
-      <caption>Cutting a subject out of the frame</caption>
-    </screenshot>
-    <screenshot>
-      <image>https://raw.githubusercontent.com/CutWire-Studios/Drift/v0.1.1/docs/screenshots/addon-manager.png</image>
-      <caption>Installing optional fonts, stickers and models</caption>
+      <image>https://raw.githubusercontent.com/gascabas75/TonDron/main/screenshots/main-ui.png</image>
+      <caption>Interfaz principal TonDron-VideoEdit</caption>
+      <caption xml:lang="es">Interfaz principal verde neón</caption>
     </screenshot>
   </screenshots>
-  <releases>
-    <release version="0.2.2" date="2026-08-15">
-      <url type="details">https://github.com/CutWire-Studios/Drift/releases/tag/v0.2.2</url>
-      <description>
-        <p>A quick bug-fix release for AppImage users only. If you installed Drift from Flathub,
-        the Arch package or the Windows installer, nothing changes for you and there is no need
-        to update.</p>
-        <ul>
-          <li>Videos that the AppImage refused to open, or played as a black picture, now work.
-          The AppImage was bundling a cut-down copy of FFmpeg that didn't have several codecs.</li>
-          <li>The AppImage now runs natively on Wayland instead of falling back to XWayland. The
-          Wayland platform plugin was missing from the bundle.</li>
-        </ul>
-      </description>
-    </release>
-    <release version="0.2.1" date="2026-08-12">
-      <url type="details">https://github.com/CutWire-Studios/Drift/releases/tag/v0.2.1</url>
-      <description>
-        <p>A polish release focused on export options, playback controls, and everyday
-        editing quality-of-life.</p>
-        <ul>
-          <li>Export at different frame rates, including audio-only export</li>
-          <li>Export freeze frames as images; remember last export folder and settings</li>
-          <li>Playback controls for navigating the timeline</li>
-          <li>Animation tab with custom editable fade curves</li>
-          <li>Persist dark mode and media view; option to reopen the last project at startup</li>
-          <li>Timeline zoom stays centered on the playhead or cursor</li>
-          <li>Close gaps when trimming; clearer trim start/end icons</li>
-          <li>Avoid color-space conversion during composition that could reduce quality</li>
-        </ul>
-      </description>
-    </release>
-    <release version="0.2.0" date="2026-08-07">
-      <url type="details">https://github.com/CutWire-Studios/Drift/releases/tag/v0.2.0</url>
-      <description>
-        <p>A feature release with new editing tools, timeline and asset-browser improvements,
-        UI polish, performance work, and a batch of bug fixes.</p>
-        <ul>
-          <li>Aspect-locked clip resize in the preview (hold Shift to stretch freely)</li>
-          <li>Type exact values into property sliders; drag from the slider head works reliably</li>
-          <li>Delete, rename, search, favorites, and category browsing in the asset panel</li>
-          <li>Replace media in place while keeping timeline clips, effects, and layout</li>
-          <li>Disable and reorder effects on a clip; beauty and makeup face effects</li>
-          <li>Audio tempo follows clip speed; reverse video builds a reverse proxy with progress</li>
-          <li>Freeze frame captures the full composited image; clearer timeline bookmarks</li>
-          <li>Fit timeline in view, wider zoom for long projects, and scrolling on smaller screens</li>
-          <li>Redesigned text properties panel and style packs in the Text assets tab</li>
-          <li>Prompt to install essential addons on startup; less intrusive update notifications</li>
-          <li>Reliable media drag-and-drop onto the timeline on Mutter / GNOME</li>
-          <li>Fixed file-picker extensions on Flatpak, subtitle cue waveforms, and the project
-          setup dialog</li>
-          <li>Faster filmstrip thumbnails and lighter subtitle voice waveform mixing</li>
-        </ul>
-      </description>
-    </release>
-    <release version="0.1.2" date="2026-08-01">
-      <url type="details">https://github.com/CutWire-Studios/Drift/releases/tag/v0.1.2</url>
-      <description>
-        <p>Fixes for saving and exporting through the desktop file picker.</p>
-        <ul>
-          <li>Saving a project or exporting without typing a file extension no longer leaves the
-          result as a hidden file in flatpak builds</li>
-        </ul>
-      </description>
-    </release>
-    <release version="0.1.1" date="2026-07-31">
-      <url type="details">https://github.com/CutWire-Studios/Drift/releases/tag/v0.1.1</url>
-      <description>
-        <p>A small fix-up release on top of the first public version.</p>
-        <ul>
-          <li>Curves in the keyframe editor are drawn sharply instead of blurred</li>
-        </ul>
-      </description>
-    </release>
-    <release version="0.1.0" date="2026-07-27">
-      <url type="details">https://github.com/CutWire-Studios/Drift/releases/tag/v0.1.0</url>
-      <description>
-        <p>The first public release of Drift — a free, open-source desktop video editor with no
-        subscription, no watermark and no account.</p>
-        <ul>
-          <li>Multi-track timeline with trim, split, snap, ripple and full undo</li>
-          <li>GPU effects, transitions and reusable look templates</li>
-          <li>Titles, shapes, stickers and emoji</li>
-          <li>Automatic captions from the speech in your video</li>
-          <li>Subject cutout, clip masks and green-screen keying</li>
-          <li>Speed changes, reverse, fades and beat-synced animation</li>
-          <li>Audio mixing, an effect chain and background noise removal</li>
-          <li>Project bundles that keep a project and its media together</li>
-          <li>Export to MP4 (H.264 + AAC) that matches the preview</li>
-          <li>Optional addons for fonts, stickers, speech models and acceleration runtimes</li>
-        </ul>
-      </description>
-    </release>
-  </releases>
-  <screenshots>
-    <screenshot type="default">
-      <caption>Timeline DJI Air 3S - Edición 4K verde neón</caption>
-      <image>https://raw.githubusercontent.com/gascabas/TonDron/main/data/screenshots/screenshot-01-timeline.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Color Grading con scopes y LUT Natural Green Boost</caption>
-      <image>https://raw.githubusercontent.com/gascabas/TonDron/main/data/screenshots/screenshot-02-color.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Export DJI Air 3S 4K 60fps H.265 10-bit</caption>
-      <image>https://raw.githubusercontent.com/gascabas/TonDron/main/data/screenshots/screenshot-03-export.png</image>
-    </screenshot>
-  </screenshots>
+  <provides><id>com.tondron.TonDron.desktop</id></provides>
 </component>
