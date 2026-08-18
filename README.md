@@ -1,17 +1,18 @@
-# TonDron-VideoEdit 🎬💚🖤 - Editor para DJI Air 3S
+# TonDron VideoEdit
 
-> **Hecho por pilotos, para pilotos en Latinoamérica. Optimizado para DJI Air 3S.**
+> Editor de video libre y gratuito optimizado para flujos de trabajo con drones. Compatible con DJI Air 3S, Mini 4 Pro y otros.
 
-TonDron-VideoEdit es un editor de video profesional y gratuito, optimizado 100% para tu DJI Air 3S. Edita en 4K 120fps, HLG HDR y D-Log M sin perder calidad.
+TonDron es un editor no lineal enfocado en material aéreo en 4K, H.265 y perfiles de color D-Log M y HLG.
 
-### ✨ ¿Por qué TonDron?
+### Características
 
-*   **4K 120fps Real:** Soporta H.265 / H.264 de la Air 3S sin lag.
-*   **Color Profesional:** Conversión D-Log M a Rec.709 y HLG HDR con LUTs incluidas.
-*   **Vertical Inteligente:** Exporta en 9:16 con recorte inteligente con IA para Reels, TikTok y Shorts.
-*   **Diseño Piloto:** Interfaz negra con verde neón #00FF88, pensada para editar de noche después de volar.
+*   **Rendimiento 4K:** Reproducción y corte en H.265/H.264 hasta 4K 120fps mediante aceleración por hardware.
+*   **Gestión de color:** Conversión de D-Log M a Rec.709 y soporte HLG HDR con LUTs incluidas.
+*   **Exportación vertical:** Recorte inteligente 9:16 para redes sociales.
+*   **Marcas de agua y stickers:** Agrega tu logo como marca de agua en fotos y videos. Soporta PNG con transparencia, control de opacidad, escala y posición. Opción de aplicar a todo un lote.
+*   **Interfaz para edición nocturna:** Tema oscuro de alto contraste.
 
-### 🚀 Instalación (Flathub)
+### Instalación (Flathub)
 
 ```bash
 flatpak install flathub com.tondron.TonDron
