@@ -1,0 +1,104 @@
+app-id: com.tondron.TonDron
+runtime: org.kde.Platform
+runtime-version: "6.11"
+sdk: org.kde.Sdk
+command: TonDron
+
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Audio playback via QAudioSink (PipeWire/PulseAudio).
+  - --socket=pulseaudio
+  # The Addon Manager fetches signed .TonDronpkg packages from TonDron-addons.cutwire.org.
+  - --share=network
+  # OpenGL scene graph and the GPU compositor need direct rendering.
+  - --device=dri
+  # Media import/export goes through xdg-desktop-portal (the app deliberately uses
+  # QApplication so QFileDialog is the native portal picker), so no broad --filesystem
+  # is granted. Add --filesystem=host only if media access proves painful in testing.
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /lib/cmake
+  - /share/aclocal
+  - /share/doc
+  - /share/man
+  - "*.a"
+  - "*.la"
+
+modules:
+  # Headers only. TonDron does not link ONNX Runtime — it dlopens whichever build the user
+  # installed from the Acceleration category, so the app ships none and neither does this
+  # manifest. The library in this archive is deliberately discarded. Built with
+  # -DTonDron_FETCH_ONNXRUNTIME=OFF so the sandboxed build never downloads anything itself.
+  - name: onnxruntime-headers
+    buildsystem: simple
+    build-commands:
+      - install -d ${FLATPAK_DEST}/include
+      - cp -a include/. ${FLATPAK_DEST}/include/
+    sources:
+      - type: archive
+        url: https://github.com/microsoft/onnxruntime/releases/download/v1.27.0/onnxruntime-linux-x64-1.27.0.tgz
+        sha256: 547e40a48f1fe73e3f812d7c88a948612c23f896b91e4e2ee1e232d7b468246f
+        strip-components: 1
+        only-arches:
+          - x86_64
+      - type: archive
+        url: https://github.com/microsoft/onnxruntime/releases/download/v1.27.0/onnxruntime-linux-aarch64-1.27.0.tgz
+        sha256: 3e4d83ac06924a32a07b6d7f91ce6f852876153fc0bbdf931bf517a140bfbe48
+        strip-components: 1
+        only-arches:
+          - aarch64
+
+  # Pitch shifting for the voice effects. Not in org.kde.Platform, so it is built here; the app
+  # links it, which is fine for GPL-3.0 since LGPL-2.1 section 3 permits use under GPL v2 or later.
+  - name: soundtouch
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=ON
+      - -DSOUNDSTRETCH=OFF
+      # Without this it lands in /app/lib64, where two things fail to look: pkg-config (so TonDron
+      # falls through to SoundTouch's own broken CMake config) and the runtime linker, whose path
+      # inside the sandbox is /app/lib.
+      - -DCMAKE_INSTALL_LIBDIR=lib
+    sources:
+      # Upstream's own release tarball rather than the Codeberg git repo: Codeberg 403s clones
+      # from CI runner IP ranges. Byte-identical to the 2.4.1 tag's tree.
+      - type: archive
+        url: https://www.surina.net/soundtouch/soundtouch-2.4.1.tar.gz
+        sha256: e07abf20ce8f95850c280132e1f61ad400fc1f4011b7fac698a503de6aab6733
+
+  - name: TonDron
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DTonDron_FETCH_ONNXRUNTIME=OFF
+      - -DTonDron_BUNDLE_ONNXRUNTIME=OFF
+      - -DONNXRUNTIME_ROOT=/app
+      # JUCE is checked out as a source below rather than fetched by CMake: the build runs with no
+      # network, so FetchContent would fail here.
+      - -DTonDron_FETCH_JUCE=OFF
+      - -DTonDron_JUCE_DIR=juce
+      # Flathub updates this build, so the in-app update check is compiled out: an app that nags
+      # about a version flatpak will fetch on its own is noise the user cannot act on.
+      - -DTonDron_UPDATE_FEED_URL=
+    sources:
+      - type: dir
+        path: ..
+        skip:
+          - flatpak/.flatpak-builder
+          - flatpak/build-dir
+          - flatpak/repo
+          - flatpak/dist
+          - build
+          - juce
+      # Audio effect DSP. Only juce_dsp and its dependencies are compiled; nothing GUI-facing.
+      - type: git
+        url: https://github.com/juce-framework/JUCE.git
+        tag: 8.0.15
+        commit: 91ad83ae34a81e0833b1a2b0866f54846370ae53
+        dest: juce
