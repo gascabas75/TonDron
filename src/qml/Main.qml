@@ -13,7 +13,7 @@ ApplicationWindow {
     minimumWidth: Theme.windowMinimumWidth
     minimumHeight: Theme.windowMinimumHeight
     visible: true
-    title: "CutWire Drift"
+    title: "TonDron-VideoEdit"
     color: Theme.appBackground
 
     LayoutMirroring.enabled: Qt.application.layoutDirection === Qt.RightToLeft
