@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!-- Copyright 2026 CutWire Studios -->
 <component type="desktop-application">
-  <id>org.cutwire.Drift</id>
+  <id>com.tondron.TonDron</id>
   <name>Drift</name>
   <summary>Edit and export videos easily</summary>
   <description>
@@ -34,7 +34,7 @@
     <color type="primary" scheme_preference="light">#ffc780</color>
     <color type="primary" scheme_preference="dark">#5c3300</color>
   </branding>
-  <launchable type="desktop-id">org.cutwire.Drift.desktop</launchable>
+  <launchable type="desktop-id">com.tondron.TonDron.desktop</launchable>
   <developer id="org.cutwire">
     <name>CutWire Studios</name>
   </developer>

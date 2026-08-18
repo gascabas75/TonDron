@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.21)
 
 # Must be set before project(). Left unset, the binary is stamped with the build machine's OS
 # version and will not launch on anything older.
-set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Oldest macOS release Drift runs on")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Oldest macOS release TonDron runs on")
 
 # C is enabled for JUCE only: its modules compile a handful of C sources (zlib, flac, oggvorbis)
 # and its CMake refuses to configure without it.
-project(Drift VERSION 0.2.2 LANGUAGES CXX C)
+project(TonDron VERSION 0.2.2 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -52,7 +52,7 @@ option(WITH_BGREMOVAL "Enable OpenCV-based background removal" OFF)
 set(DRIFT_ADDON_INDEX_URL "https://drift-addons.cutwire.org/v1/index"
     CACHE STRING "Addon index endpoint; empty disables the addon service")
 set(DRIFT_ADDON_CLIENT_TOKEN "79a388bba9301cacc81cc6eb0724c81e948e1b27c69aee1b"
-    CACHE STRING "Client token sent to the addon service as X-Drift-Client")
+    CACHE STRING "Client token sent to the addon service as X-TonDron-Client")
 
 # --- Update check -----------------------------------------------------------
 # Where src/models/UpdateChecker looks for a newer release, once a day, to raise the badge in the
@@ -62,7 +62,7 @@ set(DRIFT_ADDON_CLIENT_TOKEN "79a388bba9301cacc81cc6eb0724c81e948e1b27c69aee1b"
 # Set it to an empty string for builds a package manager owns — the Flatpak manifests and the Arch
 # PKGBUILD all do. There, pacman or flatpak fetches the update on its own schedule and an in-app
 # nag is noise the user cannot act on (Flathub's quality guidelines say as much).
-set(DRIFT_UPDATE_FEED_URL "https://api.github.com/repos/CutWire-Studios/Drift/releases/latest"
+set(DRIFT_UPDATE_FEED_URL "https://api.github.com/repos/CutWire-Studios/TonDron/releases/latest"
     CACHE STRING "Release feed polled for updates; empty disables the update check")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Test Concurrent Widgets OpenGL Network QuickEffects LinguistTools)
@@ -194,8 +194,8 @@ endif()
 #
 # Acquisition mirrors ONNX Runtime above: a local tree wins, otherwise fetch. flatpak-builder runs
 # offline, so packaged builds set DRIFT_JUCE_DIR at a source it vendored itself and turn the fetch
-# off (see flatpak/org.cutwire.Drift.yml).
-# Drift links exactly one JUCE module and calls none of JUCE's project helpers, so everything past
+# off (see flatpak/org.cutwire.TonDron.yml).
+# TonDron links exactly one JUCE module and calls none of JUCE's project helpers, so everything past
 # add_subdirectory(modules) is dead weight: it configures and builds juceaide, and — the part that
 # actually leaks — adds install() rules that drop JUCE's headers, its LV2 helper binary and its
 # CMake package config into any `cmake --install` prefix, i.e. into the AppImage and the distro
@@ -436,8 +436,8 @@ endif()
 # --- application ------------------------------------------------------------
 qt_add_executable(drift
     src/main.cpp
-    src/DriftImageProvider.h
-    src/DriftImageProvider.cpp
+    src/TonDronImageProvider.h
+    src/TonDronImageProvider.cpp
     src/SegmentImageProvider.h
     src/SegmentImageProvider.cpp
     src/SegmentImageStore.h
@@ -506,12 +506,12 @@ if(WIN32)
 endif()
 
 # Without a bundle macOS runs the app as a background process, with no Dock tile or menu bar.
-# It also collides with the <build>/Drift/ directory qt_add_qml_module(URI Drift) writes, which
+# It also collides with the <build>/TonDron/ directory qt_add_qml_module(URI TonDron) writes, which
 # on case-insensitive APFS fails the link with EISDIR.
 if(APPLE)
-    set(DRIFT_MACOS_EXECUTABLE "Drift")
-    set(DRIFT_MACOS_BUNDLE_ID "org.cutwire.Drift")
-    set(DRIFT_MACOS_ICON_FILE "Drift.icns")
+    set(DRIFT_MACOS_EXECUTABLE "TonDron")
+    set(DRIFT_MACOS_BUNDLE_ID "org.cutwire.TonDron")
+    set(DRIFT_MACOS_ICON_FILE "TonDron.icns")
 
     # Not CMake's MACOSX_BUNDLE_* properties: the NS* and LSMinimumSystemVersion keys have none.
     configure_file(
@@ -530,7 +530,7 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
 endif()
 
-# App icon for QApplication::setWindowIcon (all platforms). Rendered from Drift_icon.png,
+# App icon for QApplication::setWindowIcon (all platforms). Rendered from TonDron_icon.png,
 # as is resources/windows/drift.ico — keep the two in sync when the branding changes.
 qt_add_resources(drift "drift_app_icon"
     PREFIX "/app"
@@ -547,7 +547,7 @@ file(GLOB DRIFT_LUCIDE_ICONS RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS
      "resources/icons/*.png")
 
 qt_add_qml_module(drift
-    URI Drift
+    URI TonDron
     VERSION 1.0
     QML_FILES
         src/qml/Main.qml
@@ -806,7 +806,7 @@ drift_bundle_onnxruntime(drift)
 # --- install (used by packaging, e.g. Flatpak; the dev workflow runs in-place) ---
 include(GNUInstallDirs)
 
-# Everything Drift installs is tagged with the "drift" component, so packaging can ask for the app
+# Everything TonDron installs is tagged with the "drift" component, so packaging can ask for the app
 # and nothing else: `cmake --install build --component drift`. JUCE's modules install ~50 MB of
 # their own sources into include/JUCE-<version>, and a plain `cmake --install` has no way to say no
 # to them. (The Flatpak manifests get the same result the other way round, by cleaning up /include.)
@@ -826,15 +826,15 @@ else()
     endforeach()
 
     # Desktop integration for Flatpak / freedesktop.
-    install(FILES flatpak/org.cutwire.Drift.desktop
+    install(FILES flatpak/org.cutwire.TonDron.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT drift)
-    install(FILES flatpak/org.cutwire.Drift.metainfo.xml
+    install(FILES flatpak/org.cutwire.TonDron.metainfo.xml
             DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT drift)
     # 1024px source is intentionally skipped: flatpak build-export rejects icons
     # larger than 512x512.
     foreach(_size 64 128 256 512)
         install(FILES
-            flatpak/share/icons/hicolor/${_size}x${_size}/apps/org.cutwire.Drift.png
+            flatpak/share/icons/hicolor/${_size}x${_size}/apps/org.cutwire.TonDron.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT drift)
     endforeach()
 endif()
