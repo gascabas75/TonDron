@@ -393,19 +393,21 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
 endif()
 
-qt_add_resources(TonDron "TonDron_app_icon"
-    PREFIX "/app"
-    BASE resources
-    FILES resources/TonDron.png
+qt_add_resources(tondron-videoedit "TonDron_app_icon"
+  PREFIX "/app"
+  BASE resources
+  FILES TonDron.png
 )
 
 set_source_files_properties(src/qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
 set_source_files_properties(src/qml/Toasts.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
 
-file(GLOB TonDron_LUCIDE_ICONS RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS
-     "resources/icons/*.png")
+file(GLOB TonDron_LUCIDE_ICONS RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS "resources/icons/*.png")
 
-qt_add_qml_module(TonDron
+qt_add_qml_module(tondron-videoedit
+  URI TonDron
+  VERSION 1.0
+  OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TonDron
     URI TonDron
     VERSION 1.0
     QML_FILES
