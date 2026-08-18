@@ -1,0 +1,31 @@
+name: Flathub Build - TonDron-VideoEdit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  flatpak:
+    name: Flatpak Builder
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-46
+      options: --privileged
+
+    steps:
+      - name: Checkout TonDron
+        uses: actions/checkout@v4
+
+      - name: Build com.tondron.TonDron
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: TonDron-VideoEdit.flatpak
+          manifest-path: flatpak/com.tondron.TonDron.json
+          cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Validate metainfo for Flathub
+        run: |
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest flatpak/com.tondron.TonDron.json || true
+          appstreamcli validate --explain flatpak/com.tondron.TonDron.metainfo.xml || true
