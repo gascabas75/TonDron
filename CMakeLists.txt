@@ -538,7 +538,7 @@ if(TonDron_MCP_SOURCES)
 endif()
 
 file(GLOB TonDron_TS_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/i18n/TonDron_*.ts")
-qt_add_translations(TonDron
+qt_add_translations(tondron-videoedit
     TS_FILES
         "${CMAKE_SOURCE_DIR}/i18n/TonDron.ts"
         ${TonDron_TS_FILES}
@@ -643,9 +643,9 @@ TonDron_bundle_onnxruntime(TonDron)
 include(GNUInstallDirs)
 
 if(APPLE)
-    install(TARGETS TonDron BUNDLE DESTINATION . COMPONENT TonDron)
+    install(TARGETS tondron-videoedit BUNDLE DESTINATION . COMPONENT TonDron)
 else()
-    install(TARGETS TonDron RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
+    install(TARGETS tondron-videoedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
     foreach(_assetdir effects transitions effect-templates audio-effects)
         install(DIRECTORY ${CMAKE_SOURCE_DIR}/${_assetdir}
                 DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
