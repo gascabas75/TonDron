@@ -213,11 +213,11 @@ add_library(TonDronaudiodsp STATIC
     src/engine/audio/ClipAudioRetimer.cpp
 )
 set_target_properties(TonDronaudiodsp PROPERTIES AUTOMOC OFF)
-target_include_directories(tondron-videoeditaudiodsp PUBLIC src)
-target_link_libraries(tondron-videoeditaudiodsp PUBLIC TonDroncore)
-target_link_libraries(tondron-videoeditaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
+target_include_directories(TonDronaudiodsp PUBLIC src)
+target_link_libraries(TonDronaudiodsp PUBLIC TonDroncore)
+target_link_libraries(TonDronaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
     ${TonDron_SOUNDTOUCH_TARGET})
-target_compile_definitions(tondron-videoeditaudiodsp PRIVATE
+target_compile_definitions(TonDronaudiodsp PRIVATE
     JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
