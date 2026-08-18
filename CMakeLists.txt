@@ -336,6 +336,7 @@ endif()
 
 # --- application - UNICO y DEFINITIVO ---
 qt_add_executable(TonDron
+set_target_properties(TonDron PROPERTIES OUTPUT_NAME "tondron")
     src/main.cpp
     src/TonDronImageProvider.cpp
     src/SegmentImageProvider.cpp
