@@ -179,4 +179,18 @@
       </description>
     </release>
   </releases>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Timeline DJI Air 3S - Edición 4K verde neón</caption>
+      <image>https://raw.githubusercontent.com/gascabas/TonDron/main/data/screenshots/screenshot-01-timeline.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Color Grading con scopes y LUT Natural Green Boost</caption>
+      <image>https://raw.githubusercontent.com/gascabas/TonDron/main/data/screenshots/screenshot-02-color.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Export DJI Air 3S 4K 60fps H.265 10-bit</caption>
+      <image>https://raw.githubusercontent.com/gascabas/TonDron/main/data/screenshots/screenshot-03-export.png</image>
+    </screenshot>
+  </screenshots>
 </component>
