@@ -8,7 +8,7 @@
 
 #include <memory>
 
-namespace drift {
+namespace TonDron {
 
 // One effect instance reduced to what the DSP needs: which processor to build, how much warm-up it
 // wants, and its resolved parameter values. Built by audioEffectSpecsFor() in AudioEffectCatalog,
@@ -57,12 +57,12 @@ public:
 
     void reset();
 
-    drift::TimeUs lastTimelineEndUs() const;
-    void setLastTimelineEndUs(drift::TimeUs us);
+    TonDron::TimeUs lastTimelineEndUs() const;
+    void setLastTimelineEndUs(TonDron::TimeUs us);
 
 private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace drift
+} // namespace TonDron

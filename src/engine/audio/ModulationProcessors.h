@@ -2,7 +2,7 @@
 
 #include "engine/audio/AudioEffectProcessor.h"
 
-namespace drift {
+namespace TonDron {
 
 using LinearDelayLine = juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>;
 
@@ -197,4 +197,4 @@ private:
     float m_outTarget = 1.0f;
 };
 
-} // namespace drift
+} // namespace TonDron

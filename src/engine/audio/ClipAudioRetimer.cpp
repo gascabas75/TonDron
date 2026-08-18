@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstring>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -33,14 +33,14 @@ constexpr int kMaxPullIterations = 256;
 // Frame counts are converted through microseconds exactly the way ClipReader advances its own
 // position, so the two cursors stay bit-identical. Accumulating from a running frame total instead
 // loses a fraction of a microsecond per call and eventually forces a spurious seek.
-drift::TimeUs framesToUs(int frames, int sampleRate)
+TonDron::TimeUs framesToUs(int frames, int sampleRate)
 {
-    return static_cast<drift::TimeUs>(frames) * drift::kUsPerSecond / sampleRate;
+    return static_cast<TonDron::TimeUs>(frames) * TonDron::kUsPerSecond / sampleRate;
 }
 
-int usToFrames(drift::TimeUs us, int sampleRate)
+int usToFrames(TonDron::TimeUs us, int sampleRate)
 {
-    return static_cast<int>((us * sampleRate) / drift::kUsPerSecond);
+    return static_cast<int>((us * sampleRate) / TonDron::kUsPerSecond);
 }
 
 } // namespace
@@ -55,8 +55,8 @@ struct ClipAudioRetimer::Impl
     bool reverse = false;
     int reservoir = 0;
     bool flushed = false;
-    drift::TimeUs lastTimelineEndUs = -1;
-    drift::TimeUs srcCursorUs = 0;
+    TonDron::TimeUs lastTimelineEndUs = -1;
+    TonDron::TimeUs srcCursorUs = 0;
 
     std::vector<float> staging; // interleaved source waiting to go into the stretcher
     size_t stagingRead = 0;
@@ -67,7 +67,7 @@ struct ClipAudioRetimer::Impl
     int fifoFrames() const { return static_cast<int>((fifo.size() - fifoRead) / kChannels); }
 
     void prepare(int rate);
-    void restart(drift::TimeUs sourceStartUs);
+    void restart(TonDron::TimeUs sourceStartUs);
     void applyTempo(double value);
     bool refillStaging(const SourcePull &pull);
     void pushStaging();
@@ -91,7 +91,7 @@ void ClipAudioRetimer::Impl::prepare(int rate)
     lastTimelineEndUs = -1;
 }
 
-void ClipAudioRetimer::Impl::restart(drift::TimeUs sourceStartUs)
+void ClipAudioRetimer::Impl::restart(TonDron::TimeUs sourceStartUs)
 {
     stretcher->clear(); // settings survive
     staging.clear();
@@ -99,14 +99,14 @@ void ClipAudioRetimer::Impl::restart(drift::TimeUs sourceStartUs)
     fifo.clear();
     fifoRead = 0;
     flushed = false;
-    srcCursorUs = qMax<drift::TimeUs>(0, sourceStartUs);
+    srcCursorUs = qMax<TonDron::TimeUs>(0, sourceStartUs);
 }
 
 void ClipAudioRetimer::Impl::applyTempo(double value)
 {
     // clip.speed comes back from project JSON without the range the setters enforce, so a zero or a
     // negative can reach here — inside SoundTouch that is a divide by zero.
-    const double clamped = qBound(drift::kMinCurveSpeed, value, drift::kMaxCurveSpeed);
+    const double clamped = qBound(TonDron::kMinCurveSpeed, value, TonDron::kMaxCurveSpeed);
     if (std::abs(clamped - tempo) < 1e-9)
         return;
 
@@ -138,7 +138,7 @@ bool ClipAudioRetimer::Impl::refillStaging(const SourcePull &pull)
     if (readFrames <= 0)
         return false;
 
-    const drift::TimeUs readStartUs = srcCursorUs - framesToUs(readFrames, sampleRate);
+    const TonDron::TimeUs readStartUs = srcCursorUs - framesToUs(readFrames, sampleRate);
     // Reading into the front and leaving the tail zeroed is what keeps a short read from shifting
     // the stream: buffer index i is source readStartUs + i either way, so after the flip the
     // missing frames land at the head of the segment, where they belong, instead of displacing
@@ -262,4 +262,4 @@ void ClipAudioRetimer::process(const ClipAudioBlock &block, const SourcePull &pu
     m_impl->lastTimelineEndUs = block.timelineStartUs + framesToUs(frames, block.sampleRate);
 }
 
-} // namespace drift
+} // namespace TonDron

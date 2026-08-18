@@ -9,7 +9,7 @@ namespace soundtouch {
 class SoundTouch;
 }
 
-namespace drift {
+namespace TonDron {
 
 // Pitch shift with the duration preserved — what the asetrate + aresample + atempo chain these
 // effects used to carry did the long way round.
@@ -47,4 +47,4 @@ private:
     bool m_filling = true;
 };
 
-} // namespace drift
+} // namespace TonDron

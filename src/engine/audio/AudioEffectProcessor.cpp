@@ -1,6 +1,6 @@
 #include "engine/audio/AudioEffectProcessor.h"
 
-namespace drift {
+namespace TonDron {
 
 void ChainProcessor::bind(const QString &paramId, std::function<void(float)> setter)
 {
@@ -40,4 +40,4 @@ int ChainProcessor::latencySamples() const
     return total;
 }
 
-} // namespace drift
+} // namespace TonDron

@@ -2,7 +2,7 @@
 
 #include "engine/audio/AudioEffectProcessor.h"
 
-namespace drift {
+namespace TonDron {
 
 // bass=g:f=110 + equalizer=f=1000:t=q:w=1.2:g + treble=g:f=8000.
 // Coefficients are recomputed on change but filter state carries over, so a gain move glides
@@ -128,4 +128,4 @@ private:
     float m_target = 1.0f;
 };
 
-} // namespace drift
+} // namespace TonDron

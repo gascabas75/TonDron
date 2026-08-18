@@ -10,7 +10,7 @@
 #include <cmath>
 #include <functional>
 
-namespace drift::audiofx {
+namespace TonDron::audiofx {
 
 namespace {
 
@@ -332,4 +332,4 @@ QStringList processorIds()
     return ids;
 }
 
-} // namespace drift::audiofx
+} // namespace TonDron::audiofx

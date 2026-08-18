@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -143,4 +143,4 @@ void SoundTouchPitchProcessor::reset()
     m_filling = true;
 }
 
-} // namespace drift
+} // namespace TonDron

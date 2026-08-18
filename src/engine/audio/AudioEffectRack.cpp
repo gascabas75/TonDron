@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -22,7 +22,7 @@ struct AudioEffectRack::Impl
     QString signature;
     int sampleRate = 0;
     int primeFrames = 0;
-    drift::TimeUs lastTimelineEndUs = -1;
+    TonDron::TimeUs lastTimelineEndUs = -1;
     std::vector<std::unique_ptr<ChainProcessor>> chains;
     juce::AudioBuffer<float> scratch;
 
@@ -161,14 +161,14 @@ void AudioEffectRack::reset()
     m_impl->lastTimelineEndUs = -1;
 }
 
-drift::TimeUs AudioEffectRack::lastTimelineEndUs() const
+TonDron::TimeUs AudioEffectRack::lastTimelineEndUs() const
 {
     return m_impl->lastTimelineEndUs;
 }
 
-void AudioEffectRack::setLastTimelineEndUs(drift::TimeUs us)
+void AudioEffectRack::setLastTimelineEndUs(TonDron::TimeUs us)
 {
     m_impl->lastTimelineEndUs = us;
 }
 
-} // namespace drift
+} // namespace TonDron

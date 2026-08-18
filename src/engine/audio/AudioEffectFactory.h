@@ -5,7 +5,7 @@
 
 #include <memory>
 
-namespace drift {
+namespace TonDron {
 
 class ChainProcessor;
 
@@ -24,4 +24,4 @@ bool hasProcessor(const QString &processorId);
 QStringList processorIds();
 
 } // namespace audiofx
-} // namespace drift
+} // namespace TonDron

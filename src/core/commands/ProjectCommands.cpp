@@ -1,6 +1,6 @@
 #include "ProjectCommands.h"
 
-namespace drift {
+namespace TonDron {
 
 ProjectSnapshotCommand::ProjectSnapshotCommand(Project *project, Project before, Project after,
                                                const QString &text)
@@ -23,4 +23,4 @@ void ProjectSnapshotCommand::redo()
         *m_project = m_after;
 }
 
-} // namespace drift
+} // namespace TonDron

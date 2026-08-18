@@ -7,7 +7,7 @@
 #include <functional>
 #include <memory>
 
-namespace drift {
+namespace TonDron {
 
 // Everything the retimer needs to know about one block of one clip. Passed by value every block so
 // the retimer never holds a reference into the project, which the GUI thread mutates underneath the
@@ -22,8 +22,8 @@ struct ClipAudioBlock
     // Timeline position of the first frame this block emits, and the source position it maps to.
     // The source position is only consulted when the stream restarts; while it runs the retimer
     // walks the source itself.
-    drift::TimeUs timelineStartUs = 0;
-    drift::TimeUs sourceStartUs = 0;
+    TonDron::TimeUs timelineStartUs = 0;
+    TonDron::TimeUs sourceStartUs = 0;
     double tempo = 1.0;
     bool reverse = false;
 };
@@ -47,7 +47,7 @@ public:
     // Writes up to `frames` of interleaved stereo from the clip's source starting at sourceStartUs,
     // resampled to the block's sample rate. Returns frames actually written; 0 means end of source.
     using SourcePull =
-        std::function<int(drift::TimeUs sourceStartUs, int frames, float *interleavedStereo)>;
+        std::function<int(TonDron::TimeUs sourceStartUs, int frames, float *interleavedStereo)>;
 
     ClipAudioRetimer();
     ~ClipAudioRetimer();
@@ -69,4 +69,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-} // namespace drift
+} // namespace TonDron

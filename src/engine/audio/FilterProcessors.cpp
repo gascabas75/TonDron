@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -285,4 +285,4 @@ void GainProcessor::reset()
     m_gain.setCurrentAndTargetValue(m_target);
 }
 
-} // namespace drift
+} // namespace TonDron

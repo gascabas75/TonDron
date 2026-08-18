@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace drift {
+namespace TonDron {
 
 namespace {
 
@@ -290,4 +290,4 @@ void LevelerProcessor::reset()
     m_envelope = 0.0f;
 }
 
-} // namespace drift
+} // namespace TonDron

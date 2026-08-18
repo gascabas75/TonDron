@@ -4,7 +4,7 @@
 
 #include <QUndoCommand>
 
-namespace drift {
+namespace TonDron {
 
 // Restores a full project snapshot on undo/redo.
 class ProjectSnapshotCommand : public QUndoCommand
@@ -21,4 +21,4 @@ private:
     Project m_after;
 };
 
-} // namespace drift
+} // namespace TonDron

@@ -10,7 +10,7 @@
 
 #include <juce_dsp/juce_dsp.h>
 
-namespace drift {
+namespace TonDron {
 
 // Seconds a changed parameter takes to reach its new value. Long enough that a slider drag is a
 // ramp rather than a step, short enough that the effect still feels responsive.
@@ -83,4 +83,4 @@ private:
     QHash<QString, std::function<void(float)>> m_bindings;
 };
 
-} // namespace drift
+} // namespace TonDron
