@@ -191,8 +191,8 @@ add_library(TonDroncore STATIC
     src/core/commands/ProjectCommands.h
     src/core/commands/ProjectCommands.cpp
 )
-target_include_directories(tondron-videoeditcore PUBLIC src)
-target_link_libraries(tondron-videoeditcore PUBLIC Qt6::Core Qt6::Gui)
+target_include_directories(TonDroncore PUBLIC src)
+target_link_libraries(TonDroncore PUBLIC Qt6::Core Qt6::Gui)
 
 add_library(TonDronaudiodsp STATIC
     src/engine/audio/AudioEffectProcessor.h
@@ -323,15 +323,15 @@ add_library(TonDronengine STATIC
     src/engine/ProjectDependencies.cpp
 )
 
-target_include_directories(tondron-videoeditengine PUBLIC src)
-target_link_libraries(tondron-videoeditengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore TonDronaudiodsp onnxruntime::headers)
-target_link_libraries(tondron-videoeditengine PRIVATE ${TonDron_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
-target_compile_definitions(tondron-videoeditengine PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
+target_include_directories(TonDronengine PUBLIC src)
+target_link_libraries(TonDronengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore TonDronaudiodsp onnxruntime::headers)
+target_link_libraries(TonDronengine PRIVATE ${TonDron_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
+target_compile_definitions(TonDronengine PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
 
 if(WITH_BGREMOVAL)
-    target_include_directories(tondron-videoeditengine PRIVATE ${OpenCV_INCLUDE_DIRS})
-    target_link_libraries(tondron-videoeditengine PRIVATE ${OpenCV_LIBS})
-    target_compile_definitions(tondron-videoeditengine PUBLIC TonDron_WITH_BGREMOVAL)
+    target_include_directories(TonDronengine PRIVATE ${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(TonDronengine PRIVATE ${OpenCV_LIBS})
+    target_compile_definitions(TonDronengine PUBLIC TonDron_WITH_BGREMOVAL)
 endif()
 
 # --- application - UNICO y DEFINITIVO ---
