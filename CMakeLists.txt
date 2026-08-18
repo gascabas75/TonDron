@@ -19,11 +19,11 @@ option(WITH_BGREMOVAL "Enable OpenCV-based background removal" OFF)
 
 # Fonts, stickers and the Whisper model used to be fetched or extracted here and shipped inside
 # the build tree — roughly 800 MB of assets every user paid for whether or not they used them.
-# They are now addons: signed .driftpkg archives downloaded at runtime into <AppDataLocation>/
+# They are now addons: signed .TonDronpkg archives downloaded at runtime into <AppDataLocation>/
 # addons/ (src/engine/AddonPackage, src/models/AddonManager). Nothing asset-shaped is bundled,
 # so a fresh build starts with system fonts, an empty sticker tab and no transcriber, and the
 # user installs what they want from the Addon Manager. The packaging and publishing tooling
-# lives in the drift-addons repo.
+# lives in the TonDron-addons repo.
 #
 # Effects and transitions are the exception: they are small, they are source (GLSL reviewed
 # alongside the engine that runs them), and an editor with an empty effects browser is broken
@@ -31,27 +31,27 @@ option(WITH_BGREMOVAL "Enable OpenCV-based background removal" OFF)
 # installed package outranks the bundled one of the same id (see defaultSearchPaths), which is
 # what lets a shader fix go out without an app release.
 #
-# For development without downloading, point DRIFT_EFFECTS_DIR, DRIFT_TRANSITIONS_DIR,
-# DRIFT_FONTS_DIR, DRIFT_STICKERS_DIR, DRIFT_EMOJI_FONT_DIR or DRIFT_WHISPER_MODEL_DIR at a local
+# For development without downloading, point TonDron_EFFECTS_DIR, TonDron_TRANSITIONS_DIR,
+# TonDron_FONTS_DIR, TonDron_STICKERS_DIR, TonDron_EMOJI_FONT_DIR or TonDron_WHISPER_MODEL_DIR at a local
 # directory; those outrank everything, including installed addons.
 
 # --- Addon service ----------------------------------------------------------
 # Where the Addon Manager fetches from. These are the only place either value is defined —
 # src/models/AddonEndpoint.h just reads them — so a fork can point at its own Worker with:
 #
-#   cmake -B build -DDRIFT_ADDON_INDEX_URL=https://addons.example.com/v1/index \
-#                  -DDRIFT_ADDON_CLIENT_TOKEN=...
+#   cmake -B build -DTonDron_ADDON_INDEX_URL=https://addons.example.com/v1/index \
+#                  -DTonDron_ADDON_CLIENT_TOKEN=...
 #
-# Set DRIFT_ADDON_INDEX_URL to an empty string to build with the addon service disabled: the
+# Set TonDron_ADDON_INDEX_URL to an empty string to build with the addon service disabled: the
 # manager then lists nothing and installs nothing, and the app runs on locally installed or
 # side-loaded content only.
 #
 # The token is NOT a secret. It ships inside every binary and is trivially extractable; it exists
 # so the bucket cannot be crawled or hotlinked, which would cost operations for someone else's
 # benefit. That is also why it is fine in CMakeCache.txt.
-set(DRIFT_ADDON_INDEX_URL "https://drift-addons.cutwire.org/v1/index"
+set(TonDron_ADDON_INDEX_URL "https://TonDron-addons.cutwire.org/v1/index"
     CACHE STRING "Addon index endpoint; empty disables the addon service")
-set(DRIFT_ADDON_CLIENT_TOKEN "79a388bba9301cacc81cc6eb0724c81e948e1b27c69aee1b"
+set(TonDron_ADDON_CLIENT_TOKEN "79a388bba9301cacc81cc6eb0724c81e948e1b27c69aee1b"
     CACHE STRING "Client token sent to the addon service as X-TonDron-Client")
 
 # --- Update check -----------------------------------------------------------
@@ -62,7 +62,7 @@ set(DRIFT_ADDON_CLIENT_TOKEN "79a388bba9301cacc81cc6eb0724c81e948e1b27c69aee1b"
 # Set it to an empty string for builds a package manager owns — the Flatpak manifests and the Arch
 # PKGBUILD all do. There, pacman or flatpak fetches the update on its own schedule and an in-app
 # nag is noise the user cannot act on (Flathub's quality guidelines say as much).
-set(DRIFT_UPDATE_FEED_URL "https://api.github.com/repos/CutWire-Studios/TonDron/releases/latest"
+set(TonDron_UPDATE_FEED_URL "https://api.github.com/repos/CutWire-Studios/TonDron/releases/latest"
     CACHE STRING "Release feed polled for updates; empty disables the update check")
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Multimedia Test Concurrent Widgets OpenGL Network QuickEffects LinguistTools)
@@ -72,35 +72,35 @@ find_package(FFmpeg REQUIRED)
 # app links none of it: it compiles against the headers and dlopens a runtime at startup
 # (src/engine/OrtRuntime.cpp), so the CPU / CUDA / WebGPU decision belongs to the user and is made
 # by installing an addon, not by whoever configured this build. Only the headers are needed here.
-option(DRIFT_FETCH_ONNXRUNTIME
+option(TonDron_FETCH_ONNXRUNTIME
     "Download prebuilt ONNX Runtime headers when they are not installed (cmake/FetchOnnxRuntime.cmake)" ON)
 # Stage a CPU runtime into <appDir>/onnxruntime so the build tree can transcribe without going
 # through the addon service. Packaged builds turn this off — they ship no runtime at all.
-option(DRIFT_BUNDLE_ONNXRUNTIME
+option(TonDron_BUNDLE_ONNXRUNTIME
     "Stage a CPU ONNX Runtime into the build tree for development" ON)
 find_package(OnnxRuntime QUIET)
-if(DRIFT_BUNDLE_ONNXRUNTIME AND OnnxRuntime_FOUND AND NOT ONNXRUNTIME_RUNTIME_LIBS
-   AND DRIFT_FETCH_ONNXRUNTIME)
+if(TonDron_BUNDLE_ONNXRUNTIME AND OnnxRuntime_FOUND AND NOT ONNXRUNTIME_RUNTIME_LIBS
+   AND TonDron_FETCH_ONNXRUNTIME)
     # Headers with no library beside them (a headers-only system package) leave the build tree
     # with nothing to load, which looks exactly like a broken install at runtime.
     message(STATUS "ONNX Runtime headers found without a library; downloading one to bundle")
     set(OnnxRuntime_FOUND FALSE)
 endif()
-if(NOT OnnxRuntime_FOUND AND DRIFT_FETCH_ONNXRUNTIME)
+if(NOT OnnxRuntime_FOUND AND TonDron_FETCH_ONNXRUNTIME)
     include(FetchOnnxRuntime)
     find_package(OnnxRuntime REQUIRED)
 endif()
 if(NOT OnnxRuntime_FOUND)
     message(FATAL_ERROR
         "ONNX Runtime headers not found. Install them and set ONNXRUNTIME_ROOT, "
-        "or enable DRIFT_FETCH_ONNXRUNTIME to download them automatically.")
+        "or enable TonDron_FETCH_ONNXRUNTIME to download them automatically.")
 endif()
 message(STATUS "ONNX Runtime headers: ${OnnxRuntime_INCLUDE_DIRS}")
-if(DRIFT_BUNDLE_ONNXRUNTIME AND NOT ONNXRUNTIME_RUNTIME_LIBS)
+if(TonDron_BUNDLE_ONNXRUNTIME AND NOT ONNXRUNTIME_RUNTIME_LIBS)
     message(WARNING
-        "DRIFT_BUNDLE_ONNXRUNTIME is on but no ONNX Runtime library was found to stage. "
+        "TonDron_BUNDLE_ONNXRUNTIME is on but no ONNX Runtime library was found to stage. "
         "The build tree will have no runtime; install an Acceleration addon or point "
-        "DRIFT_ONNXRUNTIME_DIR at an extracted release.")
+        "TonDron_ONNXRUNTIME_DIR at an extracted release.")
 endif()
 
 if(WITH_BGREMOVAL)
@@ -109,17 +109,17 @@ if(WITH_BGREMOVAL)
     find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 endif()
 
-# Addon packages (.driftpkg) are solid-zstd compressed and Ed25519 signed. zstd upstream only
+# Addon packages (.TonDronpkg) are solid-zstd compressed and Ed25519 signed. zstd upstream only
 # ships a CMake config in recent releases, so fall back to pkg-config.
 find_package(PkgConfig QUIET)
 find_package(zstd CONFIG QUIET)
 if(TARGET zstd::libzstd_shared)
-    set(DRIFT_ZSTD_TARGET zstd::libzstd_shared)
+    set(TonDron_ZSTD_TARGET zstd::libzstd_shared)
 elseif(TARGET zstd::libzstd)
-    set(DRIFT_ZSTD_TARGET zstd::libzstd)
+    set(TonDron_ZSTD_TARGET zstd::libzstd)
 elseif(PkgConfig_FOUND)
     pkg_check_modules(ZSTD REQUIRED IMPORTED_TARGET libzstd)
-    set(DRIFT_ZSTD_TARGET PkgConfig::ZSTD)
+    set(TonDron_ZSTD_TARGET PkgConfig::ZSTD)
 else()
     message(FATAL_ERROR "libzstd not found: no zstd CMake config and no pkg-config to fall back on")
 endif()
@@ -137,7 +137,7 @@ if(PkgConfig_FOUND)
     pkg_check_modules(SOUNDTOUCH QUIET IMPORTED_TARGET soundtouch)
 endif()
 if(TARGET PkgConfig::SOUNDTOUCH)
-    set(DRIFT_SOUNDTOUCH_TARGET PkgConfig::SOUNDTOUCH)
+    set(TonDron_SOUNDTOUCH_TARGET PkgConfig::SOUNDTOUCH)
     # soundtouch.pc often exports -I.../include/soundtouch (for <SoundTouch.h>), but our sources
     # use <soundtouch/SoundTouch.h> and need .../include. Prefer the parent when that layout is
     # present (vcpkg on Windows with pkgconf).
@@ -164,7 +164,7 @@ if(TARGET PkgConfig::SOUNDTOUCH)
     endif()
 else()
     find_package(SoundTouch CONFIG REQUIRED)
-    set(DRIFT_SOUNDTOUCH_TARGET SoundTouch::SoundTouch)
+    set(TonDron_SOUNDTOUCH_TARGET SoundTouch::SoundTouch)
     # Upstream 2.4.x exports "<prefix>/include;<prefix>/include;<prefix>/COMPONENT;<prefix>/
     # SoundTouch" — two install() keywords that leaked into INCLUDES DESTINATION, plus a duplicate.
     # Every packaging of that release carries it, vcpkg's included. <prefix>/include is the real
@@ -193,7 +193,7 @@ endif()
 # processes float blocks inside AudioMixer.
 #
 # Acquisition mirrors ONNX Runtime above: a local tree wins, otherwise fetch. flatpak-builder runs
-# offline, so packaged builds set DRIFT_JUCE_DIR at a source it vendored itself and turn the fetch
+# offline, so packaged builds set TonDron_JUCE_DIR at a source it vendored itself and turn the fetch
 # off (see flatpak/org.cutwire.TonDron.yml).
 # TonDron links exactly one JUCE module and calls none of JUCE's project helpers, so everything past
 # add_subdirectory(modules) is dead weight: it configures and builds juceaide, and — the part that
@@ -202,49 +202,49 @@ endif()
 # package. FORCE because it has to win over JUCE's own option() default either way it is acquired.
 set(JUCE_MODULES_ONLY ON CACHE BOOL "Only configure the JUCE modules" FORCE)
 
-option(DRIFT_FETCH_JUCE "Download JUCE when DRIFT_JUCE_DIR is not set" ON)
+option(TonDron_FETCH_JUCE "Download JUCE when TonDron_JUCE_DIR is not set" ON)
 # STRING, not PATH, on purpose: CMake rewrites a relative PATH cache entry to an absolute one
 # against the working directory of the cmake invocation — the *build* directory. The manifests
-# vendor JUCE next to CMakeLists.txt and pass `-DDRIFT_JUCE_DIR=juce`, which a PATH would resolve
+# vendor JUCE next to CMakeLists.txt and pass `-DTonDron_JUCE_DIR=juce`, which a PATH would resolve
 # to <build>/juce and fail. As a STRING the value arrives verbatim and is resolved below, against
 # the source tree, which is what a relative path here can only sensibly mean.
-set(DRIFT_JUCE_DIR "" CACHE STRING
-    "JUCE source tree — absolute, or relative to this file; overrides DRIFT_FETCH_JUCE")
-set(DRIFT_JUCE_TAG "8.0.15" CACHE STRING "JUCE release tag to fetch when DRIFT_JUCE_DIR is unset")
+set(TonDron_JUCE_DIR "" CACHE STRING
+    "JUCE source tree — absolute, or relative to this file; overrides TonDron_FETCH_JUCE")
+set(TonDron_JUCE_TAG "8.0.15" CACHE STRING "JUCE release tag to fetch when TonDron_JUCE_DIR is unset")
 
-if(DRIFT_JUCE_DIR)
-    if(IS_ABSOLUTE "${DRIFT_JUCE_DIR}")
-        set(_drift_juce_dir "${DRIFT_JUCE_DIR}")
+if(TonDron_JUCE_DIR)
+    if(IS_ABSOLUTE "${TonDron_JUCE_DIR}")
+        set(_TonDron_juce_dir "${TonDron_JUCE_DIR}")
     else()
-        set(_drift_juce_dir "${CMAKE_CURRENT_SOURCE_DIR}/${DRIFT_JUCE_DIR}")
+        set(_TonDron_juce_dir "${CMAKE_CURRENT_SOURCE_DIR}/${TonDron_JUCE_DIR}")
     endif()
-    if(NOT EXISTS "${_drift_juce_dir}/CMakeLists.txt")
+    if(NOT EXISTS "${_TonDron_juce_dir}/CMakeLists.txt")
         message(FATAL_ERROR
-            "DRIFT_JUCE_DIR=${DRIFT_JUCE_DIR} does not point at a JUCE source tree "
-            "(looked in ${_drift_juce_dir}).")
+            "TonDron_JUCE_DIR=${TonDron_JUCE_DIR} does not point at a JUCE source tree "
+            "(looked in ${_TonDron_juce_dir}).")
     endif()
-    message(STATUS "JUCE: using ${_drift_juce_dir}")
-    add_subdirectory("${_drift_juce_dir}" "${CMAKE_BINARY_DIR}/juce-build")
-elseif(DRIFT_FETCH_JUCE)
-    message(STATUS "JUCE: fetching ${DRIFT_JUCE_TAG}")
+    message(STATUS "JUCE: using ${_TonDron_juce_dir}")
+    add_subdirectory("${_TonDron_juce_dir}" "${CMAKE_BINARY_DIR}/juce-build")
+elseif(TonDron_FETCH_JUCE)
+    message(STATUS "JUCE: fetching ${TonDron_JUCE_TAG}")
     include(FetchContent)
     FetchContent_Declare(JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG ${DRIFT_JUCE_TAG}
+        GIT_TAG ${TonDron_JUCE_TAG}
         GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE)
     FetchContent_MakeAvailable(JUCE)
 else()
     message(FATAL_ERROR
-        "JUCE not available. Point DRIFT_JUCE_DIR at a JUCE source tree, "
-        "or enable DRIFT_FETCH_JUCE to download it automatically.")
+        "JUCE not available. Point TonDron_JUCE_DIR at a JUCE source tree, "
+        "or enable TonDron_FETCH_JUCE to download it automatically.")
 endif()
 
 qt_standard_project_setup(REQUIRES 6.5)
 qt_policy(SET QTP0004 NEW)
 
 # --- core: domain model, no GUI ---------------------------------------------
-add_library(driftcore STATIC
+add_library(TonDroncore STATIC
     src/core/Effect.h
     src/core/Effect.cpp
     src/core/EffectPreset.h
@@ -282,14 +282,14 @@ add_library(driftcore STATIC
     src/core/commands/ProjectCommands.h
     src/core/commands/ProjectCommands.cpp
 )
-target_include_directories(driftcore PUBLIC src)
-target_link_libraries(driftcore PUBLIC Qt6::Core Qt6::Gui)
+target_include_directories(TonDroncore PUBLIC src)
+target_link_libraries(TonDroncore PUBLIC Qt6::Core Qt6::Gui)
 
 # Audio effect DSP. JUCE modules compile into whatever target links them, so keeping them in a
 # library of their own is what stops JUCE's headers, its compile definitions and its build time
-# from spreading across driftengine. AudioEffectRack.h is the only header that leaves here and it
-# mentions no JUCE type, so driftengine stays JUCE-free at the source level.
-add_library(driftaudiodsp STATIC
+# from spreading across TonDronengine. AudioEffectRack.h is the only header that leaves here and it
+# mentions no JUCE type, so TonDronengine stays JUCE-free at the source level.
+add_library(TonDronaudiodsp STATIC
     src/engine/audio/AudioEffectProcessor.h
     src/engine/audio/AudioEffectProcessor.cpp
     src/engine/audio/FilterProcessors.h
@@ -308,14 +308,14 @@ add_library(driftaudiodsp STATIC
     src/engine/audio/ClipAudioRetimer.cpp
 )
 # Nothing here is a QObject, and AUTOMOC would otherwise scan JUCE's amalgamated sources.
-set_target_properties(driftaudiodsp PROPERTIES AUTOMOC OFF)
-target_include_directories(driftaudiodsp PUBLIC src)
-target_link_libraries(driftaudiodsp PUBLIC driftcore)
-target_link_libraries(driftaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
-    ${DRIFT_SOUNDTOUCH_TARGET})
+set_target_properties(TonDronaudiodsp PROPERTIES AUTOMOC OFF)
+target_include_directories(TonDronaudiodsp PUBLIC src)
+target_link_libraries(TonDronaudiodsp PUBLIC TonDroncore)
+target_link_libraries(TonDronaudiodsp PRIVATE juce::juce_dsp juce::juce_recommended_config_flags
+    ${TonDron_SOUNDTOUCH_TARGET})
 # JUCE_USE_CURL and JUCE_WEB_BROWSER matter: without them juce_core links libcurl on Linux, which
 # is exactly the dependency creep this split exists to prevent.
-target_compile_definitions(driftaudiodsp PRIVATE
+target_compile_definitions(TonDronaudiodsp PRIVATE
     JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
@@ -326,7 +326,7 @@ target_compile_definitions(driftaudiodsp PRIVATE
 )
 
 # --- engine: FFmpeg-facing code, no QML deps -------------------------------
-add_library(driftengine STATIC
+add_library(TonDronengine STATIC
     src/engine/AddonPackage.h
     src/engine/AddonPackage.cpp
     src/engine/AddonRegistry.h
@@ -421,75 +421,46 @@ add_library(driftengine STATIC
     src/engine/ProjectDependencies.h
     src/engine/ProjectDependencies.cpp
 )
-target_include_directories(driftengine PUBLIC src)
-target_link_libraries(driftengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg driftcore
-    driftaudiodsp onnxruntime::headers)
-target_link_libraries(driftengine PRIVATE ${DRIFT_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
-target_compile_definitions(driftengine PRIVATE DRIFT_VERSION="${PROJECT_VERSION}")
+target_include_directories(TonDron PUBLIC src)
+target_link_libraries(TonDronengine PUBLIC Qt6::Core Qt6::Gui Qt6::OpenGL FFmpeg::FFmpeg TonDroncore
+    TonDronaudiodsp onnxruntime::headers)
+target_link_libraries(TonDronengine PRIVATE ${TonDron_ZSTD_TARGET} OpenSSL::Crypto ${CMAKE_DL_LIBS})
+target_compile_definitions(TonDronengine PRIVATE TonDron_VERSION="${PROJECT_VERSION}")
 
 if(WITH_BGREMOVAL)
-    target_include_directories(driftengine PRIVATE ${OpenCV_INCLUDE_DIRS})
-    target_link_libraries(driftengine PRIVATE ${OpenCV_LIBS})
-    target_compile_definitions(driftengine PUBLIC DRIFT_WITH_BGREMOVAL)
+    target_include_directories(TonDronengine PRIVATE ${OpenCV_INCLUDE_DIRS})
+    target_link_libraries(TonDronengine PRIVATE ${OpenCV_LIBS})
+    target_compile_definitions(TonDronengine PUBLIC TonDron_WITH_BGREMOVAL)
 endif()
 
 # --- application ------------------------------------------------------------
-qt_add_executable(drift
+qt_add_executable(TonDron
     src/main.cpp
-    src/TonDronImageProvider.h
-    src/TonDronImageProvider.cpp
-    src/SegmentImageProvider.h
+    src/TonDronImageProvider.cpp  
     src/SegmentImageProvider.cpp
-    src/SegmentImageStore.h
-    src/SegmentImageStore.cpp
-    src/ClipPreviewImageProvider.h
-    src/ClipPreviewImageProvider.cpp
-    src/ClipPreviewImageStore.h
-    src/ClipPreviewImageStore.cpp
-    src/TextStylePreviewImageProvider.h
+    src/SegmentImageStore.cpp  
+    src/ClipPreviewImageProvider.cpp  
+    src/ClipPreviewImageStore.cpp   
     src/TextStylePreviewImageProvider.cpp
-    src/models/AddonEndpoint.h
-    src/models/AddonManager.h
-    src/models/AddonManager.cpp
-    src/models/VersionCompare.h
-    src/models/UpdateChecker.h
-    src/models/UpdateChecker.cpp
-    src/models/AppController.h
+    src/models/AddonManager.cpp   
+    src/models/UpdateChecker.cpp 
     src/models/AppController.cpp
-    src/models/EditorState.h
-    src/models/FileDialogs.h
-    src/models/FileDialogs.cpp
-    src/models/AssetLibrary.h
-    src/models/AssetLibrary.cpp
-    src/models/TimelineModel.h
-    src/models/TimelineModel.cpp
-    src/models/ClipListModel.h
-    src/models/ClipListModel.cpp
-    src/mcp/McpSession.h
-    src/mcp/McpSession.cpp
-    src/mcp/McpCatalog.h
-    src/mcp/McpCatalog.cpp
-    src/mcp/McpProtocol.h
-    src/mcp/McpProtocol.cpp
-    src/mcp/McpHttp.h
-    src/mcp/McpHttp.cpp
-    src/mcp/McpDispatcher.h
+    src/models/FileDialogs.cpp 
+    src/models/AssetLibrary.cpp   
+    src/models/TimelineModel.cpp    
+    src/models/ClipListModel.cpp   
+    src/mcp/McpSession.cpp    
+    src/mcp/McpCatalog.cpp    
+    src/mcp/McpProtocol.cpp   
+    src/mcp/McpHttp.cpp   
     src/mcp/McpDispatcher.cpp
-    src/mcp/McpDispatcherExtended.cpp
-    src/mcp/McpServer.h
-    src/mcp/McpServer.cpp
-    src/mcp/McpStdio.h
-    src/mcp/McpStdio.cpp
-    src/mcp/McpJson.h
-    src/playback/PlaybackEngine.h
-    src/playback/PlaybackEngine.cpp
-    src/playback/PlaybackClock.h
-    src/playback/PlaybackClock.cpp
-    src/playback/ClipPreviewPlayer.h
-    src/playback/ClipPreviewPlayer.cpp
-    src/playback/CompositorService.h
-    src/playback/CompositorService.cpp
-    src/preview/PreviewItem.h
+    src/mcp/McpDispatcherExtended.cpp   
+    src/mcp/McpServer.cpp    
+    src/mcp/McpStdio.cpp  
+    src/playback/PlaybackEngine.cpp   
+    src/playback/PlaybackClock.cpp   
+    src/playback/ClipPreviewPlayer.cpp    
+    src/playback/CompositorService.cpp  
     src/preview/PreviewItem.cpp
 )
 
@@ -499,19 +470,19 @@ if(WIN32)
     # qt_add_executable() forwards to add_executable() without WIN32, so the linker defaults to the
     # console subsystem and Windows opens a console window before the GUI comes up. Qt6::EntryPoint
     # (linked in by Qt6::Core) supplies the WinMain that forwards to main().
-    set_target_properties(drift PROPERTIES WIN32_EXECUTABLE TRUE)
-    target_sources(drift PRIVATE resources/windows/drift.rc)
-    set_source_files_properties(resources/windows/drift.rc PROPERTIES
-        OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/resources/windows/drift.ico")
+    set_target_properties(TonDron PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_sources(TonDron PRIVATE resources/windows/TonDron.rc)
+    set_source_files_properties(resources/windows/TonDron.rc PROPERTIES
+        OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/resources/windows/TonDron.ico")
 endif()
 
 # Without a bundle macOS runs the app as a background process, with no Dock tile or menu bar.
 # It also collides with the <build>/TonDron/ directory qt_add_qml_module(URI TonDron) writes, which
 # on case-insensitive APFS fails the link with EISDIR.
 if(APPLE)
-    set(DRIFT_MACOS_EXECUTABLE "TonDron")
-    set(DRIFT_MACOS_BUNDLE_ID "org.cutwire.TonDron")
-    set(DRIFT_MACOS_ICON_FILE "TonDron.icns")
+    set(TonDron_MACOS_EXECUTABLE "TonDron")
+    set(TonDron_MACOS_BUNDLE_ID "org.cutwire.TonDron")
+    set(TonDron_MACOS_ICON_FILE "TonDron.icns")
 
     # Not CMake's MACOSX_BUNDLE_* properties: the NS* and LSMinimumSystemVersion keys have none.
     configure_file(
@@ -519,23 +490,23 @@ if(APPLE)
         "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
         @ONLY)
 
-    set(DRIFT_MACOS_ICNS "${CMAKE_SOURCE_DIR}/resources/macos/${DRIFT_MACOS_ICON_FILE}")
-    target_sources(drift PRIVATE "${DRIFT_MACOS_ICNS}")
-    set_source_files_properties("${DRIFT_MACOS_ICNS}" PROPERTIES
+    set(TonDron_MACOS_ICNS "${CMAKE_SOURCE_DIR}/resources/macos/${TonDron_MACOS_ICON_FILE}")
+    target_sources(TonDron PRIVATE "${TonDron_MACOS_ICNS}")
+    set_source_files_properties("${TonDron_MACOS_ICNS}" PROPERTIES
         MACOSX_PACKAGE_LOCATION "Resources")
 
-    set_target_properties(drift PROPERTIES
+    set_target_properties(TonDron PROPERTIES
         MACOSX_BUNDLE TRUE
-        OUTPUT_NAME "${DRIFT_MACOS_EXECUTABLE}"
+        OUTPUT_NAME "${TonDron_MACOS_EXECUTABLE}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
 endif()
 
 # App icon for QApplication::setWindowIcon (all platforms). Rendered from TonDron_icon.png,
-# as is resources/windows/drift.ico — keep the two in sync when the branding changes.
-qt_add_resources(drift "drift_app_icon"
+# as is resources/windows/TonDron.ico — keep the two in sync when the branding changes.
+qt_add_resources(TonDron "TonDron_app_icon"
     PREFIX "/app"
     BASE resources
-    FILES resources/drift.png
+    FILES resources/TonDron.png
 )
 
 set_source_files_properties(src/qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
@@ -543,10 +514,10 @@ set_source_files_properties(src/qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE t
 set_source_files_properties(src/qml/Toasts.qml PROPERTIES QT_QML_SINGLETON_TYPE true)
 
 # Lucide icons: SVG sources in resources/icons/ (from lucide-icons-1.25.0), PNGs for QML.
-file(GLOB DRIFT_LUCIDE_ICONS RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS
+file(GLOB TonDron_LUCIDE_ICONS RELATIVE "${CMAKE_SOURCE_DIR}" CONFIGURE_DEPENDS
      "resources/icons/*.png")
 
-qt_add_qml_module(drift
+qt_add_qml_module(TonDron
     URI TonDron
     VERSION 1.0
     QML_FILES
@@ -653,10 +624,10 @@ qt_add_qml_module(drift
     RESOURCES
         # UI chrome: interface font and Lucide SVG icons (always needed, including before addons).
         resources/fonts/Inter.ttf
-        ${DRIFT_LUCIDE_ICONS}
+        ${TonDron_LUCIDE_ICONS}
 )
 
-target_link_libraries(drift PRIVATE
+target_link_libraries(TonDron PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickEffects
@@ -665,28 +636,28 @@ target_link_libraries(drift PRIVATE
     Qt6::Widgets
     Qt6::Concurrent
     Qt6::Network
-    driftcore
-    driftengine
+    TonDroncore
+    TonDronengine
 )
-target_include_directories(drift PRIVATE src src/preview)
+target_include_directories(TonDron PRIVATE src src/preview)
 
 # MCP tool names, JSON schemas, agent errors and copied configs are a machine protocol and must
 # stay English. QT_EXCLUDE_FROM_TRANSLATION is a no-op until src/mcp/ exists (the mcp branch);
 # lupdate also ignores QStringLiteral, so those files only leak if someone later adds tr().
-file(GLOB DRIFT_MCP_SOURCES CONFIGURE_DEPENDS
+file(GLOB TonDron_MCP_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/src/mcp/*.cpp"
     "${CMAKE_SOURCE_DIR}/src/mcp/*.h")
-if(DRIFT_MCP_SOURCES)
-    set_source_files_properties(${DRIFT_MCP_SOURCES} PROPERTIES QT_EXCLUDE_FROM_TRANSLATION ON)
+if(TonDron_MCP_SOURCES)
+    set_source_files_properties(${TonDron_MCP_SOURCES} PROPERTIES QT_EXCLUDE_FROM_TRANSLATION ON)
 endif()
 
-# Catalogs, project/SRT errors and reverse-proxy messages live on driftengine/driftcore, which
-# qt_add_translations(drift) does not scan on its own.
-file(GLOB DRIFT_TS_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/i18n/drift_*.ts")
-qt_add_translations(drift
+# Catalogs, project/SRT errors and reverse-proxy messages live on TonDronengine/TonDroncore, which
+# qt_add_translations(TonDron) does not scan on its own.
+file(GLOB TonDron_TS_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/i18n/TonDron_*.ts")
+qt_add_translations(TonDron
     TS_FILES
-        "${CMAKE_SOURCE_DIR}/i18n/drift.ts"
-        ${DRIFT_TS_FILES}
+        "${CMAKE_SOURCE_DIR}/i18n/TonDron.ts"
+        ${TonDron_TS_FILES}
     RESOURCE_PREFIX "/i18n"
     SOURCES
         src/engine/EffectCatalog.cpp
@@ -703,16 +674,16 @@ qt_add_translations(drift
         src/core/SubtitleCue.cpp
     LUPDATE_OPTIONS -no-obsolete -locations relative
 )
-if(NOT TARGET update_translations AND TARGET drift_lupdate)
-    add_custom_target(update_translations DEPENDS drift_lupdate)
+if(NOT TARGET update_translations AND TARGET TonDron_lupdate)
+    add_custom_target(update_translations DEPENDS TonDron_lupdate)
 endif()
 
 # Defined here rather than in the header so there is exactly one place to change them.
-target_compile_definitions(drift PRIVATE
-    DRIFT_ADDON_INDEX_URL="${DRIFT_ADDON_INDEX_URL}"
-    DRIFT_ADDON_CLIENT_TOKEN="${DRIFT_ADDON_CLIENT_TOKEN}"
-    DRIFT_UPDATE_FEED_URL="${DRIFT_UPDATE_FEED_URL}"
-    DRIFT_VERSION="${PROJECT_VERSION}"
+target_compile_definitions(TonDron PRIVATE
+    TonDron_ADDON_INDEX_URL="${TonDron_ADDON_INDEX_URL}"
+    TonDron_ADDON_CLIENT_TOKEN="${TonDron_ADDON_CLIENT_TOKEN}"
+    TonDron_UPDATE_FEED_URL="${TonDron_UPDATE_FEED_URL}"
+    TonDron_VERSION="${PROJECT_VERSION}"
 )
 
 # Ship a file-based package directory next to the binaries that load the catalog.
@@ -721,8 +692,8 @@ target_compile_definitions(drift PRIVATE
 # the copy is registered once per destination and depended on, rather than as a POST_BUILD step per
 # target: two `cmake -E copy_directory` processes writing the same tree concurrently — which is
 # what `cmake --build --parallel` does — fail with "Error copying directory".
-function(drift_stage_packages target assetdir)
-    # Only drift is a bundle, so the shared output directory guarded against below cannot happen.
+function(TonDron_stage_packages target assetdir)
+    # Only TonDron is a bundle, so the shared output directory guarded against below cannot happen.
     get_target_property(_bundle ${target} MACOSX_BUNDLE)
     if(_bundle)
         add_custom_command(TARGET ${target} POST_BUILD
@@ -738,7 +709,7 @@ function(drift_stage_packages target assetdir)
         set(_outdir "${CMAKE_CURRENT_BINARY_DIR}")
     endif()
     file(RELATIVE_PATH _key "${CMAKE_BINARY_DIR}" "${_outdir}/${assetdir}")
-    string(MAKE_C_IDENTIFIER "drift_stage_${_key}" _stage)
+    string(MAKE_C_IDENTIFIER "TonDron_stage_${_key}" _stage)
     # Multi-config generators (the Windows job uses Visual Studio) put binaries in <dir>/<config>,
     # which is where the packaging step expects the staged packages as well.
     get_property(_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -756,27 +727,27 @@ function(drift_stage_packages target assetdir)
     add_dependencies(${target} ${_stage})
 endfunction()
 
-function(drift_copy_effects target)
-    drift_stage_packages(${target} effects)
+function(TonDron_copy_effects target)
+    TonDron_stage_packages(${target} effects)
 endfunction()
 
-function(drift_copy_transitions target)
-    drift_stage_packages(${target} transitions)
+function(TonDron_copy_transitions target)
+    TonDron_stage_packages(${target} transitions)
 endfunction()
 
 # Audio effects ship as the "audio-effects" addon, so this only makes the build tree
 # self-contained — <appDir>/audio-effects is already a search root.
-function(drift_copy_audio_effects target)
-    drift_stage_packages(${target} audio-effects)
+function(TonDron_copy_audio_effects target)
+    TonDron_stage_packages(${target} audio-effects)
 endfunction()
 
 # Stage an ONNX Runtime into <appDir>/onnxruntime/lib, which is one of the roots
-# drift::ort::ensureLoaded() searches — the same relationship the bundled effects have with
+# TonDron::ort::ensureLoaded() searches — the same relationship the bundled effects have with
 # installed effect addons, and ranked the same way: an installed Acceleration addon wins over this.
-# It is a development convenience only; packaged builds set DRIFT_BUNDLE_ONNXRUNTIME=OFF and ship
+# It is a development convenience only; packaged builds set TonDron_BUNDLE_ONNXRUNTIME=OFF and ship
 # no runtime at all.
-function(drift_bundle_onnxruntime target)
-    if(DRIFT_BUNDLE_ONNXRUNTIME AND ONNXRUNTIME_RUNTIME_LIBS)
+function(TonDron_bundle_onnxruntime target)
+    if(TonDron_BUNDLE_ONNXRUNTIME AND ONNXRUNTIME_RUNTIME_LIBS)
         get_target_property(_bundle ${target} MACOSX_BUNDLE)
         if(_bundle)
             set(_ortdir "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources/onnxruntime/lib")
@@ -793,49 +764,49 @@ function(drift_bundle_onnxruntime target)
     endif()
 endfunction()
 
-function(drift_copy_effect_templates target)
-    drift_stage_packages(${target} effect-templates)
+function(TonDron_copy_effect_templates target)
+    TonDron_stage_packages(${target} effect-templates)
 endfunction()
 
-drift_copy_effects(drift)
-drift_copy_effect_templates(drift)
-drift_copy_transitions(drift)
-drift_copy_audio_effects(drift)
-drift_bundle_onnxruntime(drift)
+TonDron_copy_effects(TonDron)
+TonDron_copy_effect_templates(TonDron)
+TonDron_copy_transitions(TonDron)
+TonDron_copy_audio_effects(TonDron)
+TonDron_bundle_onnxruntime(TonDron)
 
 # --- install (used by packaging, e.g. Flatpak; the dev workflow runs in-place) ---
 include(GNUInstallDirs)
 
-# Everything TonDron installs is tagged with the "drift" component, so packaging can ask for the app
-# and nothing else: `cmake --install build --component drift`. JUCE's modules install ~50 MB of
+# Everything TonDron installs is tagged with the "TonDron" component, so packaging can ask for the app
+# and nothing else: `cmake --install build --component TonDron`. JUCE's modules install ~50 MB of
 # their own sources into include/JUCE-<version>, and a plain `cmake --install` has no way to say no
 # to them. (The Flatpak manifests get the same result the other way round, by cleaning up /include.)
 if(APPLE)
     # The bundle is complete after the build. Use -DCMAKE_INSTALL_PREFIX=/Applications.
-    install(TARGETS drift BUNDLE DESTINATION . COMPONENT drift)
+    install(TARGETS TonDron BUNDLE DESTINATION . COMPONENT TonDron)
 else()
-    install(TARGETS drift RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT drift)
+    install(TARGETS TonDron RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
 
     # File-based effect/transition/template/audio-effect packages ship next to the binary;
     # the app searches <appDir>/<subdir> (GpuPackageParse::defaultSearchPaths). Installing
-    # them here (rather than via the DRIFT_*_DIR env vars) keeps installed addons able to
+    # them here (rather than via the TonDron_*_DIR env vars) keeps installed addons able to
     # supersede the bundled copies.
     foreach(_assetdir effects transitions effect-templates audio-effects)
         install(DIRECTORY ${CMAKE_SOURCE_DIR}/${_assetdir}
-                DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT drift)
+                DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT TonDron)
     endforeach()
 
     # Desktop integration for Flatpak / freedesktop.
     install(FILES flatpak/org.cutwire.TonDron.desktop
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT drift)
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT TonDron)
     install(FILES flatpak/org.cutwire.TonDron.metainfo.xml
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT drift)
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT TonDron)
     # 1024px source is intentionally skipped: flatpak build-export rejects icons
     # larger than 512x512.
     foreach(_size 64 128 256 512)
         install(FILES
             flatpak/share/icons/hicolor/${_size}x${_size}/apps/org.cutwire.TonDron.png
-            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT drift)
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT TonDron)
     endforeach()
 endif()
 
