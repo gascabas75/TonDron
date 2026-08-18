@@ -276,11 +276,11 @@ void EngineTest::faceTrackRoundTripsAndInterpolates()
     QVERIFY(dir.isValid());
     const QString path = dir.filePath(QStringLiteral("track.json"));
 
-    drift::FaceTrack track;
+    TonDron::FaceTrack track;
     track.fps = 30;
-    track.startSrcUs = drift::secondsToUs(1.0);
+    track.startSrcUs = TonDron::secondsToUs(1.0);
     for (int i = 0; i < 3; ++i) {
-        drift::FaceAnchors a;
+        TonDron::FaceAnchors a;
         a.valid = true;
         a.faceCenter = QPointF(0.25 + 0.25 * i, 0.5);
         a.leftEye = QPointF(0.2 + 0.25 * i, 0.4);
@@ -290,11 +290,11 @@ void EngineTest::faceTrackRoundTripsAndInterpolates()
         a.eyeRadius = 0.02;
         a.score = 0.9;
 
-        drift::FaceTrackFrame frame;
+        TonDron::FaceTrackFrame frame;
         frame.faces.append(a);
         // A second slot that drops out in the middle: sampling it there must report no face
         // rather than interpolating across the gap.
-        drift::FaceAnchors second = a;
+        TonDron::FaceAnchors second = a;
         second.valid = (i != 1);
         second.faceCenter = QPointF(0.8, 0.3);
         frame.faces.append(second);
@@ -302,32 +302,32 @@ void EngineTest::faceTrackRoundTripsAndInterpolates()
     }
 
     QString error;
-    QVERIFY2(drift::writeFaceTrack(path, track, &error), qPrintable(error));
+    QVERIFY2(TonDron::writeFaceTrack(path, track, &error), qPrintable(error));
 
-    drift::FaceTrack loaded;
-    QVERIFY2(drift::readFaceTrack(path, &loaded, &error), qPrintable(error));
+    TonDron::FaceTrack loaded;
+    QVERIFY2(TonDron::readFaceTrack(path, &loaded, &error), qPrintable(error));
     QCOMPARE(loaded.fps, 30);
-    QCOMPARE(loaded.startSrcUs, drift::secondsToUs(1.0));
+    QCOMPARE(loaded.startSrcUs, TonDron::secondsToUs(1.0));
     QCOMPARE(loaded.frames.size(), 3);
 
     // Exactly on frame 1.
-    const drift::FaceAnchors onFrame = loaded.sample(drift::kUsPerSecond / 30, 0);
+    const TonDron::FaceAnchors onFrame = loaded.sample(TonDron::kUsPerSecond / 30, 0);
     QVERIFY(onFrame.valid);
     QVERIFY(qAbs(onFrame.faceCenter.x() - 0.5) < 1e-4);
 
     // Halfway between frames 0 and 1 — the whole point of interpolating rather than snapping.
-    const drift::FaceAnchors between = loaded.sample(drift::kUsPerSecond / 60, 0);
+    const TonDron::FaceAnchors between = loaded.sample(TonDron::kUsPerSecond / 60, 0);
     QVERIFY(between.valid);
     QVERIFY(qAbs(between.faceCenter.x() - 0.375) < 1e-4);
 
     // Past the end clamps to the last frame instead of falling off.
-    const drift::FaceAnchors after = loaded.sample(drift::secondsToUs(10.0), 0);
+    const TonDron::FaceAnchors after = loaded.sample(TonDron::secondsToUs(10.0), 0);
     QVERIFY(after.valid);
     QVERIFY(qAbs(after.faceCenter.x() - 0.75) < 1e-4);
 
     // The gap in slot 1: neither neighbour pair may produce a face.
-    QVERIFY(!loaded.sample(drift::kUsPerSecond / 60, 1).valid);
-    QVERIFY(!loaded.sample(drift::kUsPerSecond / 30, 1).valid);
+    QVERIFY(!loaded.sample(TonDron::kUsPerSecond / 60, 1).valid);
+    QVERIFY(!loaded.sample(TonDron::kUsPerSecond / 30, 1).valid);
 
     // A slot that was never baked is simply absent.
     QVERIFY(!loaded.sample(0, 3).valid);
@@ -337,9 +337,9 @@ namespace {
 
 // Anchors with every field a v2 sidecar carries, so the round-trip tests actually exercise the
 // contour and pose blocks rather than defaults.
-drift::FaceAnchors makeFullAnchors(double shift)
+TonDron::FaceAnchors makeFullAnchors(double shift)
 {
-    drift::FaceAnchors a;
+    TonDron::FaceAnchors a;
     a.valid = true;
     a.faceCenter = QPointF(0.4 + shift, 0.5);
     a.leftEye = QPointF(0.35 + shift, 0.45);
@@ -350,8 +350,8 @@ drift::FaceAnchors makeFullAnchors(double shift)
     a.eyeRadius = 0.02;
     a.score = 0.9;
 
-    a.contour.reserve(drift::contour::kTotalPoints);
-    for (int i = 0; i < drift::contour::kTotalPoints; ++i)
+    a.contour.reserve(TonDron::contour::kTotalPoints);
+    for (int i = 0; i < TonDron::contour::kTotalPoints; ++i)
         a.contour.append(QPointF(0.3 + shift + i * 0.001, 0.4 + i * 0.002));
     a.hasContours = true;
     a.cheekLeft = QPointF(0.33 + shift, 0.52);
@@ -377,25 +377,25 @@ void EngineTest::faceTrackV2CarriesContoursAndPose()
     QVERIFY(dir.isValid());
     const QString path = dir.filePath(QStringLiteral("v2.json"));
 
-    drift::FaceTrack track;
+    TonDron::FaceTrack track;
     track.fps = 30;
     for (int i = 0; i < 2; ++i) {
-        drift::FaceTrackFrame frame;
+        TonDron::FaceTrackFrame frame;
         frame.faces.append(makeFullAnchors(0.1 * i));
         track.frames.append(frame);
     }
 
     QString error;
-    QVERIFY2(drift::writeFaceTrack(path, track, &error), qPrintable(error));
-    drift::FaceTrack loaded;
-    QVERIFY2(drift::readFaceTrack(path, &loaded, &error), qPrintable(error));
+    QVERIFY2(TonDron::writeFaceTrack(path, track, &error), qPrintable(error));
+    TonDron::FaceTrack loaded;
+    QVERIFY2(TonDron::readFaceTrack(path, &loaded, &error), qPrintable(error));
 
-    const drift::FaceAnchors &a = loaded.frames.at(0).faces.at(0);
+    const TonDron::FaceAnchors &a = loaded.frames.at(0).faces.at(0);
     QVERIFY(a.hasContours);
-    QCOMPARE(a.contour.size(), drift::contour::kTotalPoints);
+    QCOMPARE(a.contour.size(), TonDron::contour::kTotalPoints);
     // The contour block is quantized to uint16 over a range of 4.0, so a point is good to about
     // 6e-5 — finer than the five-decimal rounding the plain fields already use.
-    for (int i = 0; i < drift::contour::kTotalPoints; ++i) {
+    for (int i = 0; i < TonDron::contour::kTotalPoints; ++i) {
         QVERIFY(qAbs(a.contour.at(i).x() - (0.3 + i * 0.001)) < 1e-4);
         QVERIFY(qAbs(a.contour.at(i).y() - (0.4 + i * 0.002)) < 1e-4);
     }
@@ -405,10 +405,10 @@ void EngineTest::faceTrackV2CarriesContoursAndPose()
     QVERIFY(qAbs(a.poseScale - 0.08) < 1e-6);
 
     // Interpolating between the two frames keeps both blocks and renormalizes the quaternion.
-    const drift::FaceAnchors mid = loaded.sample(drift::kUsPerSecond / 60, 0);
+    const TonDron::FaceAnchors mid = loaded.sample(TonDron::kUsPerSecond / 60, 0);
     QVERIFY(mid.valid);
     QVERIFY(mid.hasContours);
-    QCOMPARE(mid.contour.size(), drift::contour::kTotalPoints);
+    QCOMPARE(mid.contour.size(), TonDron::contour::kTotalPoints);
     QVERIFY(qAbs(mid.contour.at(0).x() - 0.35) < 1e-3);
     QVERIFY(mid.hasPose);
     const double norm = std::sqrt(mid.poseQx * mid.poseQx + mid.poseQy * mid.poseQy
@@ -418,15 +418,15 @@ void EngineTest::faceTrackV2CarriesContoursAndPose()
     // Sidecars are embedded in every project bundle, so their size is a real cost. A minute of
     // single-face 30fps footage must stay near a megabyte; if this trips, something stopped being
     // rounded or the contour blob stopped being packed.
-    drift::FaceTrack minute;
+    TonDron::FaceTrack minute;
     minute.fps = 30;
     for (int i = 0; i < 1800; ++i) {
-        drift::FaceTrackFrame frame;
+        TonDron::FaceTrackFrame frame;
         frame.faces.append(makeFullAnchors(0.0001 * i));
         minute.frames.append(frame);
     }
     const QString bigPath = dir.filePath(QStringLiteral("minute.json"));
-    QVERIFY2(drift::writeFaceTrack(bigPath, minute, &error), qPrintable(error));
+    QVERIFY2(TonDron::writeFaceTrack(bigPath, minute, &error), qPrintable(error));
     const qint64 bytes = QFileInfo(bigPath).size();
     QVERIFY2(bytes < 2'400'000,
              qPrintable(QStringLiteral("sidecar grew to %1 bytes per minute per face").arg(bytes)));
@@ -454,11 +454,11 @@ void EngineTest::faceTrackV1FileStillLoads()
     f.close();
 
     QString error;
-    drift::FaceTrack loaded;
-    QVERIFY2(drift::readFaceTrack(path, &loaded, &error), qPrintable(error));
+    TonDron::FaceTrack loaded;
+    QVERIFY2(TonDron::readFaceTrack(path, &loaded, &error), qPrintable(error));
     QCOMPARE(loaded.frames.size(), 2);
 
-    const drift::FaceAnchors &a = loaded.frames.at(0).faces.at(0);
+    const TonDron::FaceAnchors &a = loaded.frames.at(0).faces.at(0);
     QVERIFY(a.valid);
     QVERIFY(qAbs(a.faceCenter.x() - 0.25) < 1e-6);
     QVERIFY(!a.hasContours);
@@ -466,7 +466,7 @@ void EngineTest::faceTrackV1FileStillLoads()
     QVERIFY(a.contour.isEmpty());
 
     // Still interpolates, so the warp effects are unaffected.
-    const drift::FaceAnchors mid = loaded.sample(drift::kUsPerSecond / 60, 0);
+    const TonDron::FaceAnchors mid = loaded.sample(TonDron::kUsPerSecond / 60, 0);
     QVERIFY(mid.valid);
     QVERIFY(qAbs(mid.faceCenter.x() - 0.30) < 1e-4);
     QVERIFY(!mid.hasContours);
@@ -476,19 +476,19 @@ void EngineTest::faceTrackV1FileStillLoads()
     QVERIFY(future.open(QIODevice::WriteOnly));
     future.write("{\"version\":99,\"fps\":30,\"frames\":[]}");
     future.close();
-    drift::FaceTrack unused;
-    QVERIFY(!drift::readFaceTrack(dir.filePath(QStringLiteral("future.json")), &unused, &error));
+    TonDron::FaceTrack unused;
+    QVERIFY(!TonDron::readFaceTrack(dir.filePath(QStringLiteral("future.json")), &unused, &error));
 }
 
 // Contours and pose must average only across frames that have them, or a partly re-scanned clip
 // produces a half-length mask.
 void EngineTest::smoothFaceTrackHandlesMissingBlocks()
 {
-    drift::FaceTrack track;
+    TonDron::FaceTrack track;
     track.fps = 30;
     for (int i = 0; i < 5; ++i) {
-        drift::FaceTrackFrame frame;
-        drift::FaceAnchors a = makeFullAnchors(0.0);
+        TonDron::FaceTrackFrame frame;
+        TonDron::FaceAnchors a = makeFullAnchors(0.0);
         // Jitter the centre so smoothing has something to do.
         a.faceCenter = QPointF(0.4 + (i % 2 ? 0.02 : -0.02), 0.5);
         // The middle frame carries no contours and no pose, as a v1-era frame would.
@@ -501,10 +501,10 @@ void EngineTest::smoothFaceTrackHandlesMissingBlocks()
         track.frames.append(frame);
     }
 
-    drift::smoothFaceTrack(&track);
+    TonDron::smoothFaceTrack(&track);
 
     for (int i = 0; i < 5; ++i) {
-        const drift::FaceAnchors &a = track.frames.at(i).faces.at(0);
+        const TonDron::FaceAnchors &a = track.frames.at(i).faces.at(0);
         QVERIFY(a.valid);
         if (i == 2) {
             QVERIFY(!a.hasContours);
@@ -512,7 +512,7 @@ void EngineTest::smoothFaceTrackHandlesMissingBlocks()
             QVERIFY(!a.hasPose);
         } else {
             QVERIFY(a.hasContours);
-            QCOMPARE(a.contour.size(), drift::contour::kTotalPoints);
+            QCOMPARE(a.contour.size(), TonDron::contour::kTotalPoints);
             QVERIFY(a.hasPose);
             const double norm = std::sqrt(a.poseQx * a.poseQx + a.poseQy * a.poseQy
                                          + a.poseQz * a.poseQz + a.poseQw * a.poseQw);
@@ -530,7 +530,7 @@ void EngineTest::applyFaceUniformsEmitsContourArrays()
 {
     QMap<QString, QVariant> params;
     params.insert(QStringLiteral("faceIndex"), 0);
-    drift::applyFaceUniforms(&params, {makeFullAnchors(0.0)});
+    TonDron::applyFaceUniforms(&params, {makeFullAnchors(0.0)});
 
     QCOMPARE(params.value(QStringLiteral("u_faceValid")).toDouble(), 1.0);
     QCOMPARE(params.value(QStringLiteral("u_faceHasContours")).toDouble(), 1.0);
@@ -544,8 +544,8 @@ void EngineTest::applyFaceUniformsEmitsContourArrays()
     };
     for (const auto &loop : loops) {
         const QVariant v = params.value(QLatin1String(loop.name));
-        QVERIFY2(v.canConvert<drift::GpuFloatArray>(), loop.name);
-        const auto array = v.value<drift::GpuFloatArray>();
+        QVERIFY2(v.canConvert<TonDron::GpuFloatArray>(), loop.name);
+        const auto array = v.value<TonDron::GpuFloatArray>();
         QCOMPARE(array.tupleSize, 2);
         QCOMPARE(array.values.size(), loop.count * 2);
     }
@@ -555,13 +555,13 @@ void EngineTest::applyFaceUniformsEmitsContourArrays()
     QVERIFY(params.value(QStringLiteral("u_facePoseRightX")).toDouble() > 0.9);
 
     // A v1 anchor: the warp uniforms are all still there, the contour arrays are all absent.
-    drift::FaceAnchors legacy;
+    TonDron::FaceAnchors legacy;
     legacy.valid = true;
     legacy.faceCenter = QPointF(0.5, 0.5);
     legacy.faceRx = 0.1;
     QMap<QString, QVariant> legacyParams;
     legacyParams.insert(QStringLiteral("faceIndex"), 0);
-    drift::applyFaceUniforms(&legacyParams, {legacy});
+    TonDron::applyFaceUniforms(&legacyParams, {legacy});
 
     QCOMPARE(legacyParams.value(QStringLiteral("u_faceValid")).toDouble(), 1.0);
     QCOMPARE(legacyParams.value(QStringLiteral("u_faceCenterX")).toDouble(), 0.5);
@@ -574,13 +574,13 @@ void EngineTest::applyFaceUniformsEmitsContourArrays()
 
 void EngineTest::colorParametersParseAndResolve()
 {
-    const auto parse = [](const QByteArray &json, QList<drift::EffectParamSpec> *out,
+    const auto parse = [](const QByteArray &json, QList<TonDron::EffectParamSpec> *out,
                           QString *error) {
         const QJsonArray params = QJsonDocument::fromJson(json).array();
         return GpuPackageParse::parseParameters(params, out, /*gpuBackend=*/true, error);
     };
 
-    QList<drift::EffectParamSpec> specs;
+    QList<TonDron::EffectParamSpec> specs;
     QString error;
     QVERIFY2(parse(R"([{"identifier":"shade","type":"color","defaultValue":"#B03048"}])", &specs,
                    &error),
@@ -612,7 +612,7 @@ void EngineTest::colorParametersParseAndResolve()
     const EffectPresetEntry *def = effectDefForId(QStringLiteral("face_lipstick"));
     if (!def)
         QSKIP("face_lipstick package not available (drift-addons staging missing)");
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = def->meta.id;
     effect.parameters.insert(QStringLiteral("shade"), 0.7);
     const QMap<QString, QVariant> resolved = resolvedEffectParameters(effect, *def);
@@ -643,7 +643,7 @@ void EngineTest::beautyEffectsPassThroughWithoutContours()
     source.fill(QColor(180, 140, 130));
 
     // Valid, but from a v1 sidecar: no contours.
-    drift::FaceAnchors legacy;
+    TonDron::FaceAnchors legacy;
     legacy.valid = true;
     legacy.faceCenter = QPointF(0.5, 0.5);
     legacy.leftEye = QPointF(0.4, 0.4);
@@ -657,7 +657,7 @@ void EngineTest::beautyEffectsPassThroughWithoutContours()
         QVERIFY2(def, qPrintable(id));
         QVERIFY2(def->needsFace, qPrintable(id));
 
-        drift::Effect effect;
+        TonDron::Effect effect;
         effect.catalogId = id;
         const QImage out = EffectProcessor::applyEffects(source, {effect}, 0, {legacy});
         QVERIFY2(!out.isNull(), qPrintable(id));
@@ -681,7 +681,7 @@ void EngineTest::matteWriterRoundTripsThroughClipReader()
     const QSize size(320, 240);
     const int frames = 10;
 
-    drift::MatteWriter writer;
+    TonDron::MatteWriter writer;
     QString error;
     QVERIFY2(writer.open(path, size, 30, 1, &error), qPrintable(error));
 
@@ -702,7 +702,7 @@ void EngineTest::matteWriterRoundTripsThroughClipReader()
     for (int i = 0; i < frames; ++i) {
         // Sample the middle of each frame's interval: the boundary time can land a hair below it
         // and resolve to the previous frame.
-        const drift::TimeUs us = (2 * drift::TimeUs(i) + 1) * drift::kUsPerSecond / 60;
+        const TonDron::TimeUs us = (2 * TonDron::TimeUs(i) + 1) * TonDron::kUsPerSecond / 60;
         const QImage frame = ClipReaderPool::instance().readVideoFrame(path, us, 0, 0);
         QVERIFY2(!frame.isNull(), qPrintable(QStringLiteral("frame %1 did not decode").arg(i)));
         QCOMPARE(frame.size(), size);
@@ -736,7 +736,7 @@ void EngineTest::reverseRendererPlaysSourceBackwards()
 
     // Same band-per-frame trick as the matte round-trip: frame i is the only one with a white band
     // at row i * 20, so a frame can be identified from its pixels alone.
-    drift::MatteWriter writer;
+    TonDron::MatteWriter writer;
     QString error;
     QVERIFY2(writer.open(sourcePath, size, fps, 1, &error), qPrintable(error));
     for (int i = 0; i < frames; ++i) {
@@ -749,8 +749,8 @@ void EngineTest::reverseRendererPlaysSourceBackwards()
     }
     QVERIFY2(writer.finish(&error), qPrintable(error));
 
-    const drift::TimeUs coverOut = drift::TimeUs(frames) * drift::kUsPerSecond / fps;
-    QVERIFY2(drift::renderReversed(sourcePath, 0, coverOut, proxyPath, &error, {}),
+    const TonDron::TimeUs coverOut = TonDron::TimeUs(frames) * TonDron::kUsPerSecond / fps;
+    QVERIFY2(TonDron::renderReversed(sourcePath, 0, coverOut, proxyPath, &error, {}),
              qPrintable(error));
     QVERIFY(QFileInfo::exists(proxyPath));
     QVERIFY(!QFileInfo::exists(proxyPath + QStringLiteral(".part")));
@@ -758,7 +758,7 @@ void EngineTest::reverseRendererPlaysSourceBackwards()
     // Each source frame keeps the mirror of its own timestamp, so source frame i lands at
     // coverOut - i frames into the proxy. Walking the proxy forwards must walk the source back.
     for (int j = 1; j <= frames; ++j) {
-        const drift::TimeUs us = drift::TimeUs(j) * drift::kUsPerSecond / fps;
+        const TonDron::TimeUs us = TonDron::TimeUs(j) * TonDron::kUsPerSecond / fps;
         const QImage frame = ClipReaderPool::instance().readVideoFrame(proxyPath, us, 0, 0);
         QVERIFY2(!frame.isNull(), qPrintable(QStringLiteral("proxy frame %1 did not decode").arg(j)));
 
@@ -793,32 +793,32 @@ void EngineTest::reverseProxyLookupIsByContainmentAndSourceIdentity()
     proxy.write(QByteArray(16, 'b'));
     proxy.close();
 
-    const drift::TimeUs coverIn = 0;
-    const drift::TimeUs coverOut = 10 * drift::kUsPerSecond;
-    drift::ReverseProxyCache::instance().insert(sourcePath, coverIn, coverOut, proxyPath);
+    const TonDron::TimeUs coverIn = 0;
+    const TonDron::TimeUs coverOut = 10 * TonDron::kUsPerSecond;
+    TonDron::ReverseProxyCache::instance().insert(sourcePath, coverIn, coverOut, proxyPath);
 
-    drift::TimeUs coverEnd = 0;
-    QCOMPARE(drift::ReverseProxyCache::instance().lookup(sourcePath, 2 * drift::kUsPerSecond,
-                                                         8 * drift::kUsPerSecond, &coverEnd),
+    TonDron::TimeUs coverEnd = 0;
+    QCOMPARE(TonDron::ReverseProxyCache::instance().lookup(sourcePath, 2 * TonDron::kUsPerSecond,
+                                                         8 * TonDron::kUsPerSecond, &coverEnd),
              proxyPath);
     QCOMPARE(coverEnd, coverOut);
 
     // Exactly the rendered range still counts as covered.
-    QCOMPARE(drift::ReverseProxyCache::instance().lookup(sourcePath, coverIn, coverOut, &coverEnd),
+    QCOMPARE(TonDron::ReverseProxyCache::instance().lookup(sourcePath, coverIn, coverOut, &coverEnd),
              proxyPath);
 
     // Extending past what was rendered drops back to the live path rather than showing the wrong
     // frames at the ends.
-    QVERIFY(drift::ReverseProxyCache::instance()
-                .lookup(sourcePath, coverIn, 12 * drift::kUsPerSecond, &coverEnd)
+    QVERIFY(TonDron::ReverseProxyCache::instance()
+                .lookup(sourcePath, coverIn, 12 * TonDron::kUsPerSecond, &coverEnd)
                 .isEmpty());
 
     // A source replaced in place keeps its path, so identity has to come from the file itself.
     QVERIFY(source.open(QIODevice::WriteOnly | QIODevice::Truncate));
     source.write(QByteArray(2048, 'c'));
     source.close();
-    QVERIFY(drift::ReverseProxyCache::instance()
-                .lookup(sourcePath, 2 * drift::kUsPerSecond, 8 * drift::kUsPerSecond, &coverEnd)
+    QVERIFY(TonDron::ReverseProxyCache::instance()
+                .lookup(sourcePath, 2 * TonDron::kUsPerSecond, 8 * TonDron::kUsPerSecond, &coverEnd)
                 .isEmpty());
 }
 
@@ -838,18 +838,18 @@ void EngineTest::resolveVideoReadMirrorsTheClipOntoTheProxy()
     proxy.write(QByteArray(16, 'b'));
     proxy.close();
 
-    drift::Clip clip;
-    clip.type = drift::ClipType::Video;
+    TonDron::Clip clip;
+    clip.type = TonDron::ClipType::Video;
     clip.path = sourcePath;
-    clip.timelineStart = 5 * drift::kUsPerSecond;
-    clip.timelineDuration = 4 * drift::kUsPerSecond;
-    clip.srcIn = 3 * drift::kUsPerSecond;
-    clip.srcOut = 7 * drift::kUsPerSecond;
+    clip.timelineStart = 5 * TonDron::kUsPerSecond;
+    clip.timelineDuration = 4 * TonDron::kUsPerSecond;
+    clip.srcIn = 3 * TonDron::kUsPerSecond;
+    clip.srcOut = 7 * TonDron::kUsPerSecond;
 
     // Without the reverse flag nothing is redirected, even with a proxy sitting in the cache.
-    const drift::TimeUs coverOut = 9 * drift::kUsPerSecond;
-    drift::ReverseProxyCache::instance().insert(sourcePath, drift::kUsPerSecond, coverOut, proxyPath);
-    drift::VideoRead read = drift::resolveVideoRead(clip, clip.timelineStart);
+    const TonDron::TimeUs coverOut = 9 * TonDron::kUsPerSecond;
+    TonDron::ReverseProxyCache::instance().insert(sourcePath, TonDron::kUsPerSecond, coverOut, proxyPath);
+    TonDron::VideoRead read = TonDron::resolveVideoRead(clip, clip.timelineStart);
     QCOMPARE(read.path, sourcePath);
     QCOMPARE(read.sourceUs, clip.srcIn);
 
@@ -857,15 +857,15 @@ void EngineTest::resolveVideoReadMirrorsTheClipOntoTheProxy()
     // furthest from its start. Getting this backwards shows up as a clip that plays the right way
     // round but from the wrong end.
     clip.reverse = true;
-    read = drift::resolveVideoRead(clip, clip.timelineStart);
+    read = TonDron::resolveVideoRead(clip, clip.timelineStart);
     QCOMPARE(read.path, proxyPath);
     QCOMPARE(read.sourceUs, coverOut - clip.srcOut);
 
-    read = drift::resolveVideoRead(clip, clip.timelineStart + clip.timelineDuration);
+    read = TonDron::resolveVideoRead(clip, clip.timelineStart + clip.timelineDuration);
     QCOMPARE(read.path, proxyPath);
     QCOMPARE(read.sourceUs, coverOut - clip.srcIn);
 
-    QCOMPARE(drift::videoReadPath(clip), proxyPath);
+    QCOMPARE(TonDron::videoReadPath(clip), proxyPath);
 }
 
 void EngineTest::effectProcessorPassthroughWithoutEffects()
@@ -884,7 +884,7 @@ void EngineTest::effectProcessorBrightness()
     if (!GpuEffectExecutor::instance().isAvailable())
         QSKIP("OpenGL offscreen context unavailable");
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("adjust.brightness");
     effect.parameters.insert(QStringLiteral("brightness"), 0.2);
 
@@ -938,7 +938,7 @@ void EngineTest::clipReaderSequentialAndSeek()
     QVERIFY(reader.open(path));
     QVERIFY(reader.hasVideo());
 
-    auto dominant = [&](drift::TimeUs us) -> QChar {
+    auto dominant = [&](TonDron::TimeUs us) -> QChar {
         QImage frame;
         if (!reader.readVideoFrameAt(us, frame, 64, 64) || frame.isNull())
             return QChar('?');
@@ -1072,7 +1072,7 @@ void EngineTest::reverseProxyKeepsDisplayRotation()
 
     const QString proxyPath = dir.filePath(QStringLiteral("reversed.mp4"));
     QString error;
-    QVERIFY2(drift::renderReversed(sourcePath, 0, drift::kUsPerSecond, proxyPath, &error, {}),
+    QVERIFY2(TonDron::renderReversed(sourcePath, 0, TonDron::kUsPerSecond, proxyPath, &error, {}),
              qPrintable(error));
 
     const MediaInfo info = MediaProbe::probe(proxyPath);
@@ -1132,7 +1132,7 @@ void EngineTest::clipReaderAudioSequential()
     constexpr int kChunk = 1024;
     constexpr int kChunks = 20;
     constexpr int kTotal = kChunk * kChunks;
-    constexpr drift::TimeUs kStartUs = 200'000;
+    constexpr TonDron::TimeUs kStartUs = 200'000;
 
     ClipReader ref;
     QVERIFY(ref.open(path));
@@ -1150,13 +1150,13 @@ void EngineTest::clipReaderAudioSequential()
     QVector<float> seqBuf;
     seqBuf.reserve(kTotal * 2);
     QVector<float> chunkBuf(kChunk * 2);
-    drift::TimeUs t = kStartUs;
+    TonDron::TimeUs t = kStartUs;
     for (int c = 0; c < kChunks; ++c) {
         const int n = seq.readAudioInterleaved(t, kChunk, kRate, chunkBuf.data());
         QVERIFY(n > 0);
         for (int i = 0; i < n * 2; ++i)
             seqBuf.append(chunkBuf[i]);
-        t += static_cast<drift::TimeUs>(n) * drift::kUsPerSecond / kRate;
+        t += static_cast<TonDron::TimeUs>(n) * TonDron::kUsPerSecond / kRate;
     }
 
     const int cmp = qMin(refBuf.size(), seqBuf.size());
@@ -1171,17 +1171,17 @@ void EngineTest::clipReaderAudioSequential()
 
 void EngineTest::compositorDefaultRenderStaysFullResolution()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(192, 108);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::red;
     project.tracks()[0].clips.append(clip);
 
@@ -1194,17 +1194,17 @@ void EngineTest::compositorDefaultRenderStaysFullResolution()
 
 void EngineTest::compositorPreviewScaleRendersLowerResolution()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(192, 108);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::red;
     project.tracks()[0].clips.append(clip);
 
@@ -1225,17 +1225,17 @@ void EngineTest::compositorPreviewScaleMapsProjectPixelLayout()
 {
     // Project-pixel layout must be scaled onto the preview canvas so WYSIWYG
     // handles (which map project px → widget) stay aligned with the frame.
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(200, 100);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::red;
     clip.shapeStyle.strokeWidth = 0.0;
     clip.transformX.setKeyframe(0, 40.0);
@@ -1277,7 +1277,7 @@ void EngineTest::compositorAppliesFaceWarpFromBakedTrack()
     QVERIFY(source.save(imagePath, "PNG"));
 
     // A face filling most of the frame, so the warp covers a large share of the pixels.
-    drift::FaceAnchors a;
+    TonDron::FaceAnchors a;
     a.valid = true;
     a.faceCenter = QPointF(0.5, 0.5);
     a.leftEye = QPointF(0.38, 0.42);
@@ -1294,33 +1294,33 @@ void EngineTest::compositorAppliesFaceWarpFromBakedTrack()
     a.eyeRadius = 0.05;
     a.score = 1.0;
 
-    drift::FaceTrack track;
+    TonDron::FaceTrack track;
     track.fps = 30;
-    drift::FaceTrackFrame frame;
+    TonDron::FaceTrackFrame frame;
     frame.faces.append(a);
     for (int i = 0; i < 4; ++i)
         track.frames.append(frame);
 
     const QString trackPath = dir.filePath(QStringLiteral("track.json"));
     QString error;
-    QVERIFY2(drift::writeFaceTrack(trackPath, track, &error), qPrintable(error));
+    QVERIFY2(TonDron::writeFaceTrack(trackPath, track, &error), qPrintable(error));
 
     auto composite = [&](bool attachTrack) {
-        drift::Project project;
+        TonDron::Project project;
         project.setResolution(64, 64);
         project.tracks().clear();
-        project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+        project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-        drift::Clip clip;
+        TonDron::Clip clip;
         clip.id = QStringLiteral("c");
-        clip.type = drift::ClipType::Image;
+        clip.type = TonDron::ClipType::Image;
         clip.path = imagePath;
         clip.timelineStart = 0;
-        clip.timelineDuration = drift::secondsToUs(1.0);
+        clip.timelineDuration = TonDron::secondsToUs(1.0);
         if (attachTrack)
             clip.faceTrackPath = trackPath;
 
-        drift::Effect warp;
+        TonDron::Effect warp;
         warp.catalogId = QStringLiteral("face_swirl");
         warp.parameters.insert(QStringLiteral("twist"), 2.5);
         warp.parameters.insert(QStringLiteral("coverage"), 1.8);
@@ -1366,29 +1366,29 @@ void EngineTest::compositorAppliesMultiplyBlendMode()
     };
 
     auto compositeOverBackground = [&](QColor background) {
-        drift::Project project;
+        TonDron::Project project;
         project.setResolution(64, 64);
         project.tracks().clear();
-        project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
-        project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+        project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
+        project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
         // Index 0 is the topmost track and composites in front, so the
         // multiplied foreground goes on track 0 and the background on track 1.
-        drift::Clip top;
+        TonDron::Clip top;
         top.id = QStringLiteral("top");
-        top.type = drift::ClipType::Image;
+        top.type = TonDron::ClipType::Image;
         top.path = writeSolidImage(QStringLiteral("top.png"), Qt::red);
-        top.blendMode = drift::BlendMode::Multiply;
+        top.blendMode = TonDron::BlendMode::Multiply;
         top.timelineStart = 0;
-        top.timelineDuration = drift::secondsToUs(1.0);
+        top.timelineDuration = TonDron::secondsToUs(1.0);
         project.tracks()[0].clips.append(top);
 
-        drift::Clip bottom;
+        TonDron::Clip bottom;
         bottom.id = QStringLiteral("bottom");
-        bottom.type = drift::ClipType::Image;
+        bottom.type = TonDron::ClipType::Image;
         bottom.path = writeSolidImage(QStringLiteral("bottom.png"), background);
         bottom.timelineStart = 0;
-        bottom.timelineDuration = drift::secondsToUs(1.0);
+        bottom.timelineDuration = TonDron::secondsToUs(1.0);
         project.tracks()[1].clips.append(bottom);
 
         FrameCompositor compositor;
@@ -1419,24 +1419,24 @@ void EngineTest::compositorAnimatesKeyedEffectParam()
     const QString path = dir.filePath(QStringLiteral("grey.png"));
     QVERIFY(source.save(path, "PNG"));
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(64, 64);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("animated");
-    clip.type = drift::ClipType::Image;
+    clip.type = TonDron::ClipType::Image;
     clip.path = path;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("adjust.brightness");
     // The static value is deliberately the *opposite* of the ramp, so a composite that ignored the
     // track would darken instead of brighten and the assertions below would fail.
     effect.parameters.insert(QStringLiteral("brightness"), -0.5);
-    drift::KeyframeTrack<double> ramp;
+    TonDron::KeyframeTrack<double> ramp;
     ramp.setKeyframe(0, 0.0);
-    ramp.setKeyframe(drift::secondsToUs(2.0), 0.5);
+    ramp.setKeyframe(TonDron::secondsToUs(2.0), 0.5);
     effect.paramKeyframes.insert(QStringLiteral("brightness"), ramp);
     clip.effects.append(effect);
     project.tracks()[0].clips.append(clip);
@@ -1445,8 +1445,8 @@ void EngineTest::compositorAnimatesKeyedEffectParam()
     compositor.setProject(&project);
 
     const int atStart = qRed(compositor.compositeAt(0).pixel(32, 32));
-    const int atMid = qRed(compositor.compositeAt(drift::secondsToUs(1.0)).pixel(32, 32));
-    const int atEnd = qRed(compositor.compositeAt(drift::secondsToUs(1.999)).pixel(32, 32));
+    const int atMid = qRed(compositor.compositeAt(TonDron::secondsToUs(1.0)).pixel(32, 32));
+    const int atEnd = qRed(compositor.compositeAt(TonDron::secondsToUs(1.999)).pixel(32, 32));
 
     QVERIFY(atStart < atMid);
     QVERIFY(atMid < atEnd);
@@ -1456,18 +1456,18 @@ void EngineTest::compositorAnimatesKeyedEffectParam()
 
 void EngineTest::compositorRendersShapeClip()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.name = QStringLiteral("triangle");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Triangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Triangle;
     clip.shapeStyle.fill = QColor(255, 0, 0);
     clip.shapeStyle.stroke = Qt::white;
     clip.shapeStyle.strokeWidth = 2.0;
@@ -1489,17 +1489,17 @@ void EngineTest::compositorRendersShapeClip()
 // editing on the preview, where the QML editor stands in for the baked raster.
 void EngineTest::compositorSkipsClipBeingEdited()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("edited");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = QColor(255, 0, 0);
     clip.transformX.setKeyframe(0, 32.0);
     clip.transformY.setKeyframe(0, 32.0);
@@ -1542,7 +1542,7 @@ void EngineTest::adjustmentEffectContrastCatalogEntry()
     QImage image(64, 64, QImage::Format_RGBA8888);
     image.fill(QColor(180, 180, 180));
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = def->meta.id;
     effect.parameters.insert(def->meta.parameters[0].key, 2.0);
 
@@ -1672,7 +1672,7 @@ void EngineTest::effectGraphTemplateSubstitution()
     QVERIFY(def->gpu.valid);
     QCOMPARE(def->graphTemplate, QString());
 
-    drift::Effect vhs;
+    TonDron::Effect vhs;
     vhs.catalogId = QStringLiteral("stylize.vhs");
     vhs.parameters.insert(QStringLiteral("noise"), 30.0);
     QCOMPARE(buildFilterGraphForEffect(vhs), QString());
@@ -1692,7 +1692,7 @@ void EngineTest::compositorOnlyPresetsUseCompositorPath()
     QImage image(32, 32, QImage::Format_RGBA8888);
     image.fill(QColor(200, 120, 80));
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = bloom->meta.id;
     effect.parameters.insert(QStringLiteral("intensity"), 1.0);
     effect.parameters.insert(QStringLiteral("radius"), 4.0);
@@ -1797,7 +1797,7 @@ void EngineTest::gpuGaussianBlurChangesImage()
             image.setPixel(x, y, qRgba(255, 255, 255, 255));
     }
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("builtin.effects.gaussian_blur");
     effect.parameters.insert(QStringLiteral("u_blurRadius"), 8.0);
 
@@ -1822,7 +1822,7 @@ void EngineTest::gpuMultiPassPreservesVerticalOrientation()
             image.setPixel(x, y, color);
     }
 
-    drift::Effect blur;
+    TonDron::Effect blur;
     blur.catalogId = QStringLiteral("builtin.effects.gaussian_blur");
     blur.parameters.insert(QStringLiteral("u_blurRadius"), 2.0);
 
@@ -1839,7 +1839,7 @@ void EngineTest::gpuMultiPassPreservesVerticalOrientation()
     for (int x = 8; x < 24; ++x)
         bloomSrc.setPixel(x, 4, qRgba(255, 255, 255, 255)); // bright bar near top only
 
-    drift::Effect bloom;
+    TonDron::Effect bloom;
     bloom.catalogId = QStringLiteral("bloom_glow");
     bloom.parameters.insert(QStringLiteral("threshold"), 0.4);
     bloom.parameters.insert(QStringLiteral("intensity"), 1.5);
@@ -1898,7 +1898,7 @@ void EngineTest::gpuBrokenShaderPassthrough()
     QImage image(32, 32, QImage::Format_RGBA8888);
     image.fill(QColor(12, 34, 56));
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = def->meta.id;
 
     const QImage out = EffectProcessor::applyEffects(image, {effect});
@@ -1928,7 +1928,7 @@ void EngineTest::rgbSplitZeroAmountPassthrough()
 {
     const QImage image = makeRedBlueSplitTestImage();
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("rgb_split");
     effect.parameters.insert(QStringLiteral("amount"), 0.0);
     effect.parameters.insert(QStringLiteral("angle"), 0.0);
@@ -1943,7 +1943,7 @@ void EngineTest::rgbSplitShiftsColorChannels()
 {
     const QImage image = makeRedBlueSplitTestImage();
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("rgb_split");
     effect.parameters.insert(QStringLiteral("amount"), 8.0);
     effect.parameters.insert(QStringLiteral("angle"), 0.0);
@@ -1981,9 +1981,9 @@ static QImage makeBlockGlitchTestImage()
     return image;
 }
 
-static drift::Effect makeBlockGlitchEffect()
+static TonDron::Effect makeBlockGlitchEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("block_glitch");
     effect.parameters.insert(QStringLiteral("intensity"), 1.0);
     effect.parameters.insert(QStringLiteral("blockSize"), 16.0);
@@ -1996,8 +1996,8 @@ static drift::Effect makeBlockGlitchEffect()
 void EngineTest::blockGlitchDeterministicForSameTimeAndSeed()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeBlockGlitchEffect();
-    constexpr drift::TimeUs timeUs = 750'000;
+    const TonDron::Effect effect = makeBlockGlitchEffect();
+    constexpr TonDron::TimeUs timeUs = 750'000;
 
     const QImage first = EffectProcessor::applyEffects(image, {effect}, timeUs);
     const QImage second = EffectProcessor::applyEffects(image, {effect}, timeUs);
@@ -2012,7 +2012,7 @@ void EngineTest::blockGlitchDeterministicForSameTimeAndSeed()
 void EngineTest::blockGlitchChangesWithTimelineTime()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeBlockGlitchEffect();
+    const TonDron::Effect effect = makeBlockGlitchEffect();
 
     const QImage atT0 = EffectProcessor::applyEffects(image, {effect}, 0);
     const QImage atT1 = EffectProcessor::applyEffects(image, {effect}, 500'000);
@@ -2021,15 +2021,15 @@ void EngineTest::blockGlitchChangesWithTimelineTime()
     QVERIFY(atT0 != atT1);
     QVERIFY(atT1 != atT2);
 
-    drift::Effect otherSeed = effect;
+    TonDron::Effect otherSeed = effect;
     otherSeed.parameters.insert(QStringLiteral("seed"), 99.0);
     const QImage other = EffectProcessor::applyEffects(image, {otherSeed}, 500'000);
     QVERIFY(other != atT1);
 }
 
-static drift::Effect makeScanlineGlitchEffect()
+static TonDron::Effect makeScanlineGlitchEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("scanline_glitch");
     effect.parameters.insert(QStringLiteral("jitter"), 0.5);
     effect.parameters.insert(QStringLiteral("lineStrength"), 0.5);
@@ -2042,7 +2042,7 @@ void EngineTest::scanlineGlitchZeroStrengthPassthrough()
 {
     const QImage image = makeBlockGlitchTestImage();
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("scanline_glitch");
     effect.parameters.insert(QStringLiteral("jitter"), 0.0);
     effect.parameters.insert(QStringLiteral("lineStrength"), 0.0);
@@ -2056,8 +2056,8 @@ void EngineTest::scanlineGlitchZeroStrengthPassthrough()
 void EngineTest::scanlineGlitchDeterministicAtFixedTime()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeScanlineGlitchEffect();
-    constexpr drift::TimeUs timeUs = 333'000;
+    const TonDron::Effect effect = makeScanlineGlitchEffect();
+    constexpr TonDron::TimeUs timeUs = 333'000;
 
     const QImage first = EffectProcessor::applyEffects(image, {effect}, timeUs);
     const QImage second = EffectProcessor::applyEffects(image, {effect}, timeUs);
@@ -2072,7 +2072,7 @@ void EngineTest::scanlineGlitchDeterministicAtFixedTime()
 void EngineTest::scanlineGlitchVisualChangeAtNonzeroSettings()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeScanlineGlitchEffect();
+    const TonDron::Effect effect = makeScanlineGlitchEffect();
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 250'000);
     QVERIFY(out != image);
@@ -2092,9 +2092,9 @@ static QImage makeVhsCrtTestImage()
     return image;
 }
 
-static drift::Effect makeVhsCrtEffect()
+static TonDron::Effect makeVhsCrtEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("vhs_crt");
     effect.parameters.insert(QStringLiteral("scanlines"), 0.5);
     effect.parameters.insert(QStringLiteral("noise"), 0.4);
@@ -2109,7 +2109,7 @@ void EngineTest::vhsCrtZeroSettingsPassthrough()
 {
     const QImage image = makeVhsCrtTestImage();
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("vhs_crt");
     effect.parameters.insert(QStringLiteral("scanlines"), 0.0);
     effect.parameters.insert(QStringLiteral("noise"), 0.0);
@@ -2125,7 +2125,7 @@ void EngineTest::vhsCrtZeroSettingsPassthrough()
 void EngineTest::vhsCrtNonzeroModifiesOutput()
 {
     const QImage image = makeVhsCrtTestImage();
-    const drift::Effect effect = makeVhsCrtEffect();
+    const TonDron::Effect effect = makeVhsCrtEffect();
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 420'000);
     QVERIFY(out != image);
@@ -2139,8 +2139,8 @@ void EngineTest::vhsCrtNonzeroModifiesOutput()
 void EngineTest::vhsCrtDeterministicAtFixedTime()
 {
     const QImage image = makeVhsCrtTestImage();
-    const drift::Effect effect = makeVhsCrtEffect();
-    constexpr drift::TimeUs timeUs = 420'000;
+    const TonDron::Effect effect = makeVhsCrtEffect();
+    constexpr TonDron::TimeUs timeUs = 420'000;
 
     const QImage first = EffectProcessor::applyEffects(image, {effect}, timeUs);
     const QImage second = EffectProcessor::applyEffects(image, {effect}, timeUs);
@@ -2150,9 +2150,9 @@ void EngineTest::vhsCrtDeterministicAtFixedTime()
     QVERIFY(otherTime != first);
 }
 
-static drift::Effect makeBloomGlowEffect()
+static TonDron::Effect makeBloomGlowEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("bloom_glow");
     effect.parameters.insert(QStringLiteral("threshold"), 0.5);
     effect.parameters.insert(QStringLiteral("intensity"), 1.0);
@@ -2165,7 +2165,7 @@ void EngineTest::bloomGlowZeroIntensityPassthrough()
     QImage image(32, 32, QImage::Format_RGBA8888);
     image.fill(QColor(255, 255, 255));
 
-    drift::Effect effect = makeBloomGlowEffect();
+    TonDron::Effect effect = makeBloomGlowEffect();
     effect.parameters.insert(QStringLiteral("intensity"), 0.0);
 
     const QImage out = EffectProcessor::applyEffects(image, {effect});
@@ -2177,7 +2177,7 @@ void EngineTest::bloomGlowDarkFrameUnchanged()
     QImage image(32, 32, QImage::Format_RGBA8888);
     image.fill(QColor(20, 25, 30));
 
-    const drift::Effect effect = makeBloomGlowEffect();
+    const TonDron::Effect effect = makeBloomGlowEffect();
     const QImage out = EffectProcessor::applyEffects(image, {effect});
     QCOMPARE(out, image);
 }
@@ -2196,7 +2196,7 @@ void EngineTest::bloomGlowBrightSpotBleedsToNeighbors()
             image.setPixel(x, y, qRgba(255, 255, 255, 255));
     }
 
-    const drift::Effect effect = makeBloomGlowEffect();
+    const TonDron::Effect effect = makeBloomGlowEffect();
     const QImage out = EffectProcessor::applyEffects(image, {effect});
     QVERIFY(out != image);
 
@@ -2226,9 +2226,9 @@ void EngineTest::bloomGlowBrightSpotBleedsToNeighbors()
     QCOMPARE(buildFilterGraphForEffect({.catalogId = QStringLiteral("bloom_glow")}), QString());
 }
 
-static drift::Effect makeRippleWaterEffect()
+static TonDron::Effect makeRippleWaterEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("ripple_water");
     effect.parameters.insert(QStringLiteral("amplitude"), 12.0);
     effect.parameters.insert(QStringLiteral("frequency"), 10.0);
@@ -2242,7 +2242,7 @@ void EngineTest::rippleWaterZeroAmplitudePassthrough()
 {
     const QImage image = makeBlockGlitchTestImage();
 
-    drift::Effect effect = makeRippleWaterEffect();
+    TonDron::Effect effect = makeRippleWaterEffect();
     effect.parameters.insert(QStringLiteral("amplitude"), 0.0);
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 500'000);
@@ -2252,7 +2252,7 @@ void EngineTest::rippleWaterZeroAmplitudePassthrough()
 void EngineTest::rippleWaterNonzeroDisplacementChangesOutput()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeRippleWaterEffect();
+    const TonDron::Effect effect = makeRippleWaterEffect();
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 250'000);
     QVERIFY(out != image);
@@ -2277,9 +2277,9 @@ static QImage makeHighContrastRectangleImage()
     return image;
 }
 
-static drift::Effect makeEdgeNeonEffect()
+static TonDron::Effect makeEdgeNeonEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("edge_neon");
     effect.parameters.insert(QStringLiteral("threshold"), 0.15);
     effect.parameters.insert(QStringLiteral("intensity"), 1.0);
@@ -2292,7 +2292,7 @@ void EngineTest::edgeNeonZeroIntensityUnchanged()
 {
     const QImage image = makeHighContrastRectangleImage();
 
-    drift::Effect effect = makeEdgeNeonEffect();
+    TonDron::Effect effect = makeEdgeNeonEffect();
     effect.parameters.insert(QStringLiteral("intensity"), 0.0);
 
     const QImage out = EffectProcessor::applyEffects(image, {effect});
@@ -2302,7 +2302,7 @@ void EngineTest::edgeNeonZeroIntensityUnchanged()
 void EngineTest::edgeNeonHighContrastRectangleGlow()
 {
     const QImage image = makeHighContrastRectangleImage();
-    const drift::Effect effect = makeEdgeNeonEffect();
+    const TonDron::Effect effect = makeEdgeNeonEffect();
 
     const QImage out = EffectProcessor::applyEffects(image, {effect});
     QVERIFY(out != image);
@@ -2323,9 +2323,9 @@ void EngineTest::edgeNeonHighContrastRectangleGlow()
     QCOMPARE(buildFilterGraphForEffect({.catalogId = QStringLiteral("edge_neon")}), QString());
 }
 
-static drift::Effect makeDigitalGlitchEffect()
+static TonDron::Effect makeDigitalGlitchEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("digital_glitch");
     effect.parameters.insert(QStringLiteral("intensity"), 0.75);
     effect.parameters.insert(QStringLiteral("frequency"), 0.5);
@@ -2340,7 +2340,7 @@ void EngineTest::digitalGlitchZeroIntensityUnchanged()
 {
     const QImage image = makeBlockGlitchTestImage();
 
-    drift::Effect effect = makeDigitalGlitchEffect();
+    TonDron::Effect effect = makeDigitalGlitchEffect();
     effect.parameters.insert(QStringLiteral("intensity"), 0.0);
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 500'000);
@@ -2350,8 +2350,8 @@ void EngineTest::digitalGlitchZeroIntensityUnchanged()
 void EngineTest::digitalGlitchDeterministicForFixedTimeAndSeed()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeDigitalGlitchEffect();
-    constexpr drift::TimeUs timeUs = 620'000;
+    const TonDron::Effect effect = makeDigitalGlitchEffect();
+    constexpr TonDron::TimeUs timeUs = 620'000;
 
     const QImage first = EffectProcessor::applyEffects(image, {effect}, timeUs);
     const QImage second = EffectProcessor::applyEffects(image, {effect}, timeUs);
@@ -2363,15 +2363,15 @@ void EngineTest::digitalGlitchDeterministicForFixedTimeAndSeed()
     QVERIFY(def->isGpu);
     QCOMPARE(buildFilterGraphForEffect({.catalogId = QStringLiteral("digital_glitch")}), QString());
 
-    drift::Effect otherSeed = effect;
+    TonDron::Effect otherSeed = effect;
     otherSeed.parameters.insert(QStringLiteral("seed"), 99.0);
     const QImage other = EffectProcessor::applyEffects(image, {otherSeed}, timeUs);
     QVERIFY(other != first);
 }
 
-static drift::Effect makeFilmBurnEffect()
+static TonDron::Effect makeFilmBurnEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("film_burn");
     effect.parameters.insert(QStringLiteral("intensity"), 0.8);
     effect.parameters.insert(QStringLiteral("warmth"), 0.85);
@@ -2386,7 +2386,7 @@ void EngineTest::filmBurnZeroIntensityUnchanged()
     QImage image(64, 64, QImage::Format_RGBA8888);
     image.fill(QColor(30, 30, 40));
 
-    drift::Effect effect = makeFilmBurnEffect();
+    TonDron::Effect effect = makeFilmBurnEffect();
     effect.parameters.insert(QStringLiteral("intensity"), 0.0);
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 400'000);
@@ -2398,8 +2398,8 @@ void EngineTest::filmBurnAddsWarmLeakContribution()
     QImage image(64, 64, QImage::Format_RGBA8888);
     image.fill(QColor(20, 22, 35));
 
-    const drift::Effect effect = makeFilmBurnEffect();
-    constexpr drift::TimeUs timeUs = 400'000;
+    const TonDron::Effect effect = makeFilmBurnEffect();
+    constexpr TonDron::TimeUs timeUs = 400'000;
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, timeUs);
     QVERIFY(out != image);
@@ -2460,9 +2460,9 @@ void EngineTest::timeEchoBlendIncludesHistoryContribution()
     QVERIFY(qBlue(normal.pixel(8, 14)) > qBlue(currentOnly.pixel(8, 14)));
 }
 
-static drift::Effect makeTimeEchoEffect(const QString &blendMode = QStringLiteral("add"))
+static TonDron::Effect makeTimeEchoEffect(const QString &blendMode = QStringLiteral("add"))
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("time_echo");
     effect.parameters.insert(QStringLiteral("frames"), 4);
     effect.parameters.insert(QStringLiteral("decay"), 0.55);
@@ -2478,25 +2478,25 @@ void EngineTest::timeEchoDeterministicAtFixedTimelineTime()
     if (path.isEmpty())
         QSKIP("ffmpeg not available to generate a test clip");
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(64, 64);
     project.setFps(25);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("video");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.path = path;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     clip.effects.append(makeTimeEchoEffect());
     project.tracks()[0].clips.append(clip);
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    constexpr drift::TimeUs timeUs = drift::secondsToUs(2.1);
+    constexpr TonDron::TimeUs timeUs = TonDron::secondsToUs(2.1);
     const QImage first = compositor.compositeAt(timeUs);
     const QImage second = compositor.compositeAt(timeUs);
     QCOMPARE(first, second);
@@ -2511,24 +2511,24 @@ void EngineTest::timeEchoBlendsPriorVideoFrames()
     if (path.isEmpty())
         QSKIP("ffmpeg not available to generate a test clip");
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(64, 64);
     project.setFps(25);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("video");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.path = path;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     project.tracks()[0].clips.append(clip);
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    constexpr drift::TimeUs timeUs = drift::secondsToUs(2.1);
+    constexpr TonDron::TimeUs timeUs = TonDron::secondsToUs(2.1);
     const QImage withoutEcho = compositor.compositeAt(timeUs);
 
     clip.effects.append(makeTimeEchoEffect(QStringLiteral("add")));
@@ -2546,9 +2546,9 @@ void EngineTest::timeEchoBlendsPriorVideoFrames()
     QCOMPARE(buildFilterGraphForEffect({.catalogId = QStringLiteral("time_echo")}), QString());
 }
 
-static drift::Effect makeShockwavePulseEffect()
+static TonDron::Effect makeShockwavePulseEffect()
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("shockwave_pulse");
     effect.parameters.insert(QStringLiteral("centerX"), 0.5);
     effect.parameters.insert(QStringLiteral("centerY"), 0.5);
@@ -2563,7 +2563,7 @@ void EngineTest::shockwavePulseZeroStrengthPassthrough()
 {
     const QImage image = makeBlockGlitchTestImage();
 
-    drift::Effect effect = makeShockwavePulseEffect();
+    TonDron::Effect effect = makeShockwavePulseEffect();
     effect.parameters.insert(QStringLiteral("strength"), 0.0);
 
     const QImage out = EffectProcessor::applyEffects(image, {effect}, 500'000);
@@ -2573,10 +2573,10 @@ void EngineTest::shockwavePulseZeroStrengthPassthrough()
 void EngineTest::shockwavePulseChangesPixelsNearWavefront()
 {
     const QImage image = makeBlockGlitchTestImage();
-    const drift::Effect effect = makeShockwavePulseEffect();
+    const TonDron::Effect effect = makeShockwavePulseEffect();
 
     // speed=1 => wave radius 0.233 at t=233ms; pixel (80,32) lies on that ring from center (64,32).
-    constexpr drift::TimeUs timeUs = 233'000;
+    constexpr TonDron::TimeUs timeUs = 233'000;
     const QImage out = EffectProcessor::applyEffects(image, {effect}, timeUs);
     QVERIFY(out != image);
     QVERIFY(out.pixel(80, 32) != image.pixel(80, 32));
@@ -2592,44 +2592,44 @@ void EngineTest::shockwavePulseChangesPixelsNearWavefront()
 
 void EngineTest::compositorCrossfadeBetweenShapeClips()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clipA;
+    TonDron::Clip clipA;
     clipA.id = QStringLiteral("a");
-    clipA.type = drift::ClipType::Shape;
+    clipA.type = TonDron::ClipType::Shape;
     clipA.timelineStart = 0;
-    clipA.timelineDuration = drift::secondsToUs(2.0);
-    clipA.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clipA.timelineDuration = TonDron::secondsToUs(2.0);
+    clipA.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clipA.shapeStyle.fill = Qt::red;
 
-    drift::Clip clipB;
+    TonDron::Clip clipB;
     clipB.id = QStringLiteral("b");
-    clipB.type = drift::ClipType::Shape;
-    clipB.timelineStart = drift::secondsToUs(2.0);
-    clipB.timelineDuration = drift::secondsToUs(2.0);
-    clipB.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clipB.type = TonDron::ClipType::Shape;
+    clipB.timelineStart = TonDron::secondsToUs(2.0);
+    clipB.timelineDuration = TonDron::secondsToUs(2.0);
+    clipB.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clipB.shapeStyle.fill = Qt::blue;
 
     project.tracks()[0].clips.append(clipA);
     project.tracks()[0].clips.append(clipB);
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.id = QStringLiteral("tr");
     transition.fromClipId = clipA.id;
     transition.toClipId = clipB.id;
     transition.kindId = QStringLiteral("crossfade");
-    transition.durationUs = drift::secondsToUs(1.0);
+    transition.durationUs = TonDron::secondsToUs(1.0);
     project.tracks()[0].transitions.append(transition);
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    const QImage redOnly = compositor.compositeAt(drift::secondsToUs(1.0));
-    const QImage blueOnly = compositor.compositeAt(drift::secondsToUs(3.0));
-    const QImage mid = compositor.compositeAt(drift::secondsToUs(2.0));
+    const QImage redOnly = compositor.compositeAt(TonDron::secondsToUs(1.0));
+    const QImage blueOnly = compositor.compositeAt(TonDron::secondsToUs(3.0));
+    const QImage mid = compositor.compositeAt(TonDron::secondsToUs(2.0));
     QVERIFY(!mid.isNull());
     const QRgb center = mid.pixel(64, 64);
     const QRgb redCenter = redOnly.pixel(64, 64);
@@ -2640,49 +2640,49 @@ void EngineTest::compositorCrossfadeBetweenShapeClips()
     QVERIFY(qBlue(center) > 0);
 }
 
-static void appendRedBlueShapeTransition(drift::Project &project, const QString &kindId)
+static void appendRedBlueShapeTransition(TonDron::Project &project, const QString &kindId)
 {
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clipA;
+    TonDron::Clip clipA;
     clipA.id = QStringLiteral("a");
-    clipA.type = drift::ClipType::Shape;
+    clipA.type = TonDron::ClipType::Shape;
     clipA.timelineStart = 0;
-    clipA.timelineDuration = drift::secondsToUs(2.0);
-    clipA.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clipA.timelineDuration = TonDron::secondsToUs(2.0);
+    clipA.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clipA.shapeStyle.fill = Qt::red;
 
-    drift::Clip clipB;
+    TonDron::Clip clipB;
     clipB.id = QStringLiteral("b");
-    clipB.type = drift::ClipType::Shape;
-    clipB.timelineStart = drift::secondsToUs(2.0);
-    clipB.timelineDuration = drift::secondsToUs(2.0);
-    clipB.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clipB.type = TonDron::ClipType::Shape;
+    clipB.timelineStart = TonDron::secondsToUs(2.0);
+    clipB.timelineDuration = TonDron::secondsToUs(2.0);
+    clipB.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clipB.shapeStyle.fill = Qt::blue;
 
     project.tracks()[0].clips.append(clipA);
     project.tracks()[0].clips.append(clipB);
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.id = QStringLiteral("tr");
     transition.fromClipId = clipA.id;
     transition.toClipId = clipB.id;
     transition.kindId = kindId;
-    transition.durationUs = drift::secondsToUs(1.0);
+    transition.durationUs = TonDron::secondsToUs(1.0);
     project.tracks()[0].transitions.append(transition);
 }
 
 void EngineTest::compositorDipToBlackMidpointIsBlack()
 {
-    drift::Project project;
+    TonDron::Project project;
     appendRedBlueShapeTransition(project, QStringLiteral("dip"));
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    const QImage mid = compositor.compositeAt(drift::secondsToUs(2.0));
+    const QImage mid = compositor.compositeAt(TonDron::secondsToUs(2.0));
     QVERIFY(!mid.isNull());
     const QRgb center = mid.pixel(64, 64);
     QVERIFY(qRed(center) < 30);
@@ -2692,14 +2692,14 @@ void EngineTest::compositorDipToBlackMidpointIsBlack()
 
 void EngineTest::compositorWipeRightRevealsIncomingClip()
 {
-    drift::Project project;
+    TonDron::Project project;
     appendRedBlueShapeTransition(project, QStringLiteral("wipe_right"));
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    const QImage early = compositor.compositeAt(drift::secondsToUs(1.75));
-    const QImage late = compositor.compositeAt(drift::secondsToUs(2.25));
+    const QImage early = compositor.compositeAt(TonDron::secondsToUs(1.75));
+    const QImage late = compositor.compositeAt(TonDron::secondsToUs(2.25));
     QVERIFY(!early.isNull());
     QVERIFY(!late.isNull());
     // Shape clips are small and centered; sample canvas center, not edges.
@@ -2793,12 +2793,12 @@ void EngineTest::brokenTransitionShaderFallsBackToCrossfade()
 
     reloadTransitionCatalog({dir.path()});
 
-    drift::Project project;
+    TonDron::Project project;
     appendRedBlueShapeTransition(project, QStringLiteral("broken"));
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    const QImage mid = compositor.compositeAt(drift::secondsToUs(2.0));
+    const QImage mid = compositor.compositeAt(TonDron::secondsToUs(2.0));
     QVERIFY(!mid.isNull());
     const QRgb center = mid.pixel(64, 64);
     QVERIFY(qRed(center) > 0);
@@ -2812,44 +2812,44 @@ void EngineTest::brokenTransitionShaderFallsBackToCrossfade()
 // Rendering each side into its own full-canvas layer routes text through the normal path.
 void EngineTest::textClipRendersInsideTransition()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip text;
+    TonDron::Clip text;
     text.id = QStringLiteral("a");
-    text.type = drift::ClipType::Text;
+    text.type = TonDron::ClipType::Text;
     text.timelineStart = 0;
-    text.timelineDuration = drift::secondsToUs(2.0);
+    text.timelineDuration = TonDron::secondsToUs(2.0);
     text.textContent = QStringLiteral("HELLO");
     text.textStyle.color = Qt::white;
     text.textStyle.pixelSize = 28;
 
-    drift::Clip shape;
+    TonDron::Clip shape;
     shape.id = QStringLiteral("b");
-    shape.type = drift::ClipType::Shape;
-    shape.timelineStart = drift::secondsToUs(2.0);
-    shape.timelineDuration = drift::secondsToUs(2.0);
-    shape.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    shape.type = TonDron::ClipType::Shape;
+    shape.timelineStart = TonDron::secondsToUs(2.0);
+    shape.timelineDuration = TonDron::secondsToUs(2.0);
+    shape.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     shape.shapeStyle.fill = Qt::blue;
 
     project.tracks()[0].clips.append(text);
     project.tracks()[0].clips.append(shape);
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.id = QStringLiteral("tr");
     transition.fromClipId = text.id;
     transition.toClipId = shape.id;
     transition.kindId = QStringLiteral("crossfade");
-    transition.durationUs = drift::secondsToUs(1.0);
+    transition.durationUs = TonDron::secondsToUs(1.0);
     project.tracks()[0].transitions.append(transition);
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
     // Early in the window the text still dominates: some pixel must be lit by the glyphs.
-    const QImage frame = compositor.compositeAt(drift::secondsToUs(1.6));
+    const QImage frame = compositor.compositeAt(TonDron::secondsToUs(1.6));
     QVERIFY(!frame.isNull());
 
     int lit = 0;
@@ -2872,17 +2872,17 @@ void EngineTest::transitionRenderingIsDeterministic()
         QSKIP("no OpenGL context available");
 
     for (const QString &kindId : transitionPresetIds()) {
-        drift::Project project;
+        TonDron::Project project;
         appendRedBlueShapeTransition(project, kindId);
 
         FrameCompositor compositor;
         compositor.setProject(&project);
 
-        const QImage first = compositor.compositeAt(drift::secondsToUs(1.75));
+        const QImage first = compositor.compositeAt(TonDron::secondsToUs(1.75));
 
         // Jump forward, then scrub back to the same time.
-        compositor.compositeAt(drift::secondsToUs(2.4));
-        const QImage rescrubbed = compositor.compositeAt(drift::secondsToUs(1.75));
+        compositor.compositeAt(TonDron::secondsToUs(2.4));
+        const QImage rescrubbed = compositor.compositeAt(TonDron::secondsToUs(1.75));
 
         QVERIFY2(first == rescrubbed, qPrintable(kindId));
     }
@@ -2897,14 +2897,14 @@ namespace {
             QSKIP("font bundle not present — see recipes/fetch-fonts.py in drift-addons");          \
     } while (false)
 
-drift::Clip makeTextClip(const QString &text, const QRectF &rect)
+TonDron::Clip makeTextClip(const QString &text, const QRectF &rect)
 {
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("text");
-    clip.type = drift::ClipType::Text;
+    clip.type = TonDron::ClipType::Text;
     clip.textContent = text;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(4.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
     clip.transformX.setKeyframe(0, rect.x());
     clip.transformY.setKeyframe(0, rect.y());
     clip.transformW.setKeyframe(0, rect.width());
@@ -2986,7 +2986,7 @@ void EngineTest::fontForStyleResolvesRequestedFace()
 {
     SKIP_WITHOUT_FONTS();
 
-    drift::TextStyle style;
+    TonDron::TextStyle style;
     style.fontFamily = QStringLiteral("Montserrat");
     style.fontWeight = 900;
     QCOMPARE(fontForStyle(style, 40).styleName(), QStringLiteral("Black"));
@@ -3014,7 +3014,7 @@ void EngineTest::textRasterIsCached()
     SKIP_WITHOUT_FONTS();
 
     const QRectF rect(0, 0, 400, 200);
-    drift::Clip clip = makeTextClip(QStringLiteral("Cache me"), rect);
+    TonDron::Clip clip = makeTextClip(QStringLiteral("Cache me"), rect);
     clip.textStyle.fontFamily = QStringLiteral("Inter");
 
     const TextRasterResult first = rasterizeText(clip, rect, 1.0);
@@ -3024,7 +3024,7 @@ void EngineTest::textRasterIsCached()
     QCOMPARE(first.image.cacheKey(), second.image.cacheKey());
 
     // The animation is applied to the layer, never to the pixels, so it must not evict the raster.
-    clip.textStyle.animIn = {drift::TextAnimKind::Fade, drift::secondsToUs(1.0), drift::TextEase::EaseOut};
+    clip.textStyle.animIn = {TonDron::TextAnimKind::Fade, TonDron::secondsToUs(1.0), TonDron::TextEase::EaseOut};
     const TextRasterResult animated = rasterizeText(clip, rect, 1.0);
     QCOMPARE(animated.image.cacheKey(), first.image.cacheKey());
 
@@ -3037,7 +3037,7 @@ void EngineTest::textDecorationsAreNotCropped()
     SKIP_WITHOUT_FONTS();
 
     const QRectF rect(100, 100, 300, 80);
-    drift::Clip clip = makeTextClip(QStringLiteral("Edge"), rect);
+    TonDron::Clip clip = makeTextClip(QStringLiteral("Edge"), rect);
     clip.textStyle.fontFamily = QStringLiteral("Anton");
     clip.textStyle.pixelSize = 64;
 
@@ -3121,7 +3121,7 @@ void EngineTest::wordAccentRecoloursChosenWords()
     SKIP_WITHOUT_FONTS();
 
     const QRectF rect(0, 0, 700, 200);
-    drift::Clip clip = makeTextClip(QStringLiteral("Number of thumbnails that"), rect);
+    TonDron::Clip clip = makeTextClip(QStringLiteral("Number of thumbnails that"), rect);
     clip.textStyle.fontFamily = QStringLiteral("Inter");
     clip.textStyle.fontWeight = 800;
     clip.textStyle.pixelSize = 48;
@@ -3130,7 +3130,7 @@ void EngineTest::wordAccentRecoloursChosenWords()
     QVERIFY(!plain.isNull());
     QCOMPARE(redPixels(plain), 0);
 
-    clip.textStyle.accent.rule = drift::WordAccentRule::FirstWord;
+    clip.textStyle.accent.rule = TonDron::WordAccentRule::FirstWord;
     clip.textStyle.accent.colorEnabled = true;
     clip.textStyle.accent.color = QColor(255, 0, 0);
     const QImage accented = rasterizeText(clip, rect, 1.0).image;
@@ -3141,7 +3141,7 @@ void EngineTest::wordAccentRecoloursChosenWords()
     QVERIFY(red < litPixels(accented) / 2);
 
     // A rule that picks nothing leaves the block exactly as it was.
-    clip.textStyle.accent.rule = drift::WordAccentRule::None;
+    clip.textStyle.accent.rule = TonDron::WordAccentRule::None;
     QCOMPARE(redPixels(rasterizeText(clip, rect, 1.0).image), 0);
 }
 
@@ -3151,11 +3151,11 @@ void EngineTest::karaokeAccentFollowsThePlayhead()
 
     const QRectF rect(0, 0, 700, 200);
     const QString text = QStringLiteral("Number of thumbnails that");
-    drift::Clip clip = makeTextClip(text, rect);
+    TonDron::Clip clip = makeTextClip(text, rect);
     clip.textStyle.fontFamily = QStringLiteral("Inter");
     clip.textStyle.fontWeight = 800;
     clip.textStyle.pixelSize = 48;
-    clip.textStyle.accent.rule = drift::WordAccentRule::Karaoke;
+    clip.textStyle.accent.rule = TonDron::WordAccentRule::Karaoke;
     clip.textStyle.accent.colorEnabled = true;
     clip.textStyle.accent.color = QColor(255, 0, 0);
 
@@ -3176,7 +3176,7 @@ void EngineTest::accentSizeScaleWidensTheBlock()
     SKIP_WITHOUT_FONTS();
 
     const QRectF rect(0, 0, 900, 240);
-    drift::Clip clip = makeTextClip(QStringLiteral("Number of thumbnails"), rect);
+    TonDron::Clip clip = makeTextClip(QStringLiteral("Number of thumbnails"), rect);
     clip.textStyle.fontFamily = QStringLiteral("Inter");
     clip.textStyle.fontWeight = 800;
     clip.textStyle.pixelSize = 40;
@@ -3184,7 +3184,7 @@ void EngineTest::accentSizeScaleWidensTheBlock()
     const QRect plain = inkBounds(rasterizeText(clip, rect, 1.0).image);
     QVERIFY(plain.isValid());
 
-    clip.textStyle.accent.rule = drift::WordAccentRule::FirstWord;
+    clip.textStyle.accent.rule = TonDron::WordAccentRule::FirstWord;
     clip.textStyle.accent.sizeScale = 2.0;
     const QRect scaled = inkBounds(rasterizeText(clip, rect, 1.0).image);
 
@@ -3201,11 +3201,11 @@ void EngineTest::everyStylePackRenders()
     // ship a card and a caption that render as nothing at all.
     const QRectF rect(0, 0, 900, 300);
     const QString text = QStringLiteral("Number of thumbnails that");
-    for (const drift::TextPreset &preset : drift::textPresets()) {
-        drift::Clip clip = makeTextClip(text, rect);
+    for (const TonDron::TextPreset &preset : TonDron::textPresets()) {
+        TonDron::Clip clip = makeTextClip(text, rect);
         clip.textStyle = preset.style;
         const int activeWord =
-            preset.style.accent.rule == drift::WordAccentRule::Karaoke ? 1 : -1;
+            preset.style.accent.rule == TonDron::WordAccentRule::Karaoke ? 1 : -1;
         const QImage image = rasterizeText(clip, text, rect, 1.0, activeWord).image;
         QVERIFY2(!image.isNull(), qPrintable(preset.id));
         QVERIFY2(litPixels(image) > 0, qPrintable(preset.id));
@@ -3220,7 +3220,7 @@ void EngineTest::heavyWeightsRenderSolidGlyphs()
     // QPainterPath's odd-even default punches the overlap out into a transparent hole.
     // "W" has no counter, so in "WWWW" *any* enclosed transparent region is such a hole.
     const QRectF rect(0, 0, 900, 200);
-    drift::Clip clip = makeTextClip(QStringLiteral("WWWW"), rect);
+    TonDron::Clip clip = makeTextClip(QStringLiteral("WWWW"), rect);
     clip.textStyle.fontFamily = QStringLiteral("Montserrat");
     clip.textStyle.fontWeight = 900;
     clip.textStyle.pixelSize = 80;
@@ -3278,12 +3278,12 @@ void EngineTest::textClipCarriesGpuEffects()
 {
     SKIP_WITHOUT_FONTS();
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Text});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Text});
 
-    drift::Clip clip = makeTextClip(QStringLiteral("FX"), QRectF(0, 0, 128, 128));
+    TonDron::Clip clip = makeTextClip(QStringLiteral("FX"), QRectF(0, 0, 128, 128));
     clip.textStyle.fontFamily = QStringLiteral("Anton");
     clip.textStyle.pixelSize = 48;
     clip.textStyle.color = QColor(120, 120, 120);
@@ -3291,15 +3291,15 @@ void EngineTest::textClipCarriesGpuEffects()
 
     FrameCompositor compositor;
     compositor.setProject(&project);
-    const QImage plain = compositor.compositeAt(drift::secondsToUs(1.0));
+    const QImage plain = compositor.compositeAt(TonDron::secondsToUs(1.0));
     QVERIFY(!plain.isNull());
 
-    drift::Effect brightness;
+    TonDron::Effect brightness;
     brightness.catalogId = QStringLiteral("adjust.brightness");
     brightness.parameters.insert(QStringLiteral("brightness"), 0.9);
     project.tracks()[0].clips[0].effects.append(brightness);
 
-    const QImage brightened = compositor.compositeAt(drift::secondsToUs(1.0));
+    const QImage brightened = compositor.compositeAt(TonDron::secondsToUs(1.0));
     QVERIFY(!brightened.isNull());
     // Effects used to be dropped for text clips: the layer only got them in the video branch.
     QVERIFY2(meanLuminance(brightened) > meanLuminance(plain) + 1.0,
@@ -3310,61 +3310,61 @@ void EngineTest::textAnimationFadesAndSlides()
 {
     SKIP_WITHOUT_FONTS();
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Text});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Text});
 
-    drift::Clip clip = makeTextClip(QStringLiteral("IN"), QRectF(0, 0, 128, 128));
+    TonDron::Clip clip = makeTextClip(QStringLiteral("IN"), QRectF(0, 0, 128, 128));
     clip.textStyle.fontFamily = QStringLiteral("Anton");
     clip.textStyle.pixelSize = 48;
-    clip.textStyle.animIn = {drift::TextAnimKind::Fade, drift::secondsToUs(1.0), drift::TextEase::Linear};
+    clip.textStyle.animIn = {TonDron::TextAnimKind::Fade, TonDron::secondsToUs(1.0), TonDron::TextEase::Linear};
     project.tracks()[0].clips.append(clip);
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    const double early = meanLuminance(compositor.compositeAt(drift::secondsToUs(0.05)));
-    const double mid = meanLuminance(compositor.compositeAt(drift::secondsToUs(0.5)));
-    const double settled = meanLuminance(compositor.compositeAt(drift::secondsToUs(2.0)));
+    const double early = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(0.05)));
+    const double mid = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(0.5)));
+    const double settled = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(2.0)));
     QVERIFY2(early < mid && mid < settled, "fade-in did not ramp up");
 
     // Once past the entrance the text holds steady rather than continuing to change.
-    const double later = meanLuminance(compositor.compositeAt(drift::secondsToUs(3.0)));
+    const double later = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(3.0)));
     QVERIFY(qAbs(later - settled) < 0.5);
 
     // A slide-up entrance arrives from below, so the glyphs start lower than they finish.
-    project.tracks()[0].clips[0].textStyle.animIn = {drift::TextAnimKind::SlideUp,
-                                                     drift::secondsToUs(1.0), drift::TextEase::Linear};
-    const double startY = litCentroidY(compositor.compositeAt(drift::secondsToUs(0.1)));
-    const double endY = litCentroidY(compositor.compositeAt(drift::secondsToUs(2.0)));
+    project.tracks()[0].clips[0].textStyle.animIn = {TonDron::TextAnimKind::SlideUp,
+                                                     TonDron::secondsToUs(1.0), TonDron::TextEase::Linear};
+    const double startY = litCentroidY(compositor.compositeAt(TonDron::secondsToUs(0.1)));
+    const double endY = litCentroidY(compositor.compositeAt(TonDron::secondsToUs(2.0)));
     QVERIFY2(startY > endY + 1.0, "slide-up entrance did not travel upward");
 }
 
 void EngineTest::clipBodyAnimationFadeRampsOpacity()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(128, 128);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("body");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::white;
-    clip.animIn = {drift::ClipAnimKind::Fade, drift::secondsToUs(1.0), drift::ClipAnimEase::Linear,
-                   drift::FadeCurve::Linear};
+    clip.animIn = {TonDron::ClipAnimKind::Fade, TonDron::secondsToUs(1.0), TonDron::ClipAnimEase::Linear,
+                   TonDron::FadeCurve::Linear};
     project.tracks()[0].clips.append(clip);
 
     FrameCompositor compositor;
     compositor.setProject(&project);
 
-    const double early = meanLuminance(compositor.compositeAt(drift::secondsToUs(0.05)));
-    const double mid = meanLuminance(compositor.compositeAt(drift::secondsToUs(0.5)));
-    const double settled = meanLuminance(compositor.compositeAt(drift::secondsToUs(1.5)));
+    const double early = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(0.05)));
+    const double mid = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(0.5)));
+    const double settled = meanLuminance(compositor.compositeAt(TonDron::secondsToUs(1.5)));
     QVERIFY2(early < mid && mid < settled, "clip body fade-in did not ramp up");
 }
 
@@ -3373,14 +3373,14 @@ void EngineTest::maskApplierEllipseMasksCorners()
     QImage image(64, 64, QImage::Format_RGBA8888);
     image.fill(Qt::white);
 
-    drift::Mask mask;
-    mask.shape = drift::MaskShape::Ellipse;
+    TonDron::Mask mask;
+    mask.shape = TonDron::MaskShape::Ellipse;
     mask.x = 0.5;
     mask.y = 0.5;
     mask.w = 0.5;
     mask.h = 0.5;
 
-    const QImage masked = drift::applyMask(image, mask, 64, 64);
+    const QImage masked = TonDron::applyMask(image, mask, 64, 64);
     QVERIFY(qAlpha(masked.pixel(32, 32)) > 200);
     QVERIFY(qAlpha(masked.pixel(0, 0)) < 20);
 }
@@ -3390,19 +3390,19 @@ void EngineTest::exporterProducesPlayableFileWithBackground()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(160, 90);
     project.setFps(25);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
     // A small centered shape so the canvas corners show the background.
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::red;
     clip.shapeStyle.strokeWidth = 0.0;
     clip.transformX.setKeyframe(0, 70.0);
@@ -3412,8 +3412,8 @@ void EngineTest::exporterProducesPlayableFileWithBackground()
     project.tracks()[0].clips.append(clip);
 
     // Non-default background must be baked into the exported frames.
-    drift::Background background;
-    background.kind = drift::BackgroundKind::Color;
+    TonDron::Background background;
+    background.kind = TonDron::BackgroundKind::Color;
     background.color = QColor(Qt::blue);
     project.setBackground(background);
 
@@ -3470,7 +3470,7 @@ void EngineTest::exporterProducesPlayableFileWithBackground()
     QVERIFY(reader.hasVideo());
 
     QImage frame;
-    QVERIFY(reader.readVideoFrameAt(drift::secondsToUs(0.5), frame, 160, 90));
+    QVERIFY(reader.readVideoFrameAt(TonDron::secondsToUs(0.5), frame, 160, 90));
     QVERIFY(!frame.isNull());
 
     // A corner is background (blue), away from the centered red shape.
@@ -3484,18 +3484,18 @@ void EngineTest::exporterProducesAudioOnlyMp3()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(160, 90);
     project.setFps(25);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::red;
     project.tracks()[0].clips.append(clip);
 
@@ -3526,18 +3526,18 @@ void EngineTest::exporterTagsSdrBt709ColorMetadata()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(160, 90);
     project.setFps(25);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(0.5);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(0.5);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::green;
     project.tracks()[0].clips.append(clip);
 
@@ -3595,20 +3595,20 @@ void EngineTest::exporterDefaultCrfIsNearLosslessForH264()
 namespace {
 
 // One-second red-on-blue canvas; enough for the muxer to report a stable rate.
-drift::Project frameRateTestProject(int projectFps)
+TonDron::Project frameRateTestProject(int projectFps)
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(160, 90);
     project.setFps(projectFps);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(1.0);
-    clip.shapeStyle.kind = drift::ShapeKind::Rectangle;
+    clip.timelineDuration = TonDron::secondsToUs(1.0);
+    clip.shapeStyle.kind = TonDron::ShapeKind::Rectangle;
     clip.shapeStyle.fill = Qt::red;
     clip.shapeStyle.strokeWidth = 0.0;
     clip.transformX.setKeyframe(0, 70.0);
@@ -3763,10 +3763,10 @@ bool countDistinctFrames(const QString &path, int &total, int &changed, double t
 
 // Exports `project` at the given rate and reports what landed in the file.
 // Returns false only when this FFmpeg build cannot encode at all.
-bool exportAtRate(const drift::Project &project, int fpsNum, int fpsDen, const QString &dirPath,
+bool exportAtRate(const TonDron::Project &project, int fpsNum, int fpsDen, const QString &dirPath,
                   const QString &name, AVRational &rate, int64_t &frameCount,
-                  QString *outPathOut = nullptr, drift::TimeUs startUs = 0,
-                  drift::TimeUs endUs = 0)
+                  QString *outPathOut = nullptr, TonDron::TimeUs startUs = 0,
+                  TonDron::TimeUs endUs = 0)
 {
     ExportSettings settings = Exporter::defaultSettings();
     settings.videoCodecId = QStringLiteral("h264");
@@ -3898,13 +3898,13 @@ void EngineTest::exporterHonoursWorkAreaRange()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
 
-    drift::Project project = frameRateTestProject(25);
-    project.tracks()[0].clips[0].timelineDuration = drift::secondsToUs(2.0);
+    TonDron::Project project = frameRateTestProject(25);
+    project.tracks()[0].clips[0].timelineDuration = TonDron::secondsToUs(2.0);
 
     AVRational rate{};
     int64_t frames = 0;
     if (!exportAtRate(project, 0, 1, dir.path(), QStringLiteral("slice"), rate, frames, nullptr,
-                      drift::secondsToUs(0.5), drift::secondsToUs(1.5))) {
+                      TonDron::secondsToUs(0.5), TonDron::secondsToUs(1.5))) {
         QSKIP("No usable encoder in this FFmpeg build");
     }
 
@@ -3919,8 +3919,8 @@ void EngineTest::exporterProducesAnimatedGif()
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
 
-    drift::Project project = frameRateTestProject(25);
-    project.tracks()[0].clips[0].timelineDuration = drift::secondsToUs(0.4);
+    TonDron::Project project = frameRateTestProject(25);
+    project.tracks()[0].clips[0].timelineDuration = TonDron::secondsToUs(0.4);
 
     ExportSettings settings = Exporter::defaultSettings();
     settings.gifExport = true;
@@ -3976,21 +3976,21 @@ void EngineTest::exporterFrameRateAddsRealDetailToSlowedClips()
                             .arg(sourceChanged)
                             .arg(sourceTotal)));
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(64, 64);
     project.setFps(30);
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("slowmo");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.path = source;
     clip.timelineStart = 0;
     clip.speed = 0.5;
     clip.srcIn = 0;
     // 1s of source stretched over 2s of timeline.
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
     clip.srcOut = clip.sourceSpanUs();
     project.tracks()[0].clips.append(clip);
 
@@ -4053,14 +4053,14 @@ namespace {
 
 // Build a rack for `effects` and run the whole buffer through it in one pass. The mixer does this
 // block by block; a single pass is the reference those blocks must agree with.
-QVector<float> runRack(const QList<drift::Effect> &effects, const float *interleavedStereo,
+QVector<float> runRack(const QList<TonDron::Effect> &effects, const float *interleavedStereo,
                        int frames, int sampleRate)
 {
     QVector<float> out(frames * 2, 0.0f);
     if (interleavedStereo)
         std::memcpy(out.data(), interleavedStereo, static_cast<size_t>(frames) * 2 * sizeof(float));
 
-    drift::AudioEffectRack rack;
+    TonDron::AudioEffectRack rack;
     if (rack.configure(audioEffectSpecsFor(effects), sampleRate))
         rack.process(out.data(), frames);
     return out;
@@ -4115,14 +4115,14 @@ void EngineTest::mixerHasNoBlockBoundaryDropout()
 
     constexpr int kRate = 48000;
     constexpr double kToneHz = 440.0;
-    constexpr drift::TimeUs kDurationUs = 1'500'000;
+    constexpr TonDron::TimeUs kDurationUs = 1'500'000;
 
-    drift::Project project;
+    TonDron::Project project;
     project.setSampleRate(kRate);
-    drift::Track track{.type = drift::TrackType::Audio};
-    drift::Clip clip;
+    TonDron::Track track{.type = TonDron::TrackType::Audio};
+    TonDron::Clip clip;
     clip.id = QStringLiteral("tone");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.path = path;
     clip.timelineStart = 0;
     clip.timelineDuration = kDurationUs;
@@ -4134,7 +4134,7 @@ void EngineTest::mixerHasNoBlockBoundaryDropout()
     AudioMixer mixer;
     mixer.setProject(&project);
 
-    const int total = static_cast<int>((kDurationUs * kRate) / drift::kUsPerSecond);
+    const int total = static_cast<int>((kDurationUs * kRate) / TonDron::kUsPerSecond);
 
     // 480 lasts exactly 10000 us and always worked; the rest do not divide evenly and did not.
     for (const int block : {1024, 512, 1000, 480}) {
@@ -4142,7 +4142,7 @@ void EngineTest::mixerHasNoBlockBoundaryDropout()
         for (int offset = 0; offset < total; offset += block) {
             const int count = std::min(block, total - offset);
             const auto startUs =
-                static_cast<drift::TimeUs>((static_cast<int64_t>(offset) * drift::kUsPerSecond) / kRate);
+                static_cast<TonDron::TimeUs>((static_cast<int64_t>(offset) * TonDron::kUsPerSecond) / kRate);
             mixer.mix(startUs, count, kRate, out.data() + static_cast<size_t>(offset) * 2);
         }
 
@@ -4181,20 +4181,20 @@ void EngineTest::mixerHasNoBlockBoundaryDropout()
 namespace {
 
 constexpr int kToneRate = 48000;
-constexpr drift::TimeUs kToneSourceUs = 2'000'000;
+constexpr TonDron::TimeUs kToneSourceUs = 2'000'000;
 constexpr double kTonePi = 3.14159265358979323846;
 
 // One audio clip covering the whole tone, retimed either by a constant speed or by a curve.
-drift::Project makeRetimedToneProject(const QString &path, double speed, bool reverse,
-                                      const drift::SpeedCurve &curve = {})
+TonDron::Project makeRetimedToneProject(const QString &path, double speed, bool reverse,
+                                      const TonDron::SpeedCurve &curve = {})
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setSampleRate(kToneRate);
     project.tracks().clear(); // drop the default timeline so the clip is the only thing in the mix
-    drift::Track track{.type = drift::TrackType::Audio};
-    drift::Clip clip;
+    TonDron::Track track{.type = TonDron::TrackType::Audio};
+    TonDron::Clip clip;
     clip.id = QStringLiteral("tone");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.path = path;
     clip.timelineStart = 0;
     clip.srcIn = 0;
@@ -4202,7 +4202,7 @@ drift::Project makeRetimedToneProject(const QString &path, double speed, bool re
     clip.speed = speed;
     clip.reverse = reverse;
     clip.speedCurve = curve;
-    clip.timelineDuration = static_cast<drift::TimeUs>(kToneSourceUs / speed);
+    clip.timelineDuration = static_cast<TonDron::TimeUs>(kToneSourceUs / speed);
     if (!curve.isEmpty())
         clip.syncDurationFromSpeedCurve();
     track.clips.append(clip);
@@ -4226,8 +4226,8 @@ QList<double> mixBlockRms(AudioMixer &mixer, int blocks, int frames, QVector<flo
     QVector<float> buffer(frames * 2);
     QList<double> rms;
     for (int b = 0; b < blocks; ++b) {
-        const drift::TimeUs t =
-            static_cast<drift::TimeUs>(b) * frames * drift::kUsPerSecond / kToneRate;
+        const TonDron::TimeUs t =
+            static_cast<TonDron::TimeUs>(b) * frames * TonDron::kUsPerSecond / kToneRate;
         mixer.mix(t, frames, kToneRate, buffer.data());
         rms.append(blockRms(buffer, frames));
         if (collected)
@@ -4268,22 +4268,22 @@ void EngineTest::retimedClipAudioIsNotSilent()
     {
         const char *name;
         double speed;
-        drift::SpeedCurve curve;
+        TonDron::SpeedCurve curve;
     };
     const QList<Case> cases{
         {"0.5x", 0.5, {}},
         {"2.0x", 2.0, {}},
-        {"flat curve 0.75x", 1.0, drift::SpeedCurve::flat(0.75)},
+        {"flat curve 0.75x", 1.0, TonDron::SpeedCurve::flat(0.75)},
     };
 
     for (const Case &c : cases) {
-        drift::Project project = makeRetimedToneProject(path, c.speed, false, c.curve);
+        TonDron::Project project = makeRetimedToneProject(path, c.speed, false, c.curve);
         AudioMixer mixer;
         mixer.setProject(&project);
 
         constexpr int kFrames = 1024;
-        const drift::TimeUs durationUs = project.tracks().at(0).clips.at(0).timelineDuration;
-        const int blocks = static_cast<int>(durationUs * kToneRate / drift::kUsPerSecond / kFrames) - 2;
+        const TonDron::TimeUs durationUs = project.tracks().at(0).clips.at(0).timelineDuration;
+        const int blocks = static_cast<int>(durationUs * kToneRate / TonDron::kUsPerSecond / kFrames) - 2;
         QVERIFY(blocks > 20);
 
         QVector<float> collected;
@@ -4309,7 +4309,7 @@ void EngineTest::retimedAudioPreservesPitch()
         QSKIP("ffmpeg not available to generate a test clip");
 
     for (double speed : {0.5, 2.0}) {
-        drift::Project project = makeRetimedToneProject(path, speed, false);
+        TonDron::Project project = makeRetimedToneProject(path, speed, false);
         AudioMixer mixer;
         mixer.setProject(&project);
 
@@ -4332,12 +4332,12 @@ void EngineTest::retimedAudioLengthTracksTimeline()
     if (path.isEmpty())
         QSKIP("ffmpeg not available to generate a test clip");
 
-    drift::Project project = makeRetimedToneProject(path, 0.5, false);
+    TonDron::Project project = makeRetimedToneProject(path, 0.5, false);
     AudioMixer mixer;
     mixer.setProject(&project);
 
     constexpr int kFrames = 1024;
-    const int blocks = static_cast<int>(5'000'000LL * kToneRate / drift::kUsPerSecond / kFrames);
+    const int blocks = static_cast<int>(5'000'000LL * kToneRate / TonDron::kUsPerSecond / kFrames);
     QVector<float> collected;
     mixBlockRms(mixer, blocks, kFrames, &collected);
 
@@ -4347,8 +4347,8 @@ void EngineTest::retimedAudioLengthTracksTimeline()
             lastAudible = i;
     }
     QVERIFY(lastAudible > 0);
-    const drift::TimeUs endUs =
-        static_cast<drift::TimeUs>(lastAudible) * drift::kUsPerSecond / kToneRate;
+    const TonDron::TimeUs endUs =
+        static_cast<TonDron::TimeUs>(lastAudible) * TonDron::kUsPerSecond / kToneRate;
     QVERIFY2(std::llabs(endUs - 4'000'000) < 150'000, qPrintable(QString::number(endUs)));
 }
 
@@ -4362,13 +4362,13 @@ void EngineTest::retimedAudioSurvivesBlockSizeChanges()
     if (path.isEmpty())
         QSKIP("ffmpeg not available to generate a test clip");
 
-    drift::Project project = makeRetimedToneProject(path, 0.5, false);
+    TonDron::Project project = makeRetimedToneProject(path, 0.5, false);
     AudioMixer mixer;
     mixer.setProject(&project);
 
     const QList<int> sizes{1024, 1600, 256};
     QVector<float> buffer(1600 * 2);
-    drift::TimeUs t = 0;
+    TonDron::TimeUs t = 0;
     for (int b = 0; b < 90; ++b) {
         const int frames = sizes.at(b % sizes.size());
         mixer.mix(t, frames, kToneRate, buffer.data());
@@ -4376,7 +4376,7 @@ void EngineTest::retimedAudioSurvivesBlockSizeChanges()
             QVERIFY2(blockRms(buffer, frames) > 0.02,
                      qPrintable(QStringLiteral("block %1 of %2 frames").arg(b).arg(frames)));
         }
-        t += static_cast<drift::TimeUs>(frames) * drift::kUsPerSecond / kToneRate;
+        t += static_cast<TonDron::TimeUs>(frames) * TonDron::kUsPerSecond / kToneRate;
     }
 }
 
@@ -4388,7 +4388,7 @@ void EngineTest::reversedRetimedAudioIsNotSilent()
     if (path.isEmpty())
         QSKIP("ffmpeg not available to generate a test clip");
 
-    drift::Project project = makeRetimedToneProject(path, 0.5, true);
+    TonDron::Project project = makeRetimedToneProject(path, 0.5, true);
     AudioMixer mixer;
     mixer.setProject(&project);
 
@@ -4409,15 +4409,15 @@ void EngineTest::rampedSpeedCurveRetimesAudioClip()
     if (path.isEmpty())
         QSKIP("ffmpeg not available to generate a test clip");
 
-    QList<drift::SpeedPoint> points;
-    points.append(drift::SpeedPoint{.pos = 0.0, .speed = 0.5});
-    points.append(drift::SpeedPoint{.pos = 1.0, .speed = 2.0});
-    drift::SpeedCurve curve;
+    QList<TonDron::SpeedPoint> points;
+    points.append(TonDron::SpeedPoint{.pos = 0.0, .speed = 0.5});
+    points.append(TonDron::SpeedPoint{.pos = 1.0, .speed = 2.0});
+    TonDron::SpeedCurve curve;
     curve.setPoints(points);
 
-    drift::Project project = makeRetimedToneProject(path, 1.0, false, curve);
-    const drift::Clip &clip = project.tracks().at(0).clips.at(0);
-    QCOMPARE(clip.type, drift::ClipType::Audio);
+    TonDron::Project project = makeRetimedToneProject(path, 1.0, false, curve);
+    const TonDron::Clip &clip = project.tracks().at(0).clips.at(0);
+    QCOMPARE(clip.type, TonDron::ClipType::Audio);
     QVERIFY(clip.hasSpeedCurve());
     // Timeline length is the integral of 1/speed over the source: (2/3)·ln4 ≈ 0.924 of it here.
     // Asserting the number rather than just "it changed" is what would catch the ramp being read
@@ -4429,7 +4429,7 @@ void EngineTest::rampedSpeedCurveRetimesAudioClip()
     mixer.setProject(&project);
 
     constexpr int kFrames = 1024;
-    const int blocks = static_cast<int>(clip.timelineDuration * kToneRate / drift::kUsPerSecond / kFrames) - 2;
+    const int blocks = static_cast<int>(clip.timelineDuration * kToneRate / TonDron::kUsPerSecond / kFrames) - 2;
     QVERIFY(blocks > 20);
 
     QVector<float> collected;
@@ -4451,8 +4451,8 @@ void EngineTest::clipAudioRetimerStreamsSyntheticSource()
     constexpr int kBlocks = 400;
 
     qint64 pulled = 0;
-    auto tonePull = [&pulled](drift::TimeUs startUs, int frames, float *dst) {
-        const qint64 startFrame = startUs * kToneRate / drift::kUsPerSecond;
+    auto tonePull = [&pulled](TonDron::TimeUs startUs, int frames, float *dst) {
+        const qint64 startFrame = startUs * kToneRate / TonDron::kUsPerSecond;
         for (int i = 0; i < frames; ++i) {
             const double phase = 2.0 * kTonePi * 440.0 * static_cast<double>(startFrame + i) / kToneRate;
             dst[i * 2] = dst[i * 2 + 1] = static_cast<float>(std::sin(phase));
@@ -4463,14 +4463,14 @@ void EngineTest::clipAudioRetimerStreamsSyntheticSource()
 
     QVector<float> out(kFrames * 2);
     for (double tempo : {0.5, 1.5, 4.0}) {
-        drift::ClipAudioRetimer retimer;
+        TonDron::ClipAudioRetimer retimer;
         pulled = 0;
         for (int b = 0; b < kBlocks; ++b) {
-            drift::ClipAudioBlock block;
+            TonDron::ClipAudioBlock block;
             block.identity = 1;
             block.sampleRate = kToneRate;
             block.timelineStartUs =
-                static_cast<drift::TimeUs>(b) * kFrames * drift::kUsPerSecond / kToneRate;
+                static_cast<TonDron::TimeUs>(b) * kFrames * TonDron::kUsPerSecond / kToneRate;
             block.tempo = tempo;
             retimer.process(block, tonePull, kFrames, out.data());
             if (b >= 2) {
@@ -4490,17 +4490,17 @@ void EngineTest::clipAudioRetimerStreamsSyntheticSource()
 
     // A ramp changes tempo every block; the total source consumed must still match its integral.
     {
-        drift::ClipAudioRetimer retimer;
+        TonDron::ClipAudioRetimer retimer;
         pulled = 0;
         double integral = 0.0;
         for (int b = 0; b < kBlocks; ++b) {
             const double tempo = 0.5 + 1.5 * static_cast<double>(b) / (kBlocks - 1);
             integral += tempo * kFrames;
-            drift::ClipAudioBlock block;
+            TonDron::ClipAudioBlock block;
             block.identity = 2;
             block.sampleRate = kToneRate;
             block.timelineStartUs =
-                static_cast<drift::TimeUs>(b) * kFrames * drift::kUsPerSecond / kToneRate;
+                static_cast<TonDron::TimeUs>(b) * kFrames * TonDron::kUsPerSecond / kToneRate;
             block.tempo = tempo;
             retimer.process(block, tonePull, kFrames, out.data());
             if (b >= 2)
@@ -4512,13 +4512,13 @@ void EngineTest::clipAudioRetimerStreamsSyntheticSource()
 
     // A source that gives nothing must produce silence and stop asking, not spin.
     {
-        drift::ClipAudioRetimer retimer;
+        TonDron::ClipAudioRetimer retimer;
         int calls = 0;
-        auto emptyPull = [&calls](drift::TimeUs, int, float *) {
+        auto emptyPull = [&calls](TonDron::TimeUs, int, float *) {
             ++calls;
             return 0;
         };
-        drift::ClipAudioBlock block;
+        TonDron::ClipAudioBlock block;
         block.identity = 3;
         block.sampleRate = kToneRate;
         block.tempo = 0.5;
@@ -4537,20 +4537,20 @@ void EngineTest::mixerSurvivesConcurrentClipAudioReset()
         QSKIP("ffmpeg not available to generate a test clip");
 
     constexpr int kRate = 48000;
-    constexpr drift::TimeUs kDurationUs = 2'000'000;
+    constexpr TonDron::TimeUs kDurationUs = 2'000'000;
 
-    drift::Project project;
+    TonDron::Project project;
     project.setSampleRate(kRate);
-    drift::Track track{.type = drift::TrackType::Audio};
-    drift::Clip clip;
+    TonDron::Track track{.type = TonDron::TrackType::Audio};
+    TonDron::Clip clip;
     clip.id = QStringLiteral("tone");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.path = path;
     clip.timelineStart = 0;
     clip.timelineDuration = kDurationUs;
     clip.srcIn = 0;
     clip.srcOut = kDurationUs;
-    drift::Effect echo;
+    TonDron::Effect echo;
     echo.catalogId = QStringLiteral("space.echo");
     clip.audioEffects.append(echo);
     track.clips.append(clip);
@@ -4558,8 +4558,8 @@ void EngineTest::mixerSurvivesConcurrentClipAudioReset()
 
     // A retimed clip with no effect chain reaches the same per-clip state through a different door:
     // it needs its stretcher whether or not it has a rack.
-    drift::Track retimedTrack{.type = drift::TrackType::Audio};
-    drift::Clip retimed = clip;
+    TonDron::Track retimedTrack{.type = TonDron::TrackType::Audio};
+    TonDron::Clip retimed = clip;
     retimed.id = QStringLiteral("tone-slow");
     retimed.audioEffects.clear();
     retimed.speed = 0.5;
@@ -4573,7 +4573,7 @@ void EngineTest::mixerSurvivesConcurrentClipAudioReset()
     std::atomic<bool> stop{false};
     QScopedPointer<QThread> mixThread(QThread::create([&mixer, &stop] {
         QVector<float> buffer(1024 * 2);
-        drift::TimeUs t = 0;
+        TonDron::TimeUs t = 0;
         while (!stop.load(std::memory_order_relaxed)) {
             mixer.mix(t, 1024, kRate, buffer.data());
             t = (t + 21333) % 1'500'000;
@@ -4633,23 +4633,23 @@ void EngineTest::audioEffectFactoryBuildsEveryCatalogEntry()
     QVERIFY(!catalog.isEmpty());
 
     for (const AudioEffectEntry &entry : catalog) {
-        QVERIFY2(drift::audiofx::hasProcessor(entry.processorId),
+        QVERIFY2(TonDron::audiofx::hasProcessor(entry.processorId),
                  qPrintable(QStringLiteral("%1 -> %2").arg(entry.id, entry.processorId)));
 
         // configure() only reports true once the factory has actually built a chain, so this is
         // what proves the processor exists rather than the effect quietly becoming a passthrough.
         // Run it at every rate the mixer uses: 8 kHz for the subtitle waveform, 22050 for beat
         // detection, 48 kHz for playback and export.
-        drift::Effect effect;
+        TonDron::Effect effect;
         effect.catalogId = entry.id;
-        const QVector<drift::AudioEffectSpec> specs = audioEffectSpecsFor({effect});
+        const QVector<TonDron::AudioEffectSpec> specs = audioEffectSpecsFor({effect});
         QCOMPARE(specs.size(), 1);
 
         for (const int rate : {8000, 22050, 48000}) {
             constexpr int kFrames = 512;
             QVector<float> buffer = stereoTone(kFrames, 440.0, rate, 0.5f);
 
-            drift::AudioEffectRack rack;
+            TonDron::AudioEffectRack rack;
             QVERIFY2(rack.configure(specs, rate), qPrintable(entry.id));
             rack.process(buffer.data(), kFrames);
 
@@ -4672,7 +4672,7 @@ void EngineTest::audioEffectChainAltersSignal()
     const QVector<float> tone = stereoTone(kFrames, 4000.0, kRate);
     const double inRms = rms(tone.constData(), tone.size());
 
-    drift::Effect telephone;
+    TonDron::Effect telephone;
     telephone.catalogId = QStringLiteral("transmission.telephone");
     const QVector<float> out = runRack({telephone}, tone.constData(), kFrames, kRate);
 
@@ -4695,7 +4695,7 @@ void EngineTest::audioEffectChainBypassesUnknownEffect()
     constexpr int kFrames = 1024;
     const QVector<float> tone = stereoTone(kFrames, 440.0, kRate);
 
-    drift::Effect unknown;
+    TonDron::Effect unknown;
     unknown.catalogId = QStringLiteral("does.not.exist");
     const QVector<float> out = runRack({unknown}, tone.constData(), kFrames, kRate);
 
@@ -4714,13 +4714,13 @@ void EngineTest::audioEffectStreamIsContinuousAcrossBlocks()
 
     const QVector<float> tone = stereoTone(kTotal, 440.0, kRate);
 
-    drift::Effect tremolo;
+    TonDron::Effect tremolo;
     tremolo.catalogId = QStringLiteral("space.tremolo");
     tremolo.parameters.insert(QStringLiteral("rate"), 8.0);
     tremolo.parameters.insert(QStringLiteral("depth"), 0.9);
 
-    const QVector<drift::AudioEffectSpec> specs = audioEffectSpecsFor({tremolo});
-    drift::AudioEffectRack rack;
+    const QVector<TonDron::AudioEffectSpec> specs = audioEffectSpecsFor({tremolo});
+    TonDron::AudioEffectRack rack;
     QVERIFY(rack.configure(specs, kRate));
 
     QVector<float> streamed(kTotal * 2);
@@ -4751,7 +4751,7 @@ void EngineTest::audioEffectFlangerProcessesSignal()
     QCOMPARE(flanger->parameters.size(), 7);
     QCOMPARE(flanger->processorId, QStringLiteral("flanger"));
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = flanger->id;
     effect.parameters.insert(QStringLiteral("rate"), 0.8);
     effect.parameters.insert(QStringLiteral("phase"), 180.0);
@@ -4784,12 +4784,12 @@ void EngineTest::audioEffectRackPrimingAlignsLatentStages()
     constexpr int kRate = 48000;
     constexpr int kBlock = 2048;
 
-    drift::Effect chipmunk;
+    TonDron::Effect chipmunk;
     chipmunk.catalogId = QStringLiteral("voice.chipmunk");
     chipmunk.parameters.insert(QStringLiteral("pitch"), 1.0);
 
-    const QVector<drift::AudioEffectSpec> specs = audioEffectSpecsFor({chipmunk});
-    drift::AudioEffectRack primed;
+    const QVector<TonDron::AudioEffectSpec> specs = audioEffectSpecsFor({chipmunk});
+    TonDron::AudioEffectRack primed;
     QVERIFY(primed.configure(specs, kRate));
 
     const int primeFrames = primed.primeFrames();
@@ -4803,7 +4803,7 @@ void EngineTest::audioEffectRackPrimingAlignsLatentStages()
                 static_cast<size_t>(kBlock) * 2 * sizeof(float));
     primed.process(primedOut.data(), kBlock);
 
-    drift::AudioEffectRack cold;
+    TonDron::AudioEffectRack cold;
     QVERIFY(cold.configure(specs, kRate));
     QVector<float> coldOut(kBlock * 2);
     std::memcpy(coldOut.data(), continuous.constData() + primeFrames * 2,
@@ -4843,14 +4843,14 @@ void EngineTest::pitchShiftMovesPitchInTheRightDirection()
     };
 
     for (const Case &testCase : {Case{"voice.chipmunk", 1.5}, Case{"voice.deep", 0.7}}) {
-        drift::Effect effect;
+        TonDron::Effect effect;
         effect.catalogId = QString::fromLatin1(testCase.id);
         effect.parameters.insert(QStringLiteral("pitch"), testCase.ratio);
 
-        const QVector<drift::AudioEffectSpec> specs = audioEffectSpecsFor({effect});
+        const QVector<TonDron::AudioEffectSpec> specs = audioEffectSpecsFor({effect});
         QCOMPARE(specs.size(), 1);
 
-        drift::AudioEffectRack rack;
+        TonDron::AudioEffectRack rack;
         QVERIFY(rack.configure(specs, kRate));
 
         const int prime = rack.primeFrames();
@@ -4896,12 +4896,12 @@ void EngineTest::audioEffectRackParameterChangeIsContinuous()
     QVector<float> first(kBlock * 2, 0.5f);
     QVector<float> second(kBlock * 2, 0.5f);
 
-    drift::Effect muffled;
+    TonDron::Effect muffled;
     muffled.catalogId = QStringLiteral("transmission.muffled");
     muffled.parameters.insert(QStringLiteral("cutoff"), 4000.0);
     muffled.parameters.insert(QStringLiteral("gain"), 0.5);
 
-    drift::AudioEffectRack rack;
+    TonDron::AudioEffectRack rack;
     QVERIFY(rack.configure(audioEffectSpecsFor({muffled}), kRate));
     rack.process(first.data(), kBlock);
 
@@ -4931,7 +4931,7 @@ bool denoiseModelAvailable()
     const QString dir = QString::fromUtf8(DRIFT_TEST_DENOISE_MODEL_DIR);
     if (QDir(dir).exists())
         qputenv("DRIFT_DENOISE_MODEL_DIR", dir.toUtf8());
-    return drift::DeepFilterDenoiser::modelPresent();
+    return TonDron::DeepFilterDenoiser::modelPresent();
 }
 
 double rms(const std::vector<float> &x, size_t from = 0, size_t to = SIZE_MAX)
@@ -5017,11 +5017,11 @@ void EngineTest::denoisePreservesLengthAndSilence()
     if (!denoiseModelAvailable())
         QSKIP("DeepFilterNet3 model not installed");
 
-    drift::DeepFilterDenoiser &dn = drift::DeepFilterDenoiser::instance();
+    TonDron::DeepFilterDenoiser &dn = TonDron::DeepFilterDenoiser::instance();
     if (!dn.available())
         QSKIP(qPrintable(dn.lastError()));
 
-    const int rate = drift::DeepFilterDenoiser::sampleRate();
+    const int rate = TonDron::DeepFilterDenoiser::sampleRate();
     const std::vector<float> silence(size_t(rate) * 2, 0.0f);
     const std::vector<float> out = dn.denoise(silence, {});
 
@@ -5046,11 +5046,11 @@ void EngineTest::denoiseRemovesBroadbandNoise()
     if (!denoiseModelAvailable())
         QSKIP("DeepFilterNet3 model not installed");
 
-    drift::DeepFilterDenoiser &dn = drift::DeepFilterDenoiser::instance();
+    TonDron::DeepFilterDenoiser &dn = TonDron::DeepFilterDenoiser::instance();
     if (!dn.available())
         QSKIP(qPrintable(dn.lastError()));
 
-    const int rate = drift::DeepFilterDenoiser::sampleRate();
+    const int rate = TonDron::DeepFilterDenoiser::sampleRate();
     const std::vector<float> noise = whiteNoise(rate * 4, 0.1f, 1234);
 
     const std::vector<float> out = dn.denoise(noise, {});
@@ -5074,11 +5074,11 @@ void EngineTest::denoiseHasNoSeamAcrossWindows()
     if (!denoiseModelAvailable())
         QSKIP("DeepFilterNet3 model not installed");
 
-    drift::DeepFilterDenoiser &dn = drift::DeepFilterDenoiser::instance();
+    TonDron::DeepFilterDenoiser &dn = TonDron::DeepFilterDenoiser::instance();
     if (!dn.available())
         QSKIP(qPrintable(dn.lastError()));
 
-    const int rate = drift::DeepFilterDenoiser::sampleRate();
+    const int rate = TonDron::DeepFilterDenoiser::sampleRate();
     // 25 s crosses the 20 s window boundary once, with room either side of the join.
     const std::vector<float> noise = whiteNoise(rate * 25, 0.1f, 99);
     const std::vector<float> out = dn.denoise(noise, {});
@@ -5115,7 +5115,7 @@ void EngineTest::audioFileWriterRoundTripsThroughClipReader()
     }
 
     QString error;
-    drift::AudioFileWriter writer;
+    TonDron::AudioFileWriter writer;
     QVERIFY2(writer.open(path, kRate, 2, &error), qPrintable(error));
     // Deliberately not a multiple of the encoder frame size, to exercise the partial-frame buffer.
     QVERIFY2(writer.writeFrames(tone.data(), 1000, &error), qPrintable(error));

@@ -44,7 +44,7 @@ QImage makeFallbackBase(int size)
 // to go with it. A drawn one keeps thumbnail generation reproducible and puts no real person's
 // likeness in the repo — and because we place the features ourselves, the anchors are exact
 // rather than detected.
-QImage makeFaceBase(int size, drift::FaceAnchors *anchorsOut)
+QImage makeFaceBase(int size, TonDron::FaceAnchors *anchorsOut)
 {
     const double S = size;
     QImage image(size, size, QImage::Format_RGBA8888);
@@ -101,7 +101,7 @@ QImage makeFaceBase(int size, drift::FaceAnchors *anchorsOut)
               200 * 16, 140 * 16);
     p.end();
 
-    drift::FaceAnchors a;
+    TonDron::FaceAnchors a;
     a.valid = true;
     a.leftEye = QPointF(0.5 - 0.11, eyeY / S);
     a.rightEye = QPointF(0.5 + 0.11, eyeY / S);
@@ -128,7 +128,7 @@ QImage makeFaceBase(int size, drift::FaceAnchors *anchorsOut)
     // is needed anywhere in here.
     const double mouthYn = mouthY / S;
     const double eyeYn = eyeY / S;
-    a.contour.reserve(drift::contour::kTotalPoints);
+    a.contour.reserve(TonDron::contour::kTotalPoints);
 
     auto appendEllipse = [&](QPointF c, double erx, double ery, int count, double startDeg) {
         for (int i = 0; i < count; ++i) {
@@ -138,20 +138,20 @@ QImage makeFaceBase(int size, drift::FaceAnchors *anchorsOut)
     };
 
     // Oval: wound from the forehead clockwise, matching FACEMESH_FACE_OVAL's own direction.
-    appendEllipse(QPointF(0.5, 0.5), 0.26, 0.32, drift::contour::kOval.count, -90.0);
+    appendEllipse(QPointF(0.5, 0.5), 0.26, 0.32, TonDron::contour::kOval.count, -90.0);
     // Lips, drawn as the arc above: outer loop starts at the image-left corner.
-    appendEllipse(QPointF(0.5, mouthYn), 0.10, 0.045, drift::contour::kLipOuter.count, 180.0);
-    appendEllipse(QPointF(0.5, mouthYn), 0.075, 0.022, drift::contour::kLipInner.count, 180.0);
+    appendEllipse(QPointF(0.5, mouthYn), 0.10, 0.045, TonDron::contour::kLipOuter.count, 180.0);
+    appendEllipse(QPointF(0.5, mouthYn), 0.075, 0.022, TonDron::contour::kLipInner.count, 180.0);
     // Eye rings must start at the inner corner and run along the *upper* lid first, because
     // contour::kEyeLeftUpper slices the first nine points as the lash line.
-    appendEllipse(QPointF(0.5 - 0.11, eyeYn), 0.06, 0.038, drift::contour::kEyeLeft.count, 0.0);
-    appendEllipse(QPointF(0.5 + 0.11, eyeYn), 0.06, 0.038, drift::contour::kEyeRight.count, 180.0);
+    appendEllipse(QPointF(0.5 - 0.11, eyeYn), 0.06, 0.038, TonDron::contour::kEyeLeft.count, 0.0);
+    appendEllipse(QPointF(0.5 + 0.11, eyeYn), 0.06, 0.038, TonDron::contour::kEyeRight.count, 180.0);
     // Brows sit above the eyes; image y grows downward, so that is a smaller y.
     appendEllipse(QPointF(0.5 - 0.11, eyeYn - 0.075), 0.075, 0.018,
-                  drift::contour::kBrowLeft.count, 180.0);
+                  TonDron::contour::kBrowLeft.count, 180.0);
     appendEllipse(QPointF(0.5 + 0.11, eyeYn - 0.075), 0.075, 0.018,
-                  drift::contour::kBrowRight.count, 0.0);
-    a.hasContours = a.contour.size() == drift::contour::kTotalPoints;
+                  TonDron::contour::kBrowRight.count, 0.0);
+    a.hasContours = a.contour.size() == TonDron::contour::kTotalPoints;
     a.cheekLeft = QPointF(0.5 - 0.15, 0.56);
     a.cheekRight = QPointF(0.5 + 0.15, 0.56);
 
@@ -171,7 +171,7 @@ QImage makeFaceBase(int size, drift::FaceAnchors *anchorsOut)
 QMap<QString, QVariant> dramaticDefaults(const EffectPresetEntry &def)
 {
     QMap<QString, QVariant> params;
-    for (const drift::EffectParamSpec &spec : def.meta.parameters) {
+    for (const TonDron::EffectParamSpec &spec : def.meta.parameters) {
         // A colour has no "more dramatic" direction — the package's shade is the shade.
         if (spec.isColor()) {
             params.insert(spec.key, spec.defaultColorHex);
@@ -344,11 +344,11 @@ int main(int argc, char *argv[])
 
     // Prefer landmarks from the real base photo when the face model is available; fall back to
     // the drawn stand-in so thumbnails still generate without the addon installed.
-    drift::FaceAnchors faceAnchors;
+    TonDron::FaceAnchors faceAnchors;
     QImage faceBase;
     bool usedDetectedFace = false;
-    if (drift::FaceLandmarker::instance().available()) {
-        const QList<drift::FaceAnchors> faces = drift::FaceLandmarker::instance().detect(base);
+    if (TonDron::FaceLandmarker::instance().available()) {
+        const QList<TonDron::FaceAnchors> faces = TonDron::FaceLandmarker::instance().detect(base);
         if (!faces.isEmpty() && faces.first().valid) {
             faceAnchors = faces.first();
             faceBase = base;
@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
     }
     if (!usedDetectedFace) {
         if (!basePath.isEmpty())
-            err << "face: detection unavailable (" << drift::FaceLandmarker::instance().lastError()
+            err << "face: detection unavailable (" << TonDron::FaceLandmarker::instance().lastError()
                 << "); using drawn stand-in for face effects\n";
         faceBase = makeFaceBase(size, &faceAnchors);
     }
@@ -391,18 +391,18 @@ int main(int argc, char *argv[])
         if (def.meta.id == QLatin1String("time_echo")) {
             result = applyTimeEchoPreview(base, params);
         } else if (def.meta.id == QLatin1String("key.chroma")) {
-            drift::Effect effect;
+            TonDron::Effect effect;
             effect.catalogId = def.meta.id;
             effect.parameters = params;
             result = EffectProcessor::applyEffects(chromaBase, {effect}, 500000);
         } else if (def.needsFace) {
-            drift::Effect effect;
+            TonDron::Effect effect;
             effect.catalogId = def.meta.id;
             effect.parameters = params;
 
             result = EffectProcessor::applyEffects(faceBase, {effect}, 500000, {faceAnchors});
         } else {
-            drift::Effect effect;
+            TonDron::Effect effect;
             effect.catalogId = def.meta.id;
             effect.parameters = params;
             result = EffectProcessor::applyEffects(base, {effect}, 500000);

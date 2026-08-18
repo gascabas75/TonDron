@@ -49,7 +49,7 @@ QPointF contourPx(const QPointF &wn, const QSize &size)
 
 // Draws one loop and numbers its first few vertices, which is what makes a wrong index set or a
 // swapped left/right pair visible rather than merely plausible.
-void drawLoop(QPainter &p, const QList<QPointF> &contour, drift::contour::Span span,
+void drawLoop(QPainter &p, const QList<QPointF> &contour, TonDron::contour::Span span,
               const QSize &size, const QColor &color, const QString &label)
 {
     QPolygonF poly;
@@ -71,7 +71,7 @@ void drawLoop(QPainter &p, const QList<QPointF> &contour, drift::contour::Span s
         p.drawText(poly.at(i) + QPointF(4, -4), QString::number(i));
 }
 
-QJsonArray loopToJson(const QList<QPointF> &contour, drift::contour::Span span)
+QJsonArray loopToJson(const QList<QPointF> &contour, TonDron::contour::Span span)
 {
     QJsonArray out;
     for (int i = 0; i < span.count; ++i) {
@@ -83,7 +83,7 @@ QJsonArray loopToJson(const QList<QPointF> &contour, drift::contour::Span span)
 
 // Rotates a vector by the pose quaternion. Only used to turn the stored quaternion back into the
 // basis it came from, which is exactly the round trip that catches a sign error.
-QVector3D rotateByPose(const drift::FaceAnchors &a, const QVector3D &v)
+QVector3D rotateByPose(const TonDron::FaceAnchors &a, const QVector3D &v)
 {
     const QQuaternion q(float(a.poseQw), float(a.poseQx), float(a.poseQy), float(a.poseQz));
     return q.rotatedVector(v);
@@ -128,20 +128,20 @@ int main(int argc, char **argv)
     QImage frame(input);
     if (frame.isNull()) {
         frame = ClipReaderPool::instance().readVideoFrame(
-            input, drift::TimeUs(seconds * drift::kUsPerSecond), 1920, 1080);
+            input, TonDron::TimeUs(seconds * TonDron::kUsPerSecond), 1920, 1080);
     }
     if (frame.isNull()) {
         err << "could not read a frame from " << input << "\n";
         return 1;
     }
 
-    drift::FaceLandmarker &fl = drift::FaceLandmarker::instance();
+    TonDron::FaceLandmarker &fl = TonDron::FaceLandmarker::instance();
     if (!fl.available()) {
         err << fl.lastError() << "\n";
         return 1;
     }
 
-    const QList<drift::FaceAnchors> faces = fl.detect(frame);
+    const QList<TonDron::FaceAnchors> faces = fl.detect(frame);
     out << "frame " << frame.width() << "x" << frame.height() << ", faces: " << faces.size()
         << "\n";
 
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 
     QJsonArray json;
     for (int i = 0; i < faces.size(); ++i) {
-        const drift::FaceAnchors &a = faces.at(i);
+        const TonDron::FaceAnchors &a = faces.at(i);
         out << "  face " << i << " valid=" << a.valid << " score=" << a.score
             << " angle=" << (a.angle * 180.0 / M_PI) << "deg rx=" << a.faceRx << " ry=" << a.faceRy
             << " eyeR=" << a.eyeRadius << " contours=" << a.hasContours << " pose=" << a.hasPose
@@ -189,7 +189,7 @@ int main(int argc, char **argv)
         o[QStringLiteral("eyeRadius")] = a.eyeRadius;
 
         if (a.hasContours) {
-            using namespace drift::contour;
+            using namespace TonDron::contour;
             drawLoop(p, a.contour, kLipOuter, overlay.size(), QColor(255, 80, 120),
                      QStringLiteral("lipOut"));
             drawLoop(p, a.contour, kLipInner, overlay.size(), QColor(255, 180, 60),
@@ -284,20 +284,20 @@ int main(int argc, char **argv)
 
     // Bake the same anchors into two frames and sample between them, so this also exercises
     // FaceTrack::sample's interpolation rather than only the exact-frame path.
-    drift::FaceTrack track;
+    TonDron::FaceTrack track;
     track.fps = 30;
-    drift::FaceTrackFrame baked;
+    TonDron::FaceTrackFrame baked;
     baked.faces = faces;
     track.frames = {baked, baked};
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = effectId;
     for (auto it = overrides.cbegin(); it != overrides.cend(); ++it)
         effect.parameters.insert(it.key(), it.value());
 
     const QImage warped = EffectProcessor::applyEffects(
         frame.convertToFormat(QImage::Format_RGBA8888), {effect}, 0,
-        track.sampleAll(drift::kUsPerSecond / 60));
+        track.sampleAll(TonDron::kUsPerSecond / 60));
     if (warped.isNull() || !warped.save(effectOut)) {
         err << "could not render " << effectId << "\n";
         return 1;

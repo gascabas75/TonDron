@@ -71,24 +71,24 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    drift::Sam2Segmenter &sam = drift::Sam2Segmenter::instance();
+    TonDron::Sam2Segmenter &sam = TonDron::Sam2Segmenter::instance();
     if (!sam.available()) {
         err << "sam2 unavailable: " << sam.lastError() << "\n";
         return 1;
     }
     out << "variant: " << sam.modelVariant() << "\n";
 
-    std::unique_ptr<drift::Sam2Segmenter::Track> track = sam.newTrack();
+    std::unique_ptr<TonDron::Sam2Segmenter::Track> track = sam.newTrack();
     if (!track) {
         err << "could not create a track: " << sam.lastError() << "\n";
         return 1;
     }
 
-    const drift::TimeUs step = drift::TimeUs(drift::kUsPerSecond / fps);
+    const TonDron::TimeUs step = TonDron::TimeUs(TonDron::kUsPerSecond / fps);
     QElapsedTimer timer;
 
     for (int i = 0; i < frames; ++i) {
-        const drift::TimeUs at = drift::secondsToUs(seconds) + drift::TimeUs(i) * step;
+        const TonDron::TimeUs at = TonDron::secondsToUs(seconds) + TonDron::TimeUs(i) * step;
         const QImage frame = ClipReaderPool::instance().readVideoFrame(path, at, 0, 0);
         if (frame.isNull()) {
             err << "no frame decoded at index " << i << "\n";
@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
         }
 
         timer.restart();
-        const drift::Sam2Embedding embedding = sam.encode(frame);
+        const TonDron::Sam2Embedding embedding = sam.encode(frame);
         const qint64 encodeMs = timer.elapsed();
         if (!embedding.valid) {
             err << "encode failed: " << sam.lastError() << "\n";
@@ -104,9 +104,9 @@ int main(int argc, char *argv[])
         }
 
         timer.restart();
-        drift::Sam2Result result;
+        TonDron::Sam2Result result;
         if (i == 0) {
-            drift::Sam2Prompt prompt;
+            TonDron::Sam2Prompt prompt;
             prompt.points << QPointF(px * frame.width(), py * frame.height());
             prompt.labels << 1;
             result = track->seed(embedding, prompt);

@@ -134,7 +134,7 @@ static QByteArray httpPost(quint16 port, const QByteArray &auth, const QByteArra
 
 void McpTest::catalogListsToolboxes()
 {
-    const QJsonObject cat = drift::mcp::catalogPayload();
+    const QJsonObject cat = TonDron::mcp::catalogPayload();
     QVERIFY(cat.value(QStringLiteral("ok")).toBool());
     const QJsonArray boxes = cat.value(QStringLiteral("toolboxes")).toArray();
     QCOMPARE(boxes.size(), 15);
@@ -150,7 +150,7 @@ void McpTest::catalogListsToolboxes()
 
 void McpTest::catalogOpsIncludeWhen()
 {
-    const QJsonObject cat = drift::mcp::catalogPayload();
+    const QJsonObject cat = TonDron::mcp::catalogPayload();
     const QJsonArray boxes = cat.value(QStringLiteral("toolboxes")).toArray();
     QVERIFY(cat.contains(QStringLiteral("endpoints")));
     QVERIFY(cat.contains(QStringLiteral("units")));
@@ -167,7 +167,7 @@ void McpTest::catalogOpsIncludeWhen()
 
 void McpTest::toolboxDescriptionsIncludeWhen()
 {
-    const QJsonObject payload = drift::mcp::toolboxPayload(QStringLiteral("timeline"));
+    const QJsonObject payload = TonDron::mcp::toolboxPayload(QStringLiteral("timeline"));
     const QJsonArray tools = payload.value(QStringLiteral("tools")).toArray();
     bool sawAddTrack = false;
     for (const QJsonValue &v : tools) {
@@ -187,7 +187,7 @@ void McpTest::toolboxDescriptionsIncludeWhen()
 
 void McpTest::toolboxAnnotationsPresent()
 {
-    const QJsonObject payload = drift::mcp::toolboxPayload(QStringLiteral("media"));
+    const QJsonObject payload = TonDron::mcp::toolboxPayload(QStringLiteral("media"));
     const QJsonArray tools = payload.value(QStringLiteral("tools")).toArray();
     bool sawList = false;
     bool sawRename = false;
@@ -205,19 +205,19 @@ void McpTest::toolboxAnnotationsPresent()
     }
     QVERIFY(sawList);
     QVERIFY(sawRename);
-    QVERIFY(drift::mcp::toolboxNames().contains(QStringLiteral("project")));
+    QVERIFY(TonDron::mcp::toolboxNames().contains(QStringLiteral("project")));
 }
 
 void McpTest::toolboxUnknownIsError()
 {
-    const QJsonObject payload = drift::mcp::toolboxPayload(QStringLiteral("nope"));
+    const QJsonObject payload = TonDron::mcp::toolboxPayload(QStringLiteral("nope"));
     QCOMPARE(payload.value(QStringLiteral("ok")).toBool(), false);
     QCOMPARE(payload.value(QStringLiteral("error")).toString(), QStringLiteral("unknown_toolbox"));
 }
 
 void McpTest::toolboxReturnsSchemas()
 {
-    const QJsonObject payload = drift::mcp::toolboxPayload(QStringLiteral("timeline"));
+    const QJsonObject payload = TonDron::mcp::toolboxPayload(QStringLiteral("timeline"));
     QVERIFY(payload.value(QStringLiteral("ok")).toBool());
     const QJsonArray tools = payload.value(QStringLiteral("tools")).toArray();
     QVERIFY(tools.size() >= 8);
@@ -233,14 +233,14 @@ void McpTest::toolboxReturnsSchemas()
 
 void McpTest::protocolInitializeAndToolsList()
 {
-    const QJsonValue init = drift::mcp::handleJsonRpc(rpc(QStringLiteral("initialize")), {}, {});
+    const QJsonValue init = TonDron::mcp::handleJsonRpc(rpc(QStringLiteral("initialize")), {}, {});
     QVERIFY(init.isObject());
     QCOMPARE(init.toObject().value(QStringLiteral("result")).toObject()
                  .value(QStringLiteral("serverInfo")).toObject()
                  .value(QStringLiteral("name")).toString(),
              QStringLiteral("drift"));
 
-    const QJsonValue listed = drift::mcp::handleJsonRpc(rpc(QStringLiteral("tools/list")), {}, {});
+    const QJsonValue listed = TonDron::mcp::handleJsonRpc(rpc(QStringLiteral("tools/list")), {}, {});
     const QJsonArray tools =
         listed.toObject().value(QStringLiteral("result")).toObject().value(QStringLiteral("tools")).toArray();
     QCOMPARE(tools.size(), 5);
@@ -249,7 +249,7 @@ void McpTest::protocolInitializeAndToolsList()
 void McpTest::protocolUnknownOp()
 {
     bool called = false;
-    const QJsonValue reply = drift::mcp::handleJsonRpc(
+    const QJsonValue reply = TonDron::mcp::handleJsonRpc(
         rpc(QStringLiteral("tools/call"),
             {{QStringLiteral("name"), QStringLiteral("not_a_tool")},
              {QStringLiteral("arguments"), QJsonObject{}}}),
@@ -277,14 +277,14 @@ void McpTest::sessionFileRoundTrip()
     QVERIFY(dir.isValid());
     const QString path = dir.filePath(QStringLiteral("session.json"));
     qputenv("DRIFT_MCP_SESSION_PATH", path.toUtf8());
-    QVERIFY(drift::mcp::writeSessionFile(4731, QStringLiteral("abc123")));
+    QVERIFY(TonDron::mcp::writeSessionFile(4731, QStringLiteral("abc123")));
     quint16 port = 0;
     QString token;
     QString error;
-    QVERIFY(drift::mcp::readSessionFile(&port, &token, &error));
+    QVERIFY(TonDron::mcp::readSessionFile(&port, &token, &error));
     QCOMPARE(port, quint16(4731));
     QCOMPARE(token, QStringLiteral("abc123"));
-    drift::mcp::removeSessionFile();
+    TonDron::mcp::removeSessionFile();
     QVERIFY(!QFile::exists(path));
     qunsetenv("DRIFT_MCP_SESSION_PATH");
 }
@@ -293,7 +293,7 @@ void McpTest::sessionFileMissing()
 {
     qputenv("DRIFT_MCP_SESSION_PATH", "/tmp/drift-mcp-does-not-exist-test.json");
     QString error;
-    QVERIFY(!drift::mcp::readSessionFile(nullptr, nullptr, &error));
+    QVERIFY(!TonDron::mcp::readSessionFile(nullptr, nullptr, &error));
     QVERIFY(error.contains(QStringLiteral("Agent access")));
     qunsetenv("DRIFT_MCP_SESSION_PATH");
 }
@@ -344,7 +344,7 @@ void McpTest::applyUnknownOp()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QJsonObject result =
         dispatcher.applyOne(QStringLiteral("not_real"), {});
     QCOMPARE(result.value(QStringLiteral("ok")).toBool(), false);
@@ -362,7 +362,7 @@ void McpTest::applyBatchStopsAndUndoRevertsPrefix()
     const QString id = state.mcpCompactClip(track, clip).value(QStringLiteral("id")).toString();
     QVERIFY(!id.isEmpty());
 
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QJsonObject batch = dispatcher.apply(QJsonObject{
         {QStringLiteral("ops"),
          QJsonArray{
@@ -389,7 +389,7 @@ void McpTest::inspectIsCompact()
     AssetLibrary library;
     AppController state(&library);
     state.addTextClip(QStringLiteral("Hello"), 0.0);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QJsonObject summary = dispatcher.inspect({});
     QVERIFY(summary.value(QStringLiteral("ok")).toBool());
     QVERIFY(summary.contains(QStringLiteral("tracks")));
@@ -411,7 +411,7 @@ void McpTest::inspectIncludesProjectFields()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QJsonObject inspect = dispatcher.inspect({});
     QVERIFY(inspect.contains(QStringLiteral("path")));
     QVERIFY(inspect.contains(QStringLiteral("dirty")));
@@ -425,7 +425,7 @@ void McpTest::placeHonorsOverlapToggle()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject first = dispatcher.applyOne(
         QStringLiteral("add_text"),
@@ -459,7 +459,7 @@ void McpTest::workAreaRoundTrip()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject bad = dispatcher.applyOne(
         QStringLiteral("set_work_area"),
@@ -499,7 +499,7 @@ void McpTest::exportOptionsAndSettings()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject options = dispatcher.applyOne(QStringLiteral("list_export_options"), {});
     QVERIFY(options.value(QStringLiteral("ok")).toBool());
@@ -525,7 +525,7 @@ void McpTest::exportVideoRequiresPath()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject missing = dispatcher.applyOne(QStringLiteral("export_video"), {});
     QCOMPARE(missing.value(QStringLiteral("ok")).toBool(), false);
@@ -548,7 +548,7 @@ void McpTest::projectSetupRoundTrip()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject setup = dispatcher.applyOne(
         QStringLiteral("set_project_setup"),
@@ -590,7 +590,7 @@ void McpTest::inspectRevisionUnchanged()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QJsonObject first = dispatcher.inspect({});
     QVERIFY(first.value(QStringLiteral("ok")).toBool());
     QVERIFY(first.contains(QStringLiteral("revision")));
@@ -605,7 +605,7 @@ void McpTest::listEffectsIncludesParams()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QJsonObject result = dispatcher.applyOne(QStringLiteral("list_effects"), {});
     QVERIFY(result.value(QStringLiteral("ok")).toBool());
     const QJsonArray effects = result.value(QStringLiteral("effects")).toArray();
@@ -668,7 +668,7 @@ bool writeHalfSilentTone(const QString &path)
 }
 
 // Imports `path` and drops it on the timeline at `at`, returning the new clip's UUID.
-QString importAndPlace(drift::mcp::McpDispatcher &dispatcher, const QString &path, double at)
+QString importAndPlace(TonDron::mcp::McpDispatcher &dispatcher, const QString &path, double at)
 {
     const QJsonObject imported = dispatcher.applyOne(
         QStringLiteral("import_media"),
@@ -693,7 +693,7 @@ QString importAndPlace(drift::mcp::McpDispatcher &dispatcher, const QString &pat
 
 void McpTest::audioToolboxReturnsSchemas()
 {
-    const QJsonObject payload = drift::mcp::toolboxPayload(QStringLiteral("audio"));
+    const QJsonObject payload = TonDron::mcp::toolboxPayload(QStringLiteral("audio"));
     QVERIFY(payload.value(QStringLiteral("ok")).toBool());
     const QJsonArray tools = payload.value(QStringLiteral("tools")).toArray();
     QCOMPARE(tools.size(), 8);
@@ -711,7 +711,7 @@ void McpTest::audioToolboxReturnsSchemas()
     QVERIFY(names.contains(QStringLiteral("set_volume")));
 
     // detect_beats is on /mcp/audio, not the homepage.
-    QCOMPARE(drift::mcp::toolboxForOp(QStringLiteral("detect_beats")), QStringLiteral("audio"));
+    QCOMPARE(TonDron::mcp::toolboxForOp(QStringLiteral("detect_beats")), QStringLiteral("audio"));
 }
 
 // The whole reason these ops call the engine directly instead of the QML getters: those come
@@ -727,7 +727,7 @@ void McpTest::waveformReturnsPeaksOnFirstCall()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QString clip = importAndPlace(dispatcher, source, 0.0);
     QVERIFY(!clip.isEmpty());
@@ -760,7 +760,7 @@ void McpTest::waveformReportsSilenceAsZero()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     QVERIFY(!importAndPlace(dispatcher, source, 0.0).isEmpty());
 
     const QString assetId = state.mcpInspect(false)
@@ -789,7 +789,7 @@ void McpTest::detectBeatsRejectsShortRange()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject tooShort = dispatcher.applyOne(
         QStringLiteral("detect_beats"), {{QStringLiteral("duration"), 1.0}});
@@ -815,7 +815,7 @@ void McpTest::detectBeatsFindsClickTempoAndPublishes()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     QVERIFY(!importAndPlace(dispatcher, source, 0.0).isEmpty());
 
     const QJsonObject beats = dispatcher.applyOne(
@@ -862,7 +862,7 @@ void McpTest::splitOnBeatsCutsAndUndoesAsOneStep()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     const QString clip = importAndPlace(dispatcher, source, 0.0);
     QVERIFY(!clip.isEmpty());
 
@@ -906,7 +906,7 @@ void McpTest::snapClipsToBeatsRespectsMaxDistance()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     QVERIFY(!importAndPlace(dispatcher, source, 0.0).isEmpty());
 
     const QJsonObject beats = dispatcher.applyOne(
@@ -948,7 +948,7 @@ void McpTest::setVolumeRoundTrips()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject text = dispatcher.applyOne(
         QStringLiteral("add_text"),
@@ -984,7 +984,7 @@ void McpTest::audioReadOpsAreNotUndoable()
 {
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
 
     const QJsonObject result = dispatcher.apply(
         {{QStringLiteral("ops"),
@@ -997,7 +997,7 @@ void McpTest::audioReadOpsAreNotUndoable()
     QVERIFY(!state.undoAvailable());
 }
 
-// The payoff of the whole toolbox: extraSnapTargets() already feeds drift::snapTime, so arming
+// The payoff of the whole toolbox: extraSnapTargets() already feeds TonDron::snapTime, so arming
 // the grid makes every ordinary placement op quantise without asking for it. Nothing in the
 // audio ops themselves would fail if this stopped working, so it needs its own test.
 void McpTest::armedBeatGridMakesMoveClipSnap()
@@ -1011,7 +1011,7 @@ void McpTest::armedBeatGridMakesMoveClipSnap()
 
     AssetLibrary library;
     AppController state(&library);
-    drift::mcp::McpDispatcher dispatcher(&state);
+    TonDron::mcp::McpDispatcher dispatcher(&state);
     QVERIFY(!importAndPlace(dispatcher, source, 0.0).isEmpty());
 
     const QJsonObject beats = dispatcher.applyOne(

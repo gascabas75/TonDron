@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     const int sampleRate = 16000;
-    const int frames = static_cast<int>((info.durationUs * sampleRate) / drift::kUsPerSecond);
+    const int frames = static_cast<int>((info.durationUs * sampleRate) / TonDron::kUsPerSecond);
     QVector<float> stereo(static_cast<qsizetype>(frames) * 2);
     const int got = ClipReaderPool::instance().readAudioInterleaved(path, 0, frames, sampleRate,
                                                                     stereo.data());
@@ -60,13 +60,13 @@ int main(int argc, char *argv[])
     for (int i = 0; i < got; ++i)
         mono[i] = 0.5f * (stereo[i * 2] + stereo[i * 2 + 1]);
 
-    drift::WhisperTranscriber &w = drift::WhisperTranscriber::instance();
+    TonDron::WhisperTranscriber &w = TonDron::WhisperTranscriber::instance();
     if (!w.available()) {
         err << "whisper unavailable: " << w.lastError() << "\n";
         return 1;
     }
 
-    const drift::WhisperResult res = w.transcribe(
+    const TonDron::WhisperResult res = w.transcribe(
         mono,
         [&](double p, const QString &status) {
             err << "\r" << static_cast<int>(p * 100) << "%";
@@ -84,9 +84,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    for (const drift::SubtitleCue &cue : res.cues) {
-        out << QString::number(drift::usToSeconds(cue.startUs), 'f', 2) << " -> "
-            << QString::number(drift::usToSeconds(cue.endUs), 'f', 2) << "  " << cue.text << "\n";
+    for (const TonDron::SubtitleCue &cue : res.cues) {
+        out << QString::number(TonDron::usToSeconds(cue.startUs), 'f', 2) << " -> "
+            << QString::number(TonDron::usToSeconds(cue.endUs), 'f', 2) << "  " << cue.text << "\n";
     }
     out << "(" << res.cues.size() << " cues)\n";
     return 0;

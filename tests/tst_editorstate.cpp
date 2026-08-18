@@ -288,11 +288,11 @@ void EditorStateTest::renameClipAndAsset()
 
     // Asset rename is independent of clip names that were copied at add time.
     // Seed a bin row through the project table the library is bound to.
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.id = QStringLiteral("asset-1");
     asset.name = QStringLiteral("clip.mp4");
     asset.path = QStringLiteral("/tmp/clip.mp4");
-    asset.kind = drift::MediaKind::Video;
+    asset.kind = TonDron::MediaKind::Video;
     state.project()->assets().insert(asset.id, asset);
     state.project()->assetOrder().append(asset.id);
     library.syncToProject();
@@ -383,8 +383,8 @@ void EditorStateTest::packagedProjectCarriesDerivedArtifacts()
                              QStringLiteral("With a matte"));
 
     // No QML-facing setter carries a matte path; the segmentation job writes it directly.
-    drift::Clip &clip = state.project()->tracks()[0].clips[0];
-    clip.mask.shape = drift::MaskShape::Matte;
+    TonDron::Clip &clip = state.project()->tracks()[0].clips[0];
+    clip.mask.shape = TonDron::MaskShape::Matte;
     clip.mask.mattePath = mattePath;
 
     QTemporaryDir out;
@@ -411,7 +411,7 @@ void EditorStateTest::packagedProjectCarriesDerivedArtifacts()
     QCOMPARE(state.projectMetadata().value(QStringLiteral("author")).toString(),
              QStringLiteral("Ada"));
 
-    const drift::Clip &loaded = state.project()->tracks().at(0).clips.at(0);
+    const TonDron::Clip &loaded = state.project()->tracks().at(0).clips.at(0);
     QVERIFY(loaded.mask.mattePath != mattePath);
     QVERIFY2(QFileInfo::exists(loaded.mask.mattePath), qPrintable(loaded.mask.mattePath));
     QCOMPARE(QFileInfo(loaded.mask.mattePath).size(), 1024);
@@ -450,11 +450,11 @@ void EditorStateTest::newProjectClearsEverything()
     AssetLibrary library;
     AppController state(&library);
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.name = QStringLiteral("clip.mp4");
-    asset.kind = drift::MediaKind::Video;
+    asset.kind = TonDron::MediaKind::Video;
     asset.path = QStringLiteral("/nonexistent/clip.mp4");
-    asset.durationUs = drift::secondsToUs(5.0);
+    asset.durationUs = TonDron::secondsToUs(5.0);
     state.project()->addAsset(asset);
     library.syncToProject();
     QCOMPARE(library.count(), 1);
@@ -1024,69 +1024,69 @@ void EditorStateTest::multiSelectClipboardGuidesAndShortcuts()
     QCOMPARE(state.guidesEnabled(), false);
 }
 
-static void appendAdjacentShapeClips(drift::Project &project, drift::TimeUs gapUs = 0)
+static void appendAdjacentShapeClips(TonDron::Project &project, TonDron::TimeUs gapUs = 0)
 {
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clipA;
+    TonDron::Clip clipA;
     clipA.id = QStringLiteral("clip-a");
-    clipA.type = drift::ClipType::Shape;
+    clipA.type = TonDron::ClipType::Shape;
     clipA.timelineStart = 0;
-    clipA.timelineDuration = drift::secondsToUs(2.0);
+    clipA.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Clip clipB;
+    TonDron::Clip clipB;
     clipB.id = QStringLiteral("clip-b");
-    clipB.type = drift::ClipType::Shape;
+    clipB.type = TonDron::ClipType::Shape;
     clipB.timelineStart = clipA.timelineEnd() + gapUs;
-    clipB.timelineDuration = drift::secondsToUs(2.0);
+    clipB.timelineDuration = TonDron::secondsToUs(2.0);
 
     project.tracks()[0].clips.append(clipA);
     project.tracks()[0].clips.append(clipB);
 }
 
-static void appendCombinedVideoClip(drift::Project &project)
+static void appendCombinedVideoClip(TonDron::Project &project)
 {
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.id = QStringLiteral("asset-video");
     asset.path = QStringLiteral("/tmp/video.mp4");
     asset.name = QStringLiteral("Video");
-    asset.kind = drift::MediaKind::Video;
-    asset.durationUs = drift::secondsToUs(4.0);
+    asset.kind = TonDron::MediaKind::Video;
+    asset.durationUs = TonDron::secondsToUs(4.0);
     asset.sampleRate = 48000;
     asset.channels = 2;
     project.assets().insert(asset.id, asset);
     project.assetOrder().append(asset.id);
 
-    drift::Clip video;
+    TonDron::Clip video;
     video.id = QStringLiteral("clip-video");
     video.assetId = asset.id;
-    video.type = drift::ClipType::Video;
+    video.type = TonDron::ClipType::Video;
     video.name = asset.name;
     video.path = asset.path;
     video.timelineStart = 0;
-    video.timelineDuration = drift::secondsToUs(4.0);
+    video.timelineDuration = TonDron::secondsToUs(4.0);
     video.srcIn = 0;
-    video.srcOut = drift::secondsToUs(4.0);
+    video.srcOut = TonDron::secondsToUs(4.0);
 
     project.tracks()[0].clips.append(video);
 }
 
-static void appendLinkedVideoAudioPair(drift::Project &project)
+static void appendLinkedVideoAudioPair(TonDron::Project &project)
 {
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
-    project.tracks().append(drift::Track{.type = drift::TrackType::Audio});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Audio});
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.id = QStringLiteral("asset-video");
     asset.path = QStringLiteral("/tmp/video.mp4");
     asset.name = QStringLiteral("Video");
-    asset.kind = drift::MediaKind::Video;
-    asset.durationUs = drift::secondsToUs(4.0);
+    asset.kind = TonDron::MediaKind::Video;
+    asset.durationUs = TonDron::secondsToUs(4.0);
     asset.sampleRate = 48000;
     asset.channels = 2;
     project.assets().insert(asset.id, asset);
@@ -1094,30 +1094,30 @@ static void appendLinkedVideoAudioPair(drift::Project &project)
 
     const QString linkId = QStringLiteral("link-1");
 
-    drift::Clip video;
+    TonDron::Clip video;
     video.id = QStringLiteral("clip-video");
     video.linkId = linkId;
     video.suppressEmbeddedAudio = true;
     video.assetId = asset.id;
-    video.type = drift::ClipType::Video;
+    video.type = TonDron::ClipType::Video;
     video.name = asset.name;
     video.path = asset.path;
     video.timelineStart = 0;
-    video.timelineDuration = drift::secondsToUs(4.0);
+    video.timelineDuration = TonDron::secondsToUs(4.0);
     video.srcIn = 0;
-    video.srcOut = drift::secondsToUs(4.0);
+    video.srcOut = TonDron::secondsToUs(4.0);
 
-    drift::Clip audio;
+    TonDron::Clip audio;
     audio.id = QStringLiteral("clip-audio");
     audio.linkId = linkId;
     audio.assetId = asset.id;
-    audio.type = drift::ClipType::Audio;
+    audio.type = TonDron::ClipType::Audio;
     audio.name = asset.name;
     audio.path = asset.path;
     audio.timelineStart = 0;
-    audio.timelineDuration = drift::secondsToUs(4.0);
+    audio.timelineDuration = TonDron::secondsToUs(4.0);
     audio.srcIn = 0;
-    audio.srcOut = drift::secondsToUs(4.0);
+    audio.srcOut = TonDron::secondsToUs(4.0);
 
     project.tracks()[0].clips.append(video);
     project.tracks()[1].clips.append(audio);
@@ -1141,13 +1141,13 @@ void EditorStateTest::separateAudioFromCombinedClip()
     QVERIFY(state.selectionContains(0, 0));
 
     state.moveClip(0, 0, 2.0);
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, drift::secondsToUs(2.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, TonDron::secondsToUs(2.0));
 
     state.selectClip(0, 0);
     state.separateAudioFromSelection();
     QCOMPARE(state.project()->tracks().size(), 2);
     QCOMPARE(state.project()->tracks().at(1).clips.size(), 1);
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineStart, drift::secondsToUs(2.0));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineStart, TonDron::secondsToUs(2.0));
     // The video must stop playing the audio it just handed over.
     QCOMPARE(state.project()->tracks().at(0).clips.at(0).suppressEmbeddedAudio, true);
 
@@ -1164,18 +1164,18 @@ void EditorStateTest::linkedFadeCurveSyncsPartner()
     appendLinkedVideoAudioPair(*state.project());
 
     state.setClipFade(0, 0, 0.8, 0.4);
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeInUs, drift::secondsToUs(0.8));
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeInUs, drift::secondsToUs(0.8));
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeOutUs, drift::secondsToUs(0.4));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeInUs, TonDron::secondsToUs(0.8));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeInUs, TonDron::secondsToUs(0.8));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeOutUs, TonDron::secondsToUs(0.4));
 
     state.setClipFadeCurve(0, 0, QStringLiteral("equalPower"));
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, drift::FadeCurve::EqualPower);
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeCurve, drift::FadeCurve::EqualPower);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, TonDron::FadeCurve::EqualPower);
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeCurve, TonDron::FadeCurve::EqualPower);
 
     state.beginPreviewDrag(QStringLiteral("Adjust fade"));
     state.previewSetClipFade(0, 0, 1.0, 0.5);
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeInUs, drift::secondsToUs(1.0));
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeOutUs, drift::secondsToUs(0.5));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeInUs, TonDron::secondsToUs(1.0));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeOutUs, TonDron::secondsToUs(0.5));
     state.commitPreviewDrag();
 }
 
@@ -1189,19 +1189,19 @@ void EditorStateTest::customFadeCurveSessionApplyAndCancel()
 
     state.beginFadeCurveSession(0, 0);
     QVERIFY(state.fadeCurveSessionActive());
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, drift::FadeCurve::Custom);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, TonDron::FadeCurve::Custom);
 
     state.setFadeCurvePoints(QVariantList{
         QVariantMap{{QStringLiteral("t"), 0.0}, {QStringLiteral("g"), 0.0}},
         QVariantMap{{QStringLiteral("t"), 0.5}, {QStringLiteral("g"), 0.2}},
         QVariantMap{{QStringLiteral("t"), 1.0}, {QStringLiteral("g"), 1.0}},
     });
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeCurve, drift::FadeCurve::Custom);
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeCurve, TonDron::FadeCurve::Custom);
     QVERIFY(qAbs(state.project()->tracks().at(0).clips.at(0).fadeShape.gainAt(0.5) - 0.2) < 1e-6);
 
     state.endFadeCurveSession();
     QVERIFY(!state.fadeCurveSessionActive());
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, drift::FadeCurve::Linear);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, TonDron::FadeCurve::Linear);
 
     state.beginFadeCurveSession(0, 0);
     state.setFadeCurvePoints(QVariantList{
@@ -1211,9 +1211,9 @@ void EditorStateTest::customFadeCurveSessionApplyAndCancel()
     });
     state.applyFadeCurve();
     QVERIFY(!state.fadeCurveSessionActive());
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, drift::FadeCurve::Custom);
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).fadeCurve, TonDron::FadeCurve::Custom);
     QVERIFY(qAbs(state.project()->tracks().at(0).clips.at(0).fadeShape.gainAt(0.5) - 0.75) < 1e-6);
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeCurve, drift::FadeCurve::Custom);
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).fadeCurve, TonDron::FadeCurve::Custom);
     QVERIFY(qAbs(state.project()->tracks().at(1).clips.at(0).fadeShape.gainAt(0.5) - 0.75) < 1e-6);
 }
 
@@ -1233,8 +1233,8 @@ void EditorStateTest::linkedAudioUnlinkAndMove()
 
     // Linked: moving the video carries its audio along.
     state.moveClip(0, 0, 2.0);
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, drift::secondsToUs(2.0));
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineStart, drift::secondsToUs(2.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, TonDron::secondsToUs(2.0));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineStart, TonDron::secondsToUs(2.0));
 
     state.selectClip(0, 0);
     state.unlinkSelectedClips();
@@ -1242,8 +1242,8 @@ void EditorStateTest::linkedAudioUnlinkAndMove()
 
     // Unlinked: the audio stays where it was.
     state.moveClip(0, 0, 0.0);
-    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, drift::secondsToUs(0.0));
-    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineStart, drift::secondsToUs(2.0));
+    QCOMPARE(state.project()->tracks().at(0).clips.at(0).timelineStart, TonDron::secondsToUs(0.0));
+    QCOMPARE(state.project()->tracks().at(1).clips.at(0).timelineStart, TonDron::secondsToUs(2.0));
 }
 
 void EditorStateTest::addTransitionBetweenAdjacentClips()
@@ -1270,7 +1270,7 @@ void EditorStateTest::addTransitionBetweenAdjacentTextClips()
     state.addTextClip(QStringLiteral("Two"), 2.0);
     state.setClipDuration(0, 1, 2.0);
 
-    QCOMPARE(state.project()->tracks().at(0).type, drift::TrackType::Text);
+    QCOMPARE(state.project()->tracks().at(0).type, TonDron::TrackType::Text);
     QCOMPARE(state.project()->tracks().at(0).clips.size(), 2);
 
     state.addTransition(0, 0, QStringLiteral("crossfade"), 0.5);
@@ -1288,31 +1288,31 @@ void EditorStateTest::clipAnimationUndoRestoresKind()
 
     const int track = state.selectedTrack();
     const int clip = state.selectedClip();
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, drift::ClipAnimKind::None);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, TonDron::ClipAnimKind::None);
 
     state.setClipAnimation(track, clip, QStringLiteral("animIn"),
                            QVariantMap{{QStringLiteral("kind"), QStringLiteral("pop")},
                                        {QStringLiteral("duration"), 0.4},
                                        {QStringLiteral("curve"), QStringLiteral("smooth")}});
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, drift::ClipAnimKind::Pop);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, TonDron::ClipAnimKind::Pop);
     QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.durationUs,
-             drift::secondsToUs(0.4));
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.curve, drift::FadeCurve::Smooth);
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).fadeInUs, drift::TimeUs{0});
+             TonDron::secondsToUs(0.4));
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.curve, TonDron::FadeCurve::Smooth);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).fadeInUs, TonDron::TimeUs{0});
 
     state.setClipAnimation(track, clip, QStringLiteral("animIn"),
                            QVariantMap{{QStringLiteral("kind"), QStringLiteral("fade")},
                                        {QStringLiteral("duration"), 0.6},
                                        {QStringLiteral("curve"), QStringLiteral("equalPower")}});
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, drift::ClipAnimKind::Fade);
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).fadeInUs, drift::secondsToUs(0.6));
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).fadeCurve, drift::FadeCurve::EqualPower);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, TonDron::ClipAnimKind::Fade);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).fadeInUs, TonDron::secondsToUs(0.6));
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).fadeCurve, TonDron::FadeCurve::EqualPower);
 
     QVERIFY(state.undoAvailable());
     state.undo();
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, drift::ClipAnimKind::Pop);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, TonDron::ClipAnimKind::Pop);
     state.undo();
-    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, drift::ClipAnimKind::None);
+    QCOMPARE(state.project()->tracks().at(track).clips.at(clip).animIn.kind, TonDron::ClipAnimKind::None);
 }
 
 void EditorStateTest::setTransitionKindAndDurationPersist()
@@ -1354,13 +1354,13 @@ void EditorStateTest::overlapAutoAppliesCrossfade()
 {
     AssetLibrary library;
     AppController state(&library);
-    appendAdjacentShapeClips(*state.project(), -drift::secondsToUs(0.5)); // 0.5s physical overlap
+    appendAdjacentShapeClips(*state.project(), -TonDron::secondsToUs(0.5)); // 0.5s physical overlap
 
     // Overlap is off by default; keep it on so the no-op move below does not push the
     // already-overlapping clips apart before sync can create the crossfade.
     state.setAllowClipOverlap(true);
     // Overlap sync runs on finishEdit; nudge via a no-op-ish move to trigger it.
-    state.moveClip(0, 1, drift::usToSeconds(state.project()->tracks().at(0).clips.at(1).timelineStart));
+    state.moveClip(0, 1, TonDron::usToSeconds(state.project()->tracks().at(0).clips.at(1).timelineStart));
 
     const QVariantMap transition = state.transitionBetweenClips(0, 0);
     QVERIFY(!transition.isEmpty());
@@ -1489,23 +1489,23 @@ void EditorStateTest::denoiseAddsCleanedClipOnTrackAbove()
     AssetLibrary library;
     AppController state(&library);
 
-    drift::Project &project = *state.project();
-    drift::Track track{.type = drift::TrackType::Audio};
-    drift::Clip clip;
+    TonDron::Project &project = *state.project();
+    TonDron::Track track{.type = TonDron::TrackType::Audio};
+    TonDron::Clip clip;
     clip.id = QStringLiteral("src-clip");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.path = source;
     clip.name = QStringLiteral("Noisy");
-    clip.timelineStart = drift::secondsToUs(1.5);
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.timelineStart = TonDron::secondsToUs(1.5);
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     clip.srcIn = 0;
-    clip.srcOut = drift::secondsToUs(3.0);
+    clip.srcOut = TonDron::secondsToUs(3.0);
     track.clips.append(clip);
     // A new project comes with default tracks; drop them so the indices below are the ones set up
     // here. A video track sits above the audio one, so "directly above the clip's own track" is
     // distinguishable from "at the very top of the timeline".
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
     project.tracks().append(track);
     const int sourceTrack = 1;
 
@@ -1518,21 +1518,21 @@ void EditorStateTest::denoiseAddsCleanedClipOnTrackAbove()
 
     QCOMPARE(project.tracks().size(), 3);
     // Inserted at the source's index, pushing it down — not at the top of the timeline.
-    QCOMPARE(project.tracks().at(0).type, drift::TrackType::Video);
-    QCOMPARE(project.tracks().at(sourceTrack).type, drift::TrackType::Audio);
+    QCOMPARE(project.tracks().at(0).type, TonDron::TrackType::Video);
+    QCOMPARE(project.tracks().at(sourceTrack).type, TonDron::TrackType::Audio);
     QCOMPARE(project.tracks().at(sourceTrack + 1).clips.at(0).id, QStringLiteral("src-clip"));
 
-    const drift::Clip &out = project.tracks().at(sourceTrack).clips.at(0);
+    const TonDron::Clip &out = project.tracks().at(sourceTrack).clips.at(0);
     QVERIFY(out.id != clip.id);
     QVERIFY(out.name.contains(QStringLiteral("denoised")));
-    QCOMPARE(out.type, drift::ClipType::Audio);
+    QCOMPARE(out.type, TonDron::ClipType::Audio);
     QVERIFY(out.assetId.isEmpty());
     QVERIFY2(QFileInfo::exists(out.path), qPrintable(out.path));
     QVERIFY(out.path.endsWith(QStringLiteral(".flac")));
     // Stays put on the timeline, and the source window is rebased into the new media.
     QCOMPARE(out.timelineStart, clip.timelineStart);
     QCOMPARE(out.timelineDuration, clip.timelineDuration);
-    QCOMPARE(out.srcIn, drift::TimeUs(0));
+    QCOMPARE(out.srcIn, TonDron::TimeUs(0));
     QCOMPARE(out.srcOut, clip.srcOut - clip.srcIn);
 
     // One undoable edit: the track and the clip go together.
@@ -1597,25 +1597,25 @@ void EditorStateTest::speedCurveOnAudioClipRetimesAndReplaces()
     AssetLibrary library;
     AppController state(&library);
 
-    drift::Project &project = *state.project();
-    drift::Clip clip;
+    TonDron::Project &project = *state.project();
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-audio");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.name = QStringLiteral("Tone");
     clip.path = QStringLiteral("/tmp/tone.wav");
-    clip.timelineStart = drift::secondsToUs(1.0);
-    clip.timelineDuration = drift::secondsToUs(4.0);
+    clip.timelineStart = TonDron::secondsToUs(1.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
     clip.srcIn = 0;
-    clip.srcOut = drift::secondsToUs(4.0);
+    clip.srcOut = TonDron::secondsToUs(4.0);
     clip.volume.setKeyframe(0, 1.0);
-    clip.volume.setKeyframe(drift::secondsToUs(4.0), 0.0);
+    clip.volume.setKeyframe(TonDron::secondsToUs(4.0), 0.0);
 
-    drift::Track track{.type = drift::TrackType::Audio};
+    TonDron::Track track{.type = TonDron::TrackType::Audio};
     track.clips.append(clip);
     // A video track above the audio one, so "directly above the clip's own track" is
     // distinguishable from "at the very top".
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
     project.tracks().append(track);
     const int sourceTrack = 1;
 
@@ -1640,12 +1640,12 @@ void EditorStateTest::speedCurveOnAudioClipRetimesAndReplaces()
 
     // The retimed copy lands on a new audio track directly above the source track.
     QCOMPARE(project.tracks().size(), 3);
-    QCOMPARE(project.tracks().at(1).type, drift::TrackType::Audio);
+    QCOMPARE(project.tracks().at(1).type, TonDron::TrackType::Audio);
     QCOMPARE(project.tracks().at(1).clips.size(), 1);
 
-    const drift::Clip &retimed = project.tracks().at(1).clips.at(0);
+    const TonDron::Clip &retimed = project.tracks().at(1).clips.at(0);
     QVERIFY(retimed.hasSpeedCurve());
-    QCOMPARE(retimed.type, drift::ClipType::Audio);
+    QCOMPARE(retimed.type, TonDron::ClipType::Audio);
     QCOMPARE(retimed.timelineStart, clip.timelineStart);
     QCOMPARE(retimed.srcIn, clip.srcIn);
     QCOMPARE(retimed.srcOut, clip.srcOut);
@@ -1654,7 +1654,7 @@ void EditorStateTest::speedCurveOnAudioClipRetimesAndReplaces()
     // Volume automation has to follow the retime, or the fade would land at the wrong moment. The
     // key that sat at the clip's old end belongs at its new one, not at the same wall-clock offset.
     QCOMPARE(retimed.volume.keyframes().size(), clip.volume.keyframes().size());
-    QCOMPARE(retimed.volume.keyframes().firstKey(), drift::TimeUs{0});
+    QCOMPARE(retimed.volume.keyframes().firstKey(), TonDron::TimeUs{0});
     QVERIFY2(std::llabs(retimed.volume.keyframes().lastKey() - retimed.timelineDuration) < 100'000,
              qPrintable(QString::number(retimed.volume.keyframes().lastKey())));
 
@@ -1735,30 +1735,30 @@ void EditorStateTest::speedCurveSessionExposesTrimmedSourceWindow()
     AssetLibrary library;
     AppController state(&library);
 
-    drift::Project &project = *state.project();
+    TonDron::Project &project = *state.project();
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.id = QStringLiteral("asset-video");
     asset.path = QStringLiteral("/tmp/video.mp4");
     asset.name = QStringLiteral("Video");
-    asset.kind = drift::MediaKind::Video;
-    asset.durationUs = drift::secondsToUs(20.0);
+    asset.kind = TonDron::MediaKind::Video;
+    asset.durationUs = TonDron::secondsToUs(20.0);
     project.assets().insert(asset.id, asset);
     project.assetOrder().append(asset.id);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-video");
     clip.assetId = asset.id;
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.name = asset.name;
     clip.path = asset.path;
     clip.filmstripPath = QStringLiteral("/tmp/video.strip.jpg");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(7.0);
-    clip.srcIn = drift::secondsToUs(5.0);
-    clip.srcOut = drift::secondsToUs(12.0);
+    clip.timelineDuration = TonDron::secondsToUs(7.0);
+    clip.srcIn = TonDron::secondsToUs(5.0);
+    clip.srcOut = TonDron::secondsToUs(12.0);
 
-    drift::Track track{.type = drift::TrackType::Video};
+    TonDron::Track track{.type = TonDron::TrackType::Video};
     track.clips.append(clip);
     project.tracks().clear();
     project.tracks().append(track);
@@ -1838,21 +1838,21 @@ void EditorStateTest::replaceAssetSourceRebindsClipsAndClampsTrim()
     const int clipIndex = state.selectedClip();
     QVERIFY(trackIndex >= 0 && clipIndex >= 0);
 
-    drift::Project &project = *state.project();
+    TonDron::Project &project = *state.project();
     // Trim to a window that only the 10s original can satisfy, and drop an effect on it so the
     // work that must survive the swap is represented.
     {
-        drift::Clip &clip = project.tracks()[trackIndex].clips[clipIndex];
-        clip.timelineStart = drift::secondsToUs(2.0);
-        clip.srcIn = drift::secondsToUs(1.0);
-        clip.srcOut = drift::secondsToUs(9.0);
-        clip.timelineDuration = drift::secondsToUs(8.0);
-        clip.effects.append(drift::Effect{.name = QStringLiteral("gblur")});
+        TonDron::Clip &clip = project.tracks()[trackIndex].clips[clipIndex];
+        clip.timelineStart = TonDron::secondsToUs(2.0);
+        clip.srcIn = TonDron::secondsToUs(1.0);
+        clip.srcOut = TonDron::secondsToUs(9.0);
+        clip.timelineDuration = TonDron::secondsToUs(8.0);
+        clip.effects.append(TonDron::Effect{.name = QStringLiteral("gblur")});
         clip.faceTrackPath = QStringLiteral("/tmp/stale.landmarks");
-        clip.faceTrackSrcOffsetUs = drift::secondsToUs(1.0);
+        clip.faceTrackSrcOffsetUs = TonDron::secondsToUs(1.0);
     }
     const QString assetId = library.assetIdAt(0);
-    const drift::Clip beforeSwap = project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Clip beforeSwap = project.tracks().at(trackIndex).clips.at(clipIndex);
 
     QSignalSpy finished(&state, &AppController::assetReplaceFinished);
     QVERIFY(state.replaceAssetSource(0, QUrl::fromLocalFile(replacement)));
@@ -1867,7 +1867,7 @@ void EditorStateTest::replaceAssetSourceRebindsClipsAndClampsTrim()
     QCOMPARE(library.assetIdAt(0), assetId);
     QCOMPARE(project.asset(assetId)->path, QFileInfo(replacement).absoluteFilePath());
 
-    const drift::Clip &after = project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Clip &after = project.tracks().at(trackIndex).clips.at(clipIndex);
     QCOMPARE(after.id, beforeSwap.id);
     QCOMPARE(after.assetId, assetId);
     QCOMPARE(after.path, QFileInfo(replacement).absoluteFilePath());
@@ -1877,10 +1877,10 @@ void EditorStateTest::replaceAssetSourceRebindsClipsAndClampsTrim()
     // Landmarks were baked against the old pixels; keeping them would warp to a face the new
     // footage never had.
     QVERIFY(after.faceTrackPath.isEmpty());
-    QCOMPARE(after.faceTrackSrcOffsetUs, drift::TimeUs(0));
+    QCOMPARE(after.faceTrackSrcOffsetUs, TonDron::TimeUs(0));
     // The source window is pulled inside the shorter file, and the timeline duration follows so
     // the clip never addresses frames past the end of its media.
-    const drift::TimeUs mediaDuration = project.asset(assetId)->durationUs;
+    const TonDron::TimeUs mediaDuration = project.asset(assetId)->durationUs;
     QVERIFY(mediaDuration > 0);
     QVERIFY(after.srcOut <= mediaDuration);
     QCOMPARE(after.srcIn, beforeSwap.srcIn);
@@ -1889,7 +1889,7 @@ void EditorStateTest::replaceAssetSourceRebindsClipsAndClampsTrim()
     // One undo puts the asset and every clip bound to it back on the old file together.
     state.undo();
     QCOMPARE(project.asset(assetId)->path, QFileInfo(original).absoluteFilePath());
-    const drift::Clip &undone = project.tracks().at(trackIndex).clips.at(clipIndex);
+    const TonDron::Clip &undone = project.tracks().at(trackIndex).clips.at(clipIndex);
     QCOMPARE(undone.path, beforeSwap.path);
     QCOMPARE(undone.srcOut, beforeSwap.srcOut);
     QCOMPARE(undone.timelineDuration, beforeSwap.timelineDuration);
@@ -1921,7 +1921,7 @@ void EditorStateTest::replaceAssetSourceRefusesADifferentKind()
     QVERIFY(importAndAwait(library, video));
 
     state.addClipFromAsset(0);
-    drift::Project &project = *state.project();
+    TonDron::Project &project = *state.project();
     const QString assetId = library.assetIdAt(0);
     const QString originalPath = project.asset(assetId)->path;
 
@@ -1953,10 +1953,10 @@ void EditorStateTest::exportAssetImageWritesPngAndJpeg()
     AssetLibrary library;
     AppController state(&library);
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.name = QStringLiteral("Freeze frame");
     asset.path = sourcePath;
-    asset.kind = drift::MediaKind::Image;
+    asset.kind = TonDron::MediaKind::Image;
     asset.width = source.width();
     asset.height = source.height();
     QVERIFY(!library.addGeneratedAsset(asset).isEmpty());

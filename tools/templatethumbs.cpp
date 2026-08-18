@@ -13,12 +13,12 @@
 
 namespace {
 
-QList<drift::Effect> effectsFromLayers(const QList<EffectTemplateLayer> &layers)
+QList<TonDron::Effect> effectsFromLayers(const QList<EffectTemplateLayer> &layers)
 {
-    QList<drift::Effect> out;
+    QList<TonDron::Effect> out;
     out.reserve(layers.size());
     for (const EffectTemplateLayer &layer : layers) {
-        drift::Effect effect;
+        TonDron::Effect effect;
         effect.catalogId = layer.effectId;
         effect.parameters = layer.params;
         // Showcase the beat-peak look rather than the rest pose.
@@ -31,7 +31,7 @@ QList<drift::Effect> effectsFromLayers(const QList<EffectTemplateLayer> &layers)
 
 QImage applyLayers(const QImage &input, const QList<EffectTemplateLayer> &layers)
 {
-    const QList<drift::Effect> effects = effectsFromLayers(layers);
+    const QList<TonDron::Effect> effects = effectsFromLayers(layers);
     if (effects.isEmpty())
         return input;
     const QImage result = EffectProcessor::applyEffects(input, effects, 500000);

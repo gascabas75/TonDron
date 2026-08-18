@@ -11,7 +11,7 @@
 
 #include <QScopeGuard>
 
-using namespace drift::addon;
+using namespace TonDron::addon;
 
 // The fixture is a real package signed with the production key (tests/data/, built by the
 // packer in the drift-addons repo). Damaged variants are produced by mutating bytes, so the
@@ -179,7 +179,7 @@ void TestAddonPackage::installedAddonOutranksBundledContent()
     QStandardPaths::setTestModeEnabled(true);
     auto restore = qScopeGuard([] { QStandardPaths::setTestModeEnabled(false); });
 
-    const QString installDir = drift::addon::addonInstallDir(QStringLiteral("test.fixture"));
+    const QString installDir = TonDron::addon::addonInstallDir(QStringLiteral("test.fixture"));
     QDir(installDir).removeRecursively();
 
     PackageInfo info;

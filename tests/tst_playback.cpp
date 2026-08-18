@@ -22,9 +22,9 @@ private slots:
 void PlaybackTest::clockPausedPosition()
 {
     PlaybackClock clock;
-    clock.reset(drift::secondsToUs(2.5), 48000);
-    QCOMPARE(clock.currentTimeUs(), drift::secondsToUs(2.5));
-    QCOMPARE(clock.pausedAt(), drift::secondsToUs(2.5));
+    clock.reset(TonDron::secondsToUs(2.5), 48000);
+    QCOMPARE(clock.currentTimeUs(), TonDron::secondsToUs(2.5));
+    QCOMPARE(clock.pausedAt(), TonDron::secondsToUs(2.5));
 }
 
 // Opening the sink and pulling its first buffer takes a few hundred ms. Guessing
@@ -33,10 +33,10 @@ void PlaybackTest::clockPausedPosition()
 void PlaybackTest::clockHoldsStartUntilSinkSyncs()
 {
     PlaybackClock clock;
-    clock.reset(drift::secondsToUs(2.5), 48000);
+    clock.reset(TonDron::secondsToUs(2.5), 48000);
     clock.start();
     QTest::qWait(50);
-    QCOMPARE(clock.currentTimeUs(), drift::secondsToUs(2.5));
+    QCOMPARE(clock.currentTimeUs(), TonDron::secondsToUs(2.5));
 }
 
 // With no sink reporting progress at all (no audio device), the playhead still has
@@ -61,7 +61,7 @@ void PlaybackTest::clockNeverRunsBackwardOnLateFirstSync()
     // Let the wall-clock fallback get going, then have the sink report that it has
     // barely played anything — exactly what the first sync looks like in practice.
     QTest::qWait(650);
-    const drift::TimeUs before = clock.currentTimeUs();
+    const TonDron::TimeUs before = clock.currentTimeUs();
     QVERIFY(before > 0);
 
     clock.syncPlaybackUs(0);
@@ -74,9 +74,9 @@ void PlaybackTest::produceAdvancesWithRenderedSamples()
     clock.reset(0, 48000);
     clock.start();
     clock.onAudioSamplesRendered(4800);
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(0.1));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(0.1));
     clock.onAudioSamplesRendered(4800);
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(0.2));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(0.2));
 }
 
 void PlaybackTest::playbackTracksSinkPosition()
@@ -86,30 +86,30 @@ void PlaybackTest::playbackTracksSinkPosition()
     clock.start();
 
     clock.onAudioSamplesRendered(48000);
-    clock.syncPlaybackUs(drift::secondsToUs(0.1));
+    clock.syncPlaybackUs(TonDron::secondsToUs(0.1));
 
-    const drift::TimeUs played = clock.currentTimeUs();
-    QVERIFY(played >= drift::secondsToUs(0.1));
-    QVERIFY(played < drift::secondsToUs(0.2));
-    QVERIFY(clock.produceTimeUs() >= drift::secondsToUs(1.0));
+    const TonDron::TimeUs played = clock.currentTimeUs();
+    QVERIFY(played >= TonDron::secondsToUs(0.1));
+    QVERIFY(played < TonDron::secondsToUs(0.2));
+    QVERIFY(clock.produceTimeUs() >= TonDron::secondsToUs(1.0));
 }
 
 void PlaybackTest::seekWhileRunningKeepsClockAlive()
 {
     PlaybackClock clock;
-    clock.reset(drift::secondsToUs(1.0), 48000);
+    clock.reset(TonDron::secondsToUs(1.0), 48000);
     clock.start();
     clock.onAudioSamplesRendered(4800);
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(1.1));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(1.1));
 
-    clock.reset(drift::secondsToUs(2.0), 48000);
+    clock.reset(TonDron::secondsToUs(2.0), 48000);
     QVERIFY(!clock.isRunning());
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(2.0));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(2.0));
 
     clock.start();
     QVERIFY(clock.isRunning());
     clock.onAudioSamplesRendered(4800);
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(2.1));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(2.1));
 }
 
 void PlaybackTest::avSyncWithinTolerance()
@@ -119,10 +119,10 @@ void PlaybackTest::avSyncWithinTolerance()
     clock.start();
 
     clock.onAudioSamplesRendered(1920);
-    clock.syncPlaybackUs(drift::secondsToUs(0.04));
+    clock.syncPlaybackUs(TonDron::secondsToUs(0.04));
 
-    const drift::TimeUs a = clock.currentTimeUs();
-    const drift::TimeUs b = clock.currentTimeUs();
+    const TonDron::TimeUs a = clock.currentTimeUs();
+    const TonDron::TimeUs b = clock.currentTimeUs();
     QVERIFY(qAbs(a - b) <= 40'000);
 }
 
@@ -130,17 +130,17 @@ void PlaybackTest::rateScalesProduceAndPlayback()
 {
     PlaybackClock clock;
     clock.setRate(2.0);
-    clock.reset(drift::secondsToUs(1.0), 48000);
+    clock.reset(TonDron::secondsToUs(1.0), 48000);
     clock.start();
 
     // The sink still runs at 48 kHz; a rate of 2 only changes how much timeline each sample covers.
     clock.onAudioSamplesRendered(4800);
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(1.2));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(1.2));
 
-    clock.syncPlaybackUs(drift::secondsToUs(0.1));
-    const drift::TimeUs played = clock.currentTimeUs();
-    QVERIFY(played >= drift::secondsToUs(1.2));
-    QVERIFY(played < drift::secondsToUs(1.4));
+    clock.syncPlaybackUs(TonDron::secondsToUs(0.1));
+    const TonDron::TimeUs played = clock.currentTimeUs();
+    QVERIFY(played >= TonDron::secondsToUs(1.2));
+    QVERIFY(played < TonDron::secondsToUs(1.4));
 
     // Still monotonic under a rate: a repeated read can only stay put or move forward.
     QVERIFY(clock.currentTimeUs() >= played);
@@ -155,8 +155,8 @@ void PlaybackTest::renderedFramesIgnoreRate()
 
     clock.onAudioSamplesRendered(4800);
     // Sink domain, so no rate: this is what the post-mix retimer's output cursor advances by.
-    QCOMPARE(clock.renderedFramesUs(), drift::secondsToUs(0.1));
-    QCOMPARE(clock.produceTimeUs(), drift::secondsToUs(0.05));
+    QCOMPARE(clock.renderedFramesUs(), TonDron::secondsToUs(0.1));
+    QCOMPARE(clock.produceTimeUs(), TonDron::secondsToUs(0.05));
 }
 
 QTEST_MAIN(PlaybackTest)

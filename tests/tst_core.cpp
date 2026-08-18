@@ -88,62 +88,62 @@ private slots:
 
 void CoreTest::timeConversion()
 {
-    QCOMPARE(drift::secondsToUs(1.0), drift::TimeUs{1'000'000});
-    QCOMPARE(drift::usToSeconds(2'500'000), 2.5);
-    QCOMPARE(drift::frameDurationUs(30), drift::TimeUs{33'333});
+    QCOMPARE(TonDron::secondsToUs(1.0), TonDron::TimeUs{1'000'000});
+    QCOMPARE(TonDron::usToSeconds(2'500'000), 2.5);
+    QCOMPARE(TonDron::frameDurationUs(30), TonDron::TimeUs{33'333});
 }
 
 void CoreTest::keyframeHoldInterpolation()
 {
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.0);
-    track.setKeyframe(drift::secondsToUs(2.0), 1.0);
+    track.setKeyframe(TonDron::secondsToUs(2.0), 1.0);
     // Hold is a property of the key you are leaving, not of the whole track.
-    track.setEasing(0, drift::Interpolation::Hold);
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(1.5)), 0.0);
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(2.0)), 1.0);
+    track.setEasing(0, TonDron::Interpolation::Hold);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(1.5)), 0.0);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(2.0)), 1.0);
 }
 
 void CoreTest::keyframeLinearInterpolation()
 {
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.0);
-    track.setKeyframe(drift::secondsToUs(2.0), 1.0);
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(1.0)), 0.5);
+    track.setKeyframe(TonDron::secondsToUs(2.0), 1.0);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(1.0)), 0.5);
 }
 
 void CoreTest::disabledKeyframesFreezeAtFirstKey()
 {
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.0);
-    track.setKeyframe(drift::secondsToUs(2.0), 1.0);
+    track.setKeyframe(TonDron::secondsToUs(2.0), 1.0);
     QVERIFY(track.enabled());
 
     track.setEnabled(false);
     // Every sample reads as the first key while the animation is parked...
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(1.0)), 0.0);
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(2.0)), 0.0);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(1.0)), 0.0);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(2.0)), 0.0);
     // ...and the keys themselves are untouched, so switching back on restores the curve exactly.
     QCOMPARE(track.keyframes().size(), 2);
     track.setEnabled(true);
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(1.0)), 0.5);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(1.0)), 0.5);
 
     // The switch survives a save/load round trip.
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
-    drift::Clip clip;
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-kf");
-    clip.type = drift::ClipType::Text;
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.type = TonDron::ClipType::Text;
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     clip.opacity = track;
     clip.opacity.setEnabled(false);
     project.tracks()[0].clips.append(clip);
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY(error.isEmpty());
-    const drift::KeyframeTrack<double> &loadedTrack = loaded.tracks().at(0).clips.at(0).opacity;
+    const TonDron::KeyframeTrack<double> &loadedTrack = loaded.tracks().at(0).clips.at(0).opacity;
     QVERIFY(!loadedTrack.enabled());
     QCOMPARE(loadedTrack.keyframes().size(), 2);
     // A project written before the switch existed loads with its animations on.
@@ -152,36 +152,36 @@ void CoreTest::disabledKeyframesFreezeAtFirstKey()
 
 void CoreTest::keyframeBezierTangents()
 {
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.0);
-    track.setKeyframe(drift::secondsToUs(1.0), 10.0);
+    track.setKeyframe(TonDron::secondsToUs(1.0), 10.0);
 
     // Sharp attack, long settle: the out-handle of the first key held flat and far to the
     // right pushes the curve above the straight line for most of the segment.
-    drift::Keyframe<double> *first = track.keyframeRef(0);
+    TonDron::Keyframe<double> *first = track.keyframeRef(0);
     QVERIFY(first != nullptr);
-    first->outDx = drift::secondsToUs(0.8);
+    first->outDx = TonDron::secondsToUs(0.8);
     first->outDy = 9.0;
-    QVERIFY(track.evaluateAt(drift::secondsToUs(0.25)) > 2.5);
+    QVERIFY(track.evaluateAt(TonDron::secondsToUs(0.25)) > 2.5);
 
     // The endpoints stay pinned no matter what the handles do.
     QCOMPARE(track.evaluateAt(0), 0.0);
-    QCOMPARE(track.evaluateAt(drift::secondsToUs(1.0)), 10.0);
+    QCOMPARE(track.evaluateAt(TonDron::secondsToUs(1.0)), 10.0);
 
     // A handle reaching past the segment must not fold the curve back on itself: time still
     // maps to exactly one value, so the result stays monotonic in a monotonic segment.
-    first->outDx = drift::secondsToUs(5.0);
+    first->outDx = TonDron::secondsToUs(5.0);
     first->outDy = 0.0;
     double prevValue = -1.0;
     for (int i = 0; i <= 20; ++i) {
-        const double v = track.evaluateAt(drift::secondsToUs(i / 20.0));
+        const double v = track.evaluateAt(TonDron::secondsToUs(i / 20.0));
         QVERIFY2(v >= prevValue - 1e-9, qPrintable(QStringLiteral("folded at %1").arg(i)));
         prevValue = v;
     }
 
     // Custom tangents match no preset, which is what leaves the chips unlit.
     QVERIFY(track.hasCustomTangents(0));
-    track.setEasing(0, drift::Interpolation::Linear);
+    track.setEasing(0, TonDron::Interpolation::Linear);
     QVERIFY(!track.hasCustomTangents(0));
 }
 
@@ -202,16 +202,16 @@ void CoreTest::legacyTrackInterpolationMigratesLosslessly()
 
     // Build a real project, serialize it, then rewrite the keyframe block into the legacy
     // shape — so the loader is exercised exactly as it would be on an old file.
-    drift::Project project;
-    project.tracks().append(drift::Track{});
-    drift::Clip clip;
+    TonDron::Project project;
+    project.tracks().append(TonDron::Track{});
+    TonDron::Clip clip;
     clip.id = QStringLiteral("c1");
-    clip.timelineDuration = drift::secondsToUs(2.0);
-    drift::Effect effect;
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("adjust.contrast");
-    drift::KeyframeTrack<double> seed;
+    TonDron::KeyframeTrack<double> seed;
     seed.setKeyframe(0, 0.0);
-    seed.setKeyframe(drift::secondsToUs(1.0), 10.0);
+    seed.setKeyframe(TonDron::secondsToUs(1.0), 10.0);
     effect.paramKeyframes.insert(QStringLiteral("contrast"), seed);
     clip.effects.append(effect);
     project.tracks()[0].clips.append(clip);
@@ -243,23 +243,23 @@ void CoreTest::legacyTrackInterpolationMigratesLosslessly()
         projectJson.insert(QStringLiteral("tracks"), tracks);
 
         QString error;
-        const drift::Project loaded = drift::Project::fromJson(projectJson, &error);
+        const TonDron::Project loaded = TonDron::Project::fromJson(projectJson, &error);
         QVERIFY2(error.isEmpty(), qPrintable(error));
 
         // The loader may materialise default tracks, so find the clip rather than index into it.
-        const drift::Clip *found = nullptr;
-        for (const drift::Track &t : loaded.tracks()) {
-            for (const drift::Clip &cl : t.clips) {
+        const TonDron::Clip *found = nullptr;
+        for (const TonDron::Track &t : loaded.tracks()) {
+            for (const TonDron::Clip &cl : t.clips) {
                 if (!cl.effects.isEmpty())
                     found = &cl;
             }
         }
         QVERIFY(found != nullptr);
 
-        const drift::KeyframeTrack<double> &kt =
+        const TonDron::KeyframeTrack<double> &kt =
             found->effects[0].paramKeyframes.value(QStringLiteral("contrast"));
         QCOMPARE(kt.keyframes().size(), 2);
-        const double got = kt.evaluateAt(drift::secondsToUs(0.25));
+        const double got = kt.evaluateAt(TonDron::secondsToUs(0.25));
         QVERIFY2(std::abs(got - c.at0_25) < 0.01,
                  qPrintable(QStringLiteral("%1: got %2, expected %3")
                                 .arg(QString::fromLatin1(c.mode)).arg(got).arg(c.at0_25)));
@@ -268,39 +268,39 @@ void CoreTest::legacyTrackInterpolationMigratesLosslessly()
 
 void CoreTest::keyframeEaseInterpolation()
 {
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.0);
-    track.setKeyframe(drift::secondsToUs(1.0), 10.0);
-    track.setEasing(0, drift::Interpolation::Ease);
-    track.setEasing(drift::secondsToUs(1.0), drift::Interpolation::Ease);
+    track.setKeyframe(TonDron::secondsToUs(1.0), 10.0);
+    track.setEasing(0, TonDron::Interpolation::Ease);
+    track.setEasing(TonDron::secondsToUs(1.0), TonDron::Interpolation::Ease);
 
     // The Ease preset is flat tangents a third of the way to each neighbour, which is exactly
     // the smoothstep the old track-wide mode produced: t*t*(3-2t) at t=0.25 is 0.15625.
-    const double eased = track.evaluateAt(drift::secondsToUs(0.25));
+    const double eased = track.evaluateAt(TonDron::secondsToUs(0.25));
     QVERIFY2(std::abs(eased - 1.5625) < 0.01,
              qPrintable(QStringLiteral("eased %1, expected 1.5625").arg(eased)));
-    QCOMPARE(drift::interpolationToString(drift::Interpolation::Ease), QStringLiteral("ease"));
-    QCOMPARE(drift::interpolationFromString(QStringLiteral("ease")), drift::Interpolation::Ease);
+    QCOMPARE(TonDron::interpolationToString(TonDron::Interpolation::Ease), QStringLiteral("ease"));
+    QCOMPARE(TonDron::interpolationFromString(QStringLiteral("ease")), TonDron::Interpolation::Ease);
 
     // Zero-length handles are a straight line, because x and y then share blend weights.
-    drift::KeyframeTrack<double> linear;
+    TonDron::KeyframeTrack<double> linear;
     linear.setKeyframe(0, 0.0);
-    linear.setKeyframe(drift::secondsToUs(1.0), 10.0);
-    QCOMPARE(linear.evaluateAt(drift::secondsToUs(0.25)), 2.5);
+    linear.setKeyframe(TonDron::secondsToUs(1.0), 10.0);
+    QCOMPARE(linear.evaluateAt(TonDron::secondsToUs(0.25)), 2.5);
 }
 
 void CoreTest::keyframeNearestQuery()
 {
-    drift::KeyframeTrack<double> track;
-    track.setKeyframe(drift::secondsToUs(1.0), 5.0);
-    QCOMPARE(track.nearestKeyframe(drift::secondsToUs(1.01), drift::secondsToUs(0.05)),
-             drift::secondsToUs(1.0));
-    QCOMPARE(track.nearestKeyframe(drift::secondsToUs(2.0), drift::secondsToUs(0.05)), drift::TimeUs{-1});
+    TonDron::KeyframeTrack<double> track;
+    track.setKeyframe(TonDron::secondsToUs(1.0), 5.0);
+    QCOMPARE(track.nearestKeyframe(TonDron::secondsToUs(1.01), TonDron::secondsToUs(0.05)),
+             TonDron::secondsToUs(1.0));
+    QCOMPARE(track.nearestKeyframe(TonDron::secondsToUs(2.0), TonDron::secondsToUs(0.05)), TonDron::TimeUs{-1});
 }
 
 void CoreTest::projectMetadataRoundTrip()
 {
-    drift::Project project;
+    TonDron::Project project;
     const QString id = project.id();
     QVERIFY(!id.isEmpty());
 
@@ -312,7 +312,7 @@ void CoreTest::projectMetadataRoundTrip()
     project.setModifiedAt(created.addDays(2));
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY(error.isEmpty());
     QCOMPARE(loaded.id(), id);
     QCOMPARE(loaded.name(), QStringLiteral("Documentary"));
@@ -324,45 +324,45 @@ void CoreTest::projectMetadataRoundTrip()
     // An empty timeline routes through resetToDefaultTimeline() during the load, which mints a
     // fresh id — the saved one has to survive that.
     QVERIFY(loaded.tracks().size() > 0);
-    QCOMPARE(drift::Project::fromJson(loaded.toJson(), &error).id(), id);
+    QCOMPARE(TonDron::Project::fromJson(loaded.toJson(), &error).id(), id);
 
     // Two fresh projects are distinct documents, not the same one.
-    QVERIFY(drift::Project().id() != drift::Project().id());
+    QVERIFY(TonDron::Project().id() != TonDron::Project().id());
 }
 
 void CoreTest::projectSerializationRoundTrip()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setName(QStringLiteral("Test Project"));
     project.setFps(24);
     project.setResolution(1280, 720);
 
-    drift::MediaAsset asset;
+    TonDron::MediaAsset asset;
     asset.name = QStringLiteral("clip.mp4");
-    asset.kind = drift::MediaKind::Video;
+    asset.kind = TonDron::MediaKind::Video;
     asset.path = QStringLiteral("/tmp/clip.mp4");
-    asset.durationUs = drift::secondsToUs(10.0);
+    asset.durationUs = TonDron::secondsToUs(10.0);
     const QString assetId = project.addAsset(asset);
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-1");
     clip.assetId = assetId;
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.name = asset.name;
     clip.path = asset.path;
-    clip.timelineStart = drift::secondsToUs(1.0);
-    clip.timelineDuration = drift::secondsToUs(5.0);
+    clip.timelineStart = TonDron::secondsToUs(1.0);
+    clip.timelineDuration = TonDron::secondsToUs(5.0);
     clip.srcIn = 0;
-    clip.srcOut = drift::secondsToUs(5.0);
+    clip.srcOut = TonDron::secondsToUs(5.0);
     project.tracks()[0].clips.append(clip);
 
-    project.bookmarks().append({.timeUs = drift::secondsToUs(3.0), .label = QStringLiteral("Mark")});
-    project.setWorkAreaInUs(drift::secondsToUs(1.0));
-    project.setWorkAreaOutUs(drift::secondsToUs(4.0));
+    project.bookmarks().append({.timeUs = TonDron::secondsToUs(3.0), .label = QStringLiteral("Mark")});
+    project.setWorkAreaInUs(TonDron::secondsToUs(1.0));
+    project.setWorkAreaOutUs(TonDron::secondsToUs(4.0));
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
     QCOMPARE(loaded.name(), project.name());
@@ -374,8 +374,8 @@ void CoreTest::projectSerializationRoundTrip()
     QCOMPARE(loaded.bookmarks().size(), 1);
     QCOMPARE(loaded.bookmarks()[0].label, QStringLiteral("Mark"));
     QVERIFY(loaded.hasWorkArea());
-    QCOMPARE(loaded.workAreaInUs(), drift::secondsToUs(1.0));
-    QCOMPARE(loaded.workAreaOutUs(), drift::secondsToUs(4.0));
+    QCOMPARE(loaded.workAreaInUs(), TonDron::secondsToUs(1.0));
+    QCOMPARE(loaded.workAreaOutUs(), TonDron::secondsToUs(4.0));
 }
 
 // A colour parameter is stored as a "#rrggbb" string rather than a number, so it has to survive the
@@ -383,14 +383,14 @@ void CoreTest::projectSerializationRoundTrip()
 // here would reach the shader as black.
 void CoreTest::effectColorParamSurvivesRoundTrip()
 {
-    drift::Project project;
+    TonDron::Project project;
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-1");
-    clip.type = drift::ClipType::Video;
-    clip.timelineDuration = drift::secondsToUs(5.0);
+    clip.type = TonDron::ClipType::Video;
+    clip.timelineDuration = TonDron::secondsToUs(5.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("face_lipstick");
     effect.parameters.insert(QStringLiteral("shade"), QStringLiteral("#b03048"));
     effect.parameters.insert(QStringLiteral("opacity"), 0.8);
@@ -399,10 +399,10 @@ void CoreTest::effectColorParamSurvivesRoundTrip()
     project.tracks()[0].clips.append(clip);
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY(error.isEmpty());
     QCOMPARE(loaded.tracks()[0].clips.size(), 1);
-    const drift::Effect &out = loaded.tracks()[0].clips[0].effects.at(0);
+    const TonDron::Effect &out = loaded.tracks()[0].clips[0].effects.at(0);
 
     const QVariant shade = out.parameters.value(QStringLiteral("shade"));
     QCOMPARE(shade.typeId(), QMetaType::QString);
@@ -413,17 +413,17 @@ void CoreTest::effectColorParamSurvivesRoundTrip()
 
 void CoreTest::clipTransformSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Text});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Text});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-transform");
-    clip.type = drift::ClipType::Text;
+    clip.type = TonDron::ClipType::Text;
     clip.name = QStringLiteral("Title");
     clip.textContent = QStringLiteral("Hello");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     clip.transformX.setKeyframe(0, 100.0);
     clip.transformY.setKeyframe(0, 200.0);
     clip.transformW.setKeyframe(0, 640.0);
@@ -433,10 +433,10 @@ void CoreTest::clipTransformSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.transformX.evaluateAt(0), 100.0);
     QCOMPARE(loadedClip.transformY.evaluateAt(0), 200.0);
     QCOMPARE(loadedClip.transformW.evaluateAt(0), 640.0);
@@ -486,11 +486,11 @@ void CoreTest::legacyFractionalTransformMigration()
     };
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(root, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(root, &error);
     QVERIFY(error.isEmpty());
     QVERIFY(!loaded.tracks().isEmpty());
     QVERIFY(!loaded.tracks()[0].clips.isEmpty());
-    const drift::Clip &clip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &clip = loaded.tracks()[0].clips[0];
     QCOMPARE(clip.transformW.evaluateAt(0), 1920.0);
     QCOMPARE(clip.transformH.evaluateAt(0), 1080.0);
     QCOMPARE(clip.transformX.evaluateAt(0), 0.0);
@@ -499,29 +499,29 @@ void CoreTest::legacyFractionalTransformMigration()
 
 void CoreTest::volumeKeyframeSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Audio});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Audio});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-volume");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.name = QStringLiteral("Audio");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(4.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
     clip.volume.setKeyframe(0, 1.0);
-    clip.volume.setKeyframe(drift::secondsToUs(2.0), 0.5);
+    clip.volume.setKeyframe(TonDron::secondsToUs(2.0), 0.5);
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.volume.evaluateAt(0), 1.0);
-    QCOMPARE(loadedClip.volume.evaluateAt(drift::secondsToUs(2.0)), 0.5);
-    QCOMPARE(loadedClip.volume.evaluateAt(drift::secondsToUs(1.0)), 0.75);
+    QCOMPARE(loadedClip.volume.evaluateAt(TonDron::secondsToUs(2.0)), 0.5);
+    QCOMPARE(loadedClip.volume.evaluateAt(TonDron::secondsToUs(1.0)), 0.75);
 }
 
 void CoreTest::projectLoadsLegacyV1Format()
@@ -562,12 +562,12 @@ void CoreTest::projectLoadsLegacyV1Format()
     };
 
     QString error;
-    const drift::Project project = drift::Project::fromJson(root, &error);
+    const TonDron::Project project = TonDron::Project::fromJson(root, &error);
     QVERIFY(error.isEmpty());
     QCOMPARE(project.name(), QStringLiteral("Legacy"));
     QCOMPARE(project.tracks()[0].clips.size(), 1);
-    QCOMPARE(project.tracks()[0].clips[0].timelineStart, drift::secondsToUs(1.0));
-    QCOMPARE(project.tracks()[0].clips[0].srcIn, drift::secondsToUs(0.5));
+    QCOMPARE(project.tracks()[0].clips[0].timelineStart, TonDron::secondsToUs(1.0));
+    QCOMPARE(project.tracks()[0].clips[0].srcIn, TonDron::secondsToUs(0.5));
     QVERIFY(!project.tracks()[0].clips[0].assetId.isEmpty());
 }
 
@@ -578,12 +578,12 @@ void CoreTest::projectRejectsUnreadableDocuments()
     // A document from a future format. The .drift container revision is bumped separately, so
     // ProjectBundle's own gate does not catch this.
     {
-        drift::Project project;
+        TonDron::Project project;
         QJsonObject json = project.toJson();
-        json[QStringLiteral("version")] = drift::Project::kCurrentVersion + 1;
+        json[QStringLiteral("version")] = TonDron::Project::kCurrentVersion + 1;
 
         QString error;
-        drift::Project::fromJson(json, &error);
+        TonDron::Project::fromJson(json, &error);
         QVERIFY(!error.isEmpty());
         QVERIFY(error.contains(QStringLiteral("newer version")));
     }
@@ -592,21 +592,21 @@ void CoreTest::projectRejectsUnreadableDocuments()
     // project named "Untitled Project", which could then be saved back over the original.
     {
         QString error;
-        drift::Project::fromJson(QJsonObject{}, &error);
+        TonDron::Project::fromJson(QJsonObject{}, &error);
         QVERIFY(!error.isEmpty());
 
         error.clear();
-        drift::Project::fromJson(QJsonObject{{QStringLiteral("hello"), QStringLiteral("world")}},
+        TonDron::Project::fromJson(QJsonObject{{QStringLiteral("hello"), QStringLiteral("world")}},
                                  &error);
         QVERIFY(!error.isEmpty());
     }
 
     // The current version, and an empty timeline, both still load.
     {
-        drift::Project project;
+        TonDron::Project project;
         project.tracks().clear();
         QString error;
-        const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+        const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
         QVERIFY2(error.isEmpty(), qPrintable(error));
         QCOMPARE(loaded.tracks().size(), 1); // empty timeline falls back to one video track
     }
@@ -614,210 +614,210 @@ void CoreTest::projectRejectsUnreadableDocuments()
 
 void CoreTest::trackAllowsClipTypes()
 {
-    drift::Track videoTrack{.type = drift::TrackType::Video};
-    QVERIFY(videoTrack.allowsClipType(drift::ClipType::Video));
-    QVERIFY(!videoTrack.allowsClipType(drift::ClipType::Image));
-    QVERIFY(!videoTrack.allowsClipType(drift::ClipType::Audio));
+    TonDron::Track videoTrack{.type = TonDron::TrackType::Video};
+    QVERIFY(videoTrack.allowsClipType(TonDron::ClipType::Video));
+    QVERIFY(!videoTrack.allowsClipType(TonDron::ClipType::Image));
+    QVERIFY(!videoTrack.allowsClipType(TonDron::ClipType::Audio));
 
-    drift::Track audioTrack{.type = drift::TrackType::Audio};
-    QVERIFY(audioTrack.allowsClipType(drift::ClipType::Audio));
-    QVERIFY(!audioTrack.allowsClipType(drift::ClipType::Video));
+    TonDron::Track audioTrack{.type = TonDron::TrackType::Audio};
+    QVERIFY(audioTrack.allowsClipType(TonDron::ClipType::Audio));
+    QVERIFY(!audioTrack.allowsClipType(TonDron::ClipType::Video));
 
-    drift::Track shapeTrack{.type = drift::TrackType::Shape};
-    QVERIFY(shapeTrack.allowsClipType(drift::ClipType::Image));
-    QVERIFY(shapeTrack.allowsClipType(drift::ClipType::Shape));
-    QVERIFY(!shapeTrack.allowsClipType(drift::ClipType::Video));
+    TonDron::Track shapeTrack{.type = TonDron::TrackType::Shape};
+    QVERIFY(shapeTrack.allowsClipType(TonDron::ClipType::Image));
+    QVERIFY(shapeTrack.allowsClipType(TonDron::ClipType::Shape));
+    QVERIFY(!shapeTrack.allowsClipType(TonDron::ClipType::Video));
 
-    drift::Track subtitleTrack{.type = drift::TrackType::Subtitle};
-    QVERIFY(subtitleTrack.allowsClipType(drift::ClipType::Subtitle));
-    QVERIFY(!subtitleTrack.allowsClipType(drift::ClipType::Text));
+    TonDron::Track subtitleTrack{.type = TonDron::TrackType::Subtitle};
+    QVERIFY(subtitleTrack.allowsClipType(TonDron::ClipType::Subtitle));
+    QVERIFY(!subtitleTrack.allowsClipType(TonDron::ClipType::Text));
 }
 
 void CoreTest::subtitleCueSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Subtitle});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Subtitle});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-subtitle");
-    clip.type = drift::ClipType::Subtitle;
+    clip.type = TonDron::ClipType::Subtitle;
     clip.name = QStringLiteral("Subtitles (2)");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(30.0);
+    clip.timelineDuration = TonDron::secondsToUs(30.0);
     clip.subtitleCues = {
-        {drift::secondsToUs(1.0), drift::secondsToUs(4.0), QStringLiteral("Hello")},
-        {drift::secondsToUs(5.0), drift::secondsToUs(8.0), QStringLiteral("World")},
+        {TonDron::secondsToUs(1.0), TonDron::secondsToUs(4.0), QStringLiteral("Hello")},
+        {TonDron::secondsToUs(5.0), TonDron::secondsToUs(8.0), QStringLiteral("World")},
     };
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
-    QCOMPARE(loadedClip.type, drift::ClipType::Subtitle);
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    QCOMPARE(loadedClip.type, TonDron::ClipType::Subtitle);
     QCOMPARE(loadedClip.subtitleCues.size(), 2);
     QCOMPARE(loadedClip.subtitleCues[0].text, QStringLiteral("Hello"));
-    QCOMPARE(loadedClip.subtitleCues[1].startUs, drift::secondsToUs(5.0));
+    QCOMPARE(loadedClip.subtitleCues[1].startUs, TonDron::secondsToUs(5.0));
 }
 
 void CoreTest::subtitleCueLookup()
 {
-    QList<drift::SubtitleCue> cues;
-    cues.append({drift::secondsToUs(1.0), drift::secondsToUs(3.0), QStringLiteral("A")});
-    cues.append({drift::secondsToUs(4.0), drift::secondsToUs(6.0), QStringLiteral("B")});
+    QList<TonDron::SubtitleCue> cues;
+    cues.append({TonDron::secondsToUs(1.0), TonDron::secondsToUs(3.0), QStringLiteral("A")});
+    cues.append({TonDron::secondsToUs(4.0), TonDron::secondsToUs(6.0), QStringLiteral("B")});
 
-    const drift::SubtitleCue *active =
-        drift::activeSubtitleCueAt(cues, drift::secondsToUs(2.5));
+    const TonDron::SubtitleCue *active =
+        TonDron::activeSubtitleCueAt(cues, TonDron::secondsToUs(2.5));
     QVERIFY(active);
     QCOMPARE(active->text, QStringLiteral("A"));
-    QVERIFY(!drift::activeSubtitleCueAt(cues, drift::secondsToUs(3.5)));
-    QCOMPARE(drift::subtitleCueIndexAt(cues, drift::secondsToUs(5.0)), 1);
+    QVERIFY(!TonDron::activeSubtitleCueAt(cues, TonDron::secondsToUs(3.5)));
+    QCOMPARE(TonDron::subtitleCueIndexAt(cues, TonDron::secondsToUs(5.0)), 1);
 }
 
 void CoreTest::subtitleCuePacking()
 {
     // One long Whisper segment should become several ~42-char single-line cues.
-    QList<drift::SubtitleCue> input;
-    input.append({drift::secondsToUs(0.0), drift::secondsToUs(10.0),
+    QList<TonDron::SubtitleCue> input;
+    input.append({TonDron::secondsToUs(0.0), TonDron::secondsToUs(10.0),
                   QStringLiteral("Hello everyone welcome to the show today we will talk about "
                                  "video editing and automatic subtitles.")});
 
-    const QList<drift::SubtitleCue> packed = drift::packSubtitleCues(input, 42, 1);
+    const QList<TonDron::SubtitleCue> packed = TonDron::packSubtitleCues(input, 42, 1);
     QVERIFY(packed.size() >= 2);
-    for (const drift::SubtitleCue &cue : packed) {
+    for (const TonDron::SubtitleCue &cue : packed) {
         // A single oversize token may exceed the width; otherwise stay within 42.
         QVERIFY(cue.text.size() <= 42 || !cue.text.contains(QLatin1Char(' ')));
         QVERIFY(cue.endUs > cue.startUs);
         QVERIFY(!cue.text.contains(QLatin1Char('\n')));
     }
-    QCOMPARE(packed.first().startUs, drift::secondsToUs(0.0));
-    QCOMPARE(packed.last().endUs, drift::secondsToUs(10.0));
+    QCOMPARE(packed.first().startUs, TonDron::secondsToUs(0.0));
+    QCOMPARE(packed.last().endUs, TonDron::secondsToUs(10.0));
 
     // Short cues under the limit stay as a single cue.
-    QList<drift::SubtitleCue> shortInput;
+    QList<TonDron::SubtitleCue> shortInput;
     shortInput.append(
-        {drift::secondsToUs(1.0), drift::secondsToUs(2.0), QStringLiteral("Hi there")});
-    const QList<drift::SubtitleCue> shortPacked = drift::packSubtitleCues(shortInput, 42, 1);
+        {TonDron::secondsToUs(1.0), TonDron::secondsToUs(2.0), QStringLiteral("Hi there")});
+    const QList<TonDron::SubtitleCue> shortPacked = TonDron::packSubtitleCues(shortInput, 42, 1);
     QCOMPARE(shortPacked.size(), 1);
     QCOMPARE(shortPacked.first().text, QStringLiteral("Hi there"));
 }
 
 void CoreTest::srtRoundTrip()
 {
-    QList<drift::SubtitleCue> cues;
-    cues.append({drift::secondsToUs(1.0), drift::secondsToUs(4.0), QStringLiteral("Hello")});
-    cues.append({drift::secondsToUs(65.5), drift::secondsToUs(70.25),
+    QList<TonDron::SubtitleCue> cues;
+    cues.append({TonDron::secondsToUs(1.0), TonDron::secondsToUs(4.0), QStringLiteral("Hello")});
+    cues.append({TonDron::secondsToUs(65.5), TonDron::secondsToUs(70.25),
                  QStringLiteral("Line one\nLine two")});
 
-    const QString srt = drift::writeSrt(cues);
+    const QString srt = TonDron::writeSrt(cues);
     QVERIFY(srt.contains(QStringLiteral("00:00:01,000 --> 00:00:04,000")));
     QVERIFY(srt.contains(QStringLiteral("00:01:05,500 --> 00:01:10,250")));
     QVERIFY(srt.contains(QStringLiteral("Line one\nLine two")));
 
-    QList<drift::SubtitleCue> loaded;
+    QList<TonDron::SubtitleCue> loaded;
     QString error;
-    QVERIFY(drift::parseSrt(srt, &loaded, &error));
+    QVERIFY(TonDron::parseSrt(srt, &loaded, &error));
     QVERIFY(error.isEmpty());
     QCOMPARE(loaded.size(), 2);
     QCOMPARE(loaded[0].text, QStringLiteral("Hello"));
-    QCOMPARE(loaded[0].startUs, drift::secondsToUs(1.0));
-    QCOMPARE(loaded[0].endUs, drift::secondsToUs(4.0));
+    QCOMPARE(loaded[0].startUs, TonDron::secondsToUs(1.0));
+    QCOMPARE(loaded[0].endUs, TonDron::secondsToUs(4.0));
     QCOMPARE(loaded[1].text, QStringLiteral("Line one\nLine two"));
-    QCOMPARE(loaded[1].startUs, drift::secondsToUs(65.5));
-    QCOMPARE(loaded[1].endUs, drift::secondsToUs(70.25));
+    QCOMPARE(loaded[1].startUs, TonDron::secondsToUs(65.5));
+    QCOMPARE(loaded[1].endUs, TonDron::secondsToUs(70.25));
 }
 
 void CoreTest::srtParseEdgeCases()
 {
     // Dot milliseconds (common non-strict variant) and UTF-8 BOM.
     const QString srt = QStringLiteral("\uFEFF1\n00:00:00.500 --> 00:00:02.000\nCafé\n");
-    QList<drift::SubtitleCue> cues;
+    QList<TonDron::SubtitleCue> cues;
     QString error;
-    QVERIFY(drift::parseSrt(srt, &cues, &error));
+    QVERIFY(TonDron::parseSrt(srt, &cues, &error));
     QCOMPARE(cues.size(), 1);
     QCOMPARE(cues[0].text, QStringLiteral("Café"));
-    QCOMPARE(cues[0].startUs, drift::secondsToUs(0.5));
-    QCOMPARE(cues[0].endUs, drift::secondsToUs(2.0));
+    QCOMPARE(cues[0].startUs, TonDron::secondsToUs(0.5));
+    QCOMPARE(cues[0].endUs, TonDron::secondsToUs(2.0));
 
-    QVERIFY(!drift::parseSrt(QString(), &cues, &error));
+    QVERIFY(!TonDron::parseSrt(QString(), &cues, &error));
     QVERIFY(!error.isEmpty());
 }
 
 void CoreTest::insertTrackAtTopAllowsDuplicateTypes()
 {
-    drift::Project project;
+    TonDron::Project project;
     QCOMPARE(project.tracks().size(), 1);
-    QCOMPARE(project.tracks()[0].type, drift::TrackType::Video);
+    QCOMPARE(project.tracks()[0].type, TonDron::TrackType::Video);
 
-    const int first = drift::insertTrackAtTopForClipType(project, drift::ClipType::Video);
+    const int first = TonDron::insertTrackAtTopForClipType(project, TonDron::ClipType::Video);
     QCOMPARE(first, 0);
     QCOMPARE(project.tracks().size(), 2);
-    QCOMPARE(project.tracks()[0].type, drift::TrackType::Video);
-    QCOMPARE(project.tracks()[1].type, drift::TrackType::Video);
+    QCOMPARE(project.tracks()[0].type, TonDron::TrackType::Video);
+    QCOMPARE(project.tracks()[1].type, TonDron::TrackType::Video);
 
-    const int second = drift::insertTrackAtTopForClipType(project, drift::ClipType::Audio);
+    const int second = TonDron::insertTrackAtTopForClipType(project, TonDron::ClipType::Audio);
     QCOMPARE(second, 0);
     QCOMPARE(project.tracks().size(), 3);
-    QCOMPARE(project.tracks()[0].type, drift::TrackType::Audio);
+    QCOMPARE(project.tracks()[0].type, TonDron::TrackType::Audio);
 }
 
 void CoreTest::multiTrackSerializationRoundTrip()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video, .muted = true});
-    project.tracks().append(drift::Track{.type = drift::TrackType::Audio, .showWaveform = true});
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video, .hidden = true});
-    project.tracks().append(drift::Track{.type = drift::TrackType::Text});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video, .muted = true});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Audio, .showWaveform = true});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video, .hidden = true});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Text});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-v2");
-    clip.type = drift::ClipType::Video;
-    clip.timelineStart = drift::secondsToUs(1.0);
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.type = TonDron::ClipType::Video;
+    clip.timelineStart = TonDron::secondsToUs(1.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
     project.tracks()[2].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
     QCOMPARE(loaded.tracks().size(), 4);
-    QCOMPARE(loaded.tracks()[0].type, drift::TrackType::Video);
+    QCOMPARE(loaded.tracks()[0].type, TonDron::TrackType::Video);
     QVERIFY(loaded.tracks()[0].muted);
-    QCOMPARE(loaded.tracks()[1].type, drift::TrackType::Audio);
+    QCOMPARE(loaded.tracks()[1].type, TonDron::TrackType::Audio);
     QVERIFY(loaded.tracks()[1].showWaveform);
-    QCOMPARE(loaded.tracks()[2].type, drift::TrackType::Video);
+    QCOMPARE(loaded.tracks()[2].type, TonDron::TrackType::Video);
     QVERIFY(loaded.tracks()[2].hidden);
     QCOMPARE(loaded.tracks()[2].clips.size(), 1);
     QCOMPARE(loaded.tracks()[2].clips[0].id, QStringLiteral("clip-v2"));
-    QCOMPARE(loaded.tracks()[3].type, drift::TrackType::Text);
+    QCOMPARE(loaded.tracks()[3].type, TonDron::TrackType::Text);
 }
 
 void CoreTest::textStyleAndBlendModeSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Text});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Text});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-textstyle");
-    clip.type = drift::ClipType::Text;
+    clip.type = TonDron::ClipType::Text;
     clip.name = QStringLiteral("Title");
     clip.textContent = QStringLiteral("Hello");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
-    clip.blendMode = drift::BlendMode::Multiply;
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
+    clip.blendMode = TonDron::BlendMode::Multiply;
     clip.textStyle.fontFamily = QStringLiteral("Courier New");
     clip.textStyle.pixelSize = 88;
     clip.textStyle.fontWeight = 300;
     clip.textStyle.italic = true;
     clip.textStyle.color = QColor(10, 20, 30, 200);
-    clip.textStyle.align = drift::TextAlign::Right;
-    clip.textStyle.valign = drift::TextVAlign::Bottom;
+    clip.textStyle.align = TonDron::TextAlign::Right;
+    clip.textStyle.valign = TonDron::TextVAlign::Bottom;
     clip.textStyle.wordWrap = false;
     clip.textStyle.lineHeight = 1.6;
     clip.textStyle.letterSpacing = 3.5;
@@ -844,7 +844,7 @@ void CoreTest::textStyleAndBlendModeSerialization()
     clip.textStyle.underlineColor = QColor(200, 100, 50);
     clip.textStyle.underlineWidth = 7.5;
     clip.textStyle.underlineOffset = 2.5;
-    clip.textStyle.accent.rule = drift::WordAccentRule::EveryNth;
+    clip.textStyle.accent.rule = TonDron::WordAccentRule::EveryNth;
     clip.textStyle.accent.n = 3;
     clip.textStyle.accent.phase = 1;
     clip.textStyle.accent.colorEnabled = true;
@@ -854,26 +854,26 @@ void CoreTest::textStyleAndBlendModeSerialization()
     clip.textStyle.accent.outlineWidth = 4.5;
     clip.textStyle.accent.outlineColor = QColor(1, 2, 3);
     clip.textStyle.accent.highlight = {true, QColor(60, 70, 80), 11.0, 6.0};
-    clip.textStyle.animIn = {drift::TextAnimKind::Pop, drift::secondsToUs(0.3), drift::TextEase::Back};
-    clip.textStyle.animOut = {drift::TextAnimKind::SlideDown, drift::secondsToUs(0.25),
-                              drift::TextEase::EaseInOut};
+    clip.textStyle.animIn = {TonDron::TextAnimKind::Pop, TonDron::secondsToUs(0.3), TonDron::TextEase::Back};
+    clip.textStyle.animOut = {TonDron::TextAnimKind::SlideDown, TonDron::secondsToUs(0.25),
+                              TonDron::TextEase::EaseInOut};
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
-    const drift::TextStyle &s = loadedClip.textStyle;
-    QCOMPARE(loadedClip.blendMode, drift::BlendMode::Multiply);
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::TextStyle &s = loadedClip.textStyle;
+    QCOMPARE(loadedClip.blendMode, TonDron::BlendMode::Multiply);
     QCOMPARE(s.fontFamily, QStringLiteral("Courier New"));
     QCOMPARE(s.pixelSize, 88);
     QCOMPARE(s.fontWeight, 300);
     QCOMPARE(s.italic, true);
     QCOMPARE(s.color, QColor(10, 20, 30, 200));
-    QCOMPARE(s.align, drift::TextAlign::Right);
-    QCOMPARE(s.valign, drift::TextVAlign::Bottom);
+    QCOMPARE(s.align, TonDron::TextAlign::Right);
+    QCOMPARE(s.valign, TonDron::TextVAlign::Bottom);
     QCOMPARE(s.wordWrap, false);
     QCOMPARE(s.lineHeight, 1.6);
     QCOMPARE(s.letterSpacing, 3.5);
@@ -903,7 +903,7 @@ void CoreTest::textStyleAndBlendModeSerialization()
     QCOMPARE(s.underlineColor, QColor(200, 100, 50));
     QCOMPARE(s.underlineWidth, 7.5);
     QCOMPARE(s.underlineOffset, 2.5);
-    QCOMPARE(s.accent.rule, drift::WordAccentRule::EveryNth);
+    QCOMPARE(s.accent.rule, TonDron::WordAccentRule::EveryNth);
     QCOMPARE(s.accent.n, 3);
     QCOMPARE(s.accent.phase, 1);
     QCOMPARE(s.accent.colorEnabled, true);
@@ -916,12 +916,12 @@ void CoreTest::textStyleAndBlendModeSerialization()
     QCOMPARE(s.accent.highlight.color, QColor(60, 70, 80));
     QCOMPARE(s.accent.highlight.padding, 11.0);
     QCOMPARE(s.accent.highlight.radius, 6.0);
-    QCOMPARE(s.animIn.kind, drift::TextAnimKind::Pop);
-    QCOMPARE(s.animIn.durationUs, drift::secondsToUs(0.3));
-    QCOMPARE(s.animIn.ease, drift::TextEase::Back);
-    QCOMPARE(s.animOut.kind, drift::TextAnimKind::SlideDown);
-    QCOMPARE(s.animOut.durationUs, drift::secondsToUs(0.25));
-    QCOMPARE(s.animOut.ease, drift::TextEase::EaseInOut);
+    QCOMPARE(s.animIn.kind, TonDron::TextAnimKind::Pop);
+    QCOMPARE(s.animIn.durationUs, TonDron::secondsToUs(0.3));
+    QCOMPARE(s.animIn.ease, TonDron::TextEase::Back);
+    QCOMPARE(s.animOut.kind, TonDron::TextAnimKind::SlideDown);
+    QCOMPARE(s.animOut.durationUs, TonDron::secondsToUs(0.25));
+    QCOMPARE(s.animOut.ease, TonDron::TextEase::EaseInOut);
 }
 
 void CoreTest::legacyBoldMigratesToFontWeight()
@@ -948,7 +948,7 @@ void CoreTest::legacyBoldMigratesToFontWeight()
             {QStringLiteral("tracks"), QJsonArray{track}},
         };
         QString error;
-        const drift::Project loaded = drift::Project::fromJson(project, &error);
+        const TonDron::Project loaded = TonDron::Project::fromJson(project, &error);
         return loaded.tracks().at(0).clips.at(0).textStyle.fontWeight;
     };
 
@@ -981,7 +981,7 @@ void CoreTest::legacyBoldMigratesToFontWeight()
             {QStringLiteral("tracks"), QJsonArray{track}},
         };
         QString err;
-        const drift::Project loaded = drift::Project::fromJson(project, &err);
+        const TonDron::Project loaded = TonDron::Project::fromJson(project, &err);
         QVERIFY(err.isEmpty());
         QCOMPARE(loaded.tracks().at(0).clips.at(0).textStyle.outlineEnabled, true);
         QCOMPARE(loaded.tracks().at(0).clips.at(0).textStyle.outlineWidth, 3.0);
@@ -990,11 +990,11 @@ void CoreTest::legacyBoldMigratesToFontWeight()
 
 void CoreTest::textPresetsAreWellFormed()
 {
-    const QList<drift::TextPreset> &presets = drift::textPresets();
+    const QList<TonDron::TextPreset> &presets = TonDron::textPresets();
     QVERIFY(!presets.isEmpty());
 
     QSet<QString> ids;
-    for (const drift::TextPreset &preset : presets) {
+    for (const TonDron::TextPreset &preset : presets) {
         QVERIFY(!preset.id.isEmpty());
         QVERIFY(!preset.label.isEmpty());
         QVERIFY(!preset.sampleText.isEmpty());
@@ -1003,16 +1003,16 @@ void CoreTest::textPresetsAreWellFormed()
         QVERIFY(preset.style.pixelSize > 0);
         QVERIFY(!preset.style.fontFamily.isEmpty());
         QVERIFY(preset.style.fontWeight >= 100 && preset.style.fontWeight <= 900);
-        QCOMPARE(drift::textStyleForPresetId(preset.id)->fontFamily, preset.style.fontFamily);
-        QCOMPARE(drift::textPresetForId(preset.id)->label, preset.label);
+        QCOMPARE(TonDron::textStyleForPresetId(preset.id)->fontFamily, preset.style.fontFamily);
+        QCOMPARE(TonDron::textPresetForId(preset.id)->label, preset.label);
 
         // A pack's accent has to be usable: a stride that advances, a size that renders, and an
         // override that actually changes something when a rule picks words out.
-        const drift::WordAccent &accent = preset.style.accent;
+        const TonDron::WordAccent &accent = preset.style.accent;
         QVERIFY(accent.n >= 1);
         QVERIFY(accent.phase >= 0);
         QVERIFY(accent.sizeScale > 0.0);
-        if (accent.rule != drift::WordAccentRule::None) {
+        if (accent.rule != TonDron::WordAccentRule::None) {
             QVERIFY(accent.colorEnabled || accent.outlineEnabled || accent.highlight.enabled
                     || !qFuzzyCompare(accent.sizeScale, 1.0));
         }
@@ -1021,54 +1021,54 @@ void CoreTest::textPresetsAreWellFormed()
         if (accent.highlight.enabled)
             QVERIFY(accent.highlight.color.isValid());
     }
-    QVERIFY(drift::textStyleForPresetId(QStringLiteral("nope")) == nullptr);
+    QVERIFY(TonDron::textStyleForPresetId(QStringLiteral("nope")) == nullptr);
 }
 
 void CoreTest::karaokeWordIndexTracksTheCue()
 {
     const QString text = QStringLiteral("Number of thumbnails that");
-    const drift::TimeUs start = drift::secondsToUs(2.0);
-    const drift::TimeUs end = drift::secondsToUs(4.0);
+    const TonDron::TimeUs start = TonDron::secondsToUs(2.0);
+    const TonDron::TimeUs end = TonDron::secondsToUs(4.0);
 
     // Before the window there is no spoken word at all.
-    QCOMPARE(drift::activeWordIndexAt(text, start, end, drift::secondsToUs(1.0)), -1);
-    QCOMPARE(drift::activeWordIndexAt(text, start, start, drift::secondsToUs(2.5)), -1);
+    QCOMPARE(TonDron::activeWordIndexAt(text, start, end, TonDron::secondsToUs(1.0)), -1);
+    QCOMPARE(TonDron::activeWordIndexAt(text, start, start, TonDron::secondsToUs(2.5)), -1);
 
     // Inside it the index only ever advances, starts at the first word and ends on the last.
-    QCOMPARE(drift::activeWordIndexAt(text, start, end, start), 0);
+    QCOMPARE(TonDron::activeWordIndexAt(text, start, end, start), 0);
     int previous = 0;
     for (int step = 1; step <= 20; ++step) {
-        const drift::TimeUs at = start + (end - start) * step / 21;
-        const int index = drift::activeWordIndexAt(text, start, end, at);
+        const TonDron::TimeUs at = start + (end - start) * step / 21;
+        const int index = TonDron::activeWordIndexAt(text, start, end, at);
         QVERIFY(index >= previous);
         QVERIFY(index < 4);
         previous = index;
     }
-    QCOMPARE(drift::activeWordIndexAt(text, start, end, end - 1), 3);
+    QCOMPARE(TonDron::activeWordIndexAt(text, start, end, end - 1), 3);
     // Past the end (rounding at a cue boundary) keeps the last word lit rather than blanking it.
-    QCOMPARE(drift::activeWordIndexAt(text, start, end, end), 3);
+    QCOMPARE(TonDron::activeWordIndexAt(text, start, end, end), 3);
 }
 
 void CoreTest::shapeStyleSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Shape});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Shape});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-shape");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.name = QStringLiteral("Hexagon");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::kImageClipDurationUs;
-    clip.shapeStyle.kind = drift::ShapeKind::Hexagon;
-    clip.shapeStyle.fillKind = drift::ShapeFillKind::LinearGradient;
+    clip.timelineDuration = TonDron::kImageClipDurationUs;
+    clip.shapeStyle.kind = TonDron::ShapeKind::Hexagon;
+    clip.shapeStyle.fillKind = TonDron::ShapeFillKind::LinearGradient;
     clip.shapeStyle.fill = QColor(10, 20, 30, 200);
     clip.shapeStyle.fillSecondary = QColor(40, 50, 60, 128);
     clip.shapeStyle.gradientAngle = 35.0;
     clip.shapeStyle.stroke = QColor(255, 255, 255);
     clip.shapeStyle.strokeWidth = 6.0;
-    clip.shapeStyle.strokeStyle = drift::ShapeStrokeStyle::DashDot;
+    clip.shapeStyle.strokeStyle = TonDron::ShapeStrokeStyle::DashDot;
     clip.shapeStyle.cornerRadius = 18.0;
     clip.shapeStyle.points = 9;
     clip.shapeStyle.innerRatio = 0.33;
@@ -1082,19 +1082,19 @@ void CoreTest::shapeStyleSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
-    QCOMPARE(loadedClip.type, drift::ClipType::Shape);
-    QCOMPARE(loadedClip.shapeStyle.kind, drift::ShapeKind::Hexagon);
-    QCOMPARE(loadedClip.shapeStyle.fillKind, drift::ShapeFillKind::LinearGradient);
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    QCOMPARE(loadedClip.type, TonDron::ClipType::Shape);
+    QCOMPARE(loadedClip.shapeStyle.kind, TonDron::ShapeKind::Hexagon);
+    QCOMPARE(loadedClip.shapeStyle.fillKind, TonDron::ShapeFillKind::LinearGradient);
     QCOMPARE(loadedClip.shapeStyle.fill, QColor(10, 20, 30, 200));
     QCOMPARE(loadedClip.shapeStyle.fillSecondary, QColor(40, 50, 60, 128));
     QCOMPARE(loadedClip.shapeStyle.gradientAngle, 35.0);
     QCOMPARE(loadedClip.shapeStyle.stroke, QColor(255, 255, 255));
     QCOMPARE(loadedClip.shapeStyle.strokeWidth, 6.0);
-    QCOMPARE(loadedClip.shapeStyle.strokeStyle, drift::ShapeStrokeStyle::DashDot);
+    QCOMPARE(loadedClip.shapeStyle.strokeStyle, TonDron::ShapeStrokeStyle::DashDot);
     QCOMPARE(loadedClip.shapeStyle.cornerRadius, 18.0);
     QCOMPARE(loadedClip.shapeStyle.points, 9);
     QCOMPARE(loadedClip.shapeStyle.innerRatio, 0.33);
@@ -1111,7 +1111,7 @@ void CoreTest::shapeStyleSerialization()
 void CoreTest::legacyShapeStyleLoadsWithDefaults()
 {
     const QJsonObject json{
-        {QStringLiteral("version"), drift::Project::kCurrentVersion},
+        {QStringLiteral("version"), TonDron::Project::kCurrentVersion},
         {QStringLiteral("tracks"),
          QJsonArray{QJsonObject{
              {QStringLiteral("type"), QStringLiteral("shape")},
@@ -1119,7 +1119,7 @@ void CoreTest::legacyShapeStyleLoadsWithDefaults()
               QJsonArray{QJsonObject{
                   {QStringLiteral("id"), QStringLiteral("legacy-shape")},
                   {QStringLiteral("type"), QStringLiteral("shape")},
-                  {QStringLiteral("timelineDurationUs"), qint64(drift::kImageClipDurationUs)},
+                  {QStringLiteral("timelineDurationUs"), qint64(TonDron::kImageClipDurationUs)},
                   {QStringLiteral("shapeStyle"),
                    QJsonObject{{QStringLiteral("kind"), QStringLiteral("pentagon")},
                                {QStringLiteral("fill"), QStringLiteral("#ffa060ff")},
@@ -1127,12 +1127,12 @@ void CoreTest::legacyShapeStyleLoadsWithDefaults()
                                {QStringLiteral("strokeWidth"), 4.0}}}}}}}}}};
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
     QVERIFY(error.isEmpty());
 
-    const drift::ShapeStyle &style = loaded.tracks()[0].clips[0].shapeStyle;
-    const drift::ShapeStyle defaults;
-    QCOMPARE(style.kind, drift::ShapeKind::Pentagon);
+    const TonDron::ShapeStyle &style = loaded.tracks()[0].clips[0].shapeStyle;
+    const TonDron::ShapeStyle defaults;
+    QCOMPARE(style.kind, TonDron::ShapeKind::Pentagon);
     QCOMPARE(style.fill, QColor(160, 96, 255));
     QCOMPARE(style.fillKind, defaults.fillKind);
     QCOMPARE(style.fillSecondary, defaults.fillSecondary);
@@ -1148,10 +1148,10 @@ void CoreTest::legacyShapeStyleLoadsWithDefaults()
 void CoreTest::shapeCatalogPathsFitBounds()
 {
     const QRectF bounds(0, 0, 200, 120);
-    QVERIFY(!drift::shapeCatalog().isEmpty());
+    QVERIFY(!TonDron::shapeCatalog().isEmpty());
 
-    for (const drift::ShapeCatalogEntry &entry : drift::shapeCatalog()) {
-        const QPainterPath path = drift::shapePath(entry.style, bounds);
+    for (const TonDron::ShapeCatalogEntry &entry : TonDron::shapeCatalog()) {
+        const QPainterPath path = TonDron::shapePath(entry.style, bounds);
         QVERIFY2(!path.isEmpty(), qPrintable(entry.id));
         QVERIFY2(entry.aspect > 0.0, qPrintable(entry.id));
 
@@ -1161,23 +1161,23 @@ void CoreTest::shapeCatalogPathsFitBounds()
         QVERIFY2(box.width() > bounds.width() * 0.3, qPrintable(entry.id));
         QVERIFY2(box.height() > bounds.height() * 0.3, qPrintable(entry.id));
 
-        QVERIFY2(!drift::shapeSvgPath(entry.style, bounds).isEmpty(), qPrintable(entry.id));
+        QVERIFY2(!TonDron::shapeSvgPath(entry.style, bounds).isEmpty(), qPrintable(entry.id));
         // Ids are what QML and the drag mime data carry, so every one must resolve.
-        QVERIFY2(drift::shapeCatalogEntry(entry.id) != nullptr, qPrintable(entry.id));
+        QVERIFY2(TonDron::shapeCatalogEntry(entry.id) != nullptr, qPrintable(entry.id));
     }
 }
 
 void CoreTest::effectCatalogIdSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-effects");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.name = QStringLiteral("Video");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.name = QStringLiteral("eq");
     effect.catalogId = QStringLiteral("adjust.contrast");
     effect.parameters.insert(QStringLiteral("contrast"), 1.4);
@@ -1186,10 +1186,10 @@ void CoreTest::effectCatalogIdSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.effects.size(), 1);
     QCOMPARE(loadedClip.effects[0].catalogId, QStringLiteral("adjust.contrast"));
     QCOMPARE(loadedClip.effects[0].parameters.value(QStringLiteral("contrast")).toDouble(), 1.4);
@@ -1201,48 +1201,48 @@ void CoreTest::effectCatalogIdSerialization()
 // value has to come back alongside it — that is what an un-keyed frame falls back to.
 void CoreTest::effectParamKeyframeSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-animated-effect");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(4.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("adjust.contrast");
     effect.parameters.insert(QStringLiteral("contrast"), 1.4);
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.5);
-    track.setKeyframe(drift::secondsToUs(2.0), 2.5);
-    track.setEasing(0, drift::Interpolation::Ease);
-    track.setEasing(drift::secondsToUs(2.0), drift::Interpolation::Ease);
+    track.setKeyframe(TonDron::secondsToUs(2.0), 2.5);
+    track.setEasing(0, TonDron::Interpolation::Ease);
+    track.setEasing(TonDron::secondsToUs(2.0), TonDron::Interpolation::Ease);
     effect.paramKeyframes.insert(QStringLiteral("contrast"), track);
     clip.effects.append(effect);
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Effect &loadedEffect = loaded.tracks()[0].clips[0].effects[0];
+    const TonDron::Effect &loadedEffect = loaded.tracks()[0].clips[0].effects[0];
     QCOMPARE(loadedEffect.parameters.value(QStringLiteral("contrast")).toDouble(), 1.4);
-    const drift::KeyframeTrack<double> &loadedTrack =
+    const TonDron::KeyframeTrack<double> &loadedTrack =
         loadedEffect.paramKeyframes.value(QStringLiteral("contrast"));
     QCOMPARE(loadedTrack.keyframes().size(), 2);
-    QVERIFY(loadedTrack.easingAt(0) == drift::Interpolation::Ease);
-    QVERIFY(loadedTrack.easingAt(drift::secondsToUs(2.0)) == drift::Interpolation::Ease);
+    QVERIFY(loadedTrack.easingAt(0) == TonDron::Interpolation::Ease);
+    QVERIFY(loadedTrack.easingAt(TonDron::secondsToUs(2.0)) == TonDron::Interpolation::Ease);
 
     // valueAt is what the compositor reads: the track wins where it has keys, and an unkeyed
     // param falls back to the static value.
     QCOMPARE(loadedEffect.valueAt(QStringLiteral("contrast"), 0).toDouble(), 0.5);
-    QCOMPARE(loadedEffect.valueAt(QStringLiteral("contrast"), drift::secondsToUs(2.0)).toDouble(), 2.5);
-    const double mid = loadedEffect.valueAt(QStringLiteral("contrast"), drift::secondsToUs(1.0)).toDouble();
+    QCOMPARE(loadedEffect.valueAt(QStringLiteral("contrast"), TonDron::secondsToUs(2.0)).toDouble(), 2.5);
+    const double mid = loadedEffect.valueAt(QStringLiteral("contrast"), TonDron::secondsToUs(1.0)).toDouble();
     QVERIFY(mid > 0.5 && mid < 2.5);
     QCOMPARE(loadedEffect.valueAt(QStringLiteral("nosuch"), 0).isValid(), false);
 
     // resolvedAt bakes the animated params down; everything else is carried through untouched.
-    const drift::Effect resolved = loadedEffect.resolvedAt(drift::secondsToUs(2.0));
+    const TonDron::Effect resolved = loadedEffect.resolvedAt(TonDron::secondsToUs(2.0));
     QCOMPARE(resolved.parameters.value(QStringLiteral("contrast")).toDouble(), 2.5);
     QCOMPARE(resolved.catalogId, QStringLiteral("adjust.contrast"));
 }
@@ -1251,37 +1251,37 @@ void CoreTest::effectParamKeyframeSerialization()
 // project must not touch a compositor snapshot (and must not race a concurrent reader).
 void CoreTest::detachedCopyIsolatesKeyframesFromLiveMutations()
 {
-    drift::Project live;
-    drift::Clip clip;
+    TonDron::Project live;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-detach");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
     clip.opacity.setKeyframe(0, 1.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = QStringLiteral("adjust.contrast");
     effect.parameters.insert(QStringLiteral("contrast"), 1.0);
-    drift::KeyframeTrack<double> track;
+    TonDron::KeyframeTrack<double> track;
     track.setKeyframe(0, 0.5);
     effect.paramKeyframes.insert(QStringLiteral("contrast"), track);
     clip.effects.append(effect);
     live.tracks()[0].clips.append(clip);
 
-    const drift::Project snapshot = live.detachedCopy();
+    const TonDron::Project snapshot = live.detachedCopy();
     QCOMPARE(snapshot.tracks().at(0).clips.at(0).opacity.evaluateAt(0), 1.0);
     QCOMPARE(snapshot.tracks().at(0).clips.at(0).effects.at(0).valueAt(QStringLiteral("contrast"), 0).toDouble(),
              0.5);
 
     // Mutate every COW container the compositor reads — list structure and nested maps.
     live.tracks()[0].clips[0].opacity.setKeyframe(0, 0.25);
-    live.tracks()[0].clips[0].opacity.setKeyframe(drift::secondsToUs(1.0), 0.0);
+    live.tracks()[0].clips[0].opacity.setKeyframe(TonDron::secondsToUs(1.0), 0.0);
     live.tracks()[0].clips[0].effects[0].paramKeyframes[QStringLiteral("contrast")].setKeyframe(
         0, 2.0);
     live.tracks()[0].clips[0].effects[0].parameters.insert(QStringLiteral("contrast"), 2.0);
-    drift::Clip extra;
+    TonDron::Clip extra;
     extra.id = QStringLiteral("clip-extra");
-    extra.type = drift::ClipType::Video;
+    extra.type = TonDron::ClipType::Video;
     live.tracks()[0].clips.append(extra);
 
     QCOMPARE(snapshot.tracks().size(), 1);
@@ -1293,7 +1293,7 @@ void CoreTest::detachedCopyIsolatesKeyframesFromLiveMutations()
     QCOMPARE(snapshot.tracks().at(0).clips.at(0).effects.at(0).parameters.value(QStringLiteral("contrast")).toDouble(),
              1.0);
 
-    const drift::Effect resolved =
+    const TonDron::Effect resolved =
         snapshot.tracks().at(0).clips.at(0).effects.at(0).resolvedAt(0);
     QCOMPARE(resolved.parameters.value(QStringLiteral("contrast")).toDouble(), 0.5);
 }
@@ -1302,30 +1302,30 @@ void CoreTest::detachedCopyIsolatesKeyframesFromLiveMutations()
 // that has to survive save/load so scrubbing after reopen matches what preview showed.
 void CoreTest::effectTemplateStackSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-template");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(4.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
 
-    drift::Effect shake;
+    TonDron::Effect shake;
     shake.catalogId = QStringLiteral("beat_shake");
     shake.parameters.insert(QStringLiteral("amount"), 0.0);
-    drift::KeyframeTrack<double> amountTrack;
+    TonDron::KeyframeTrack<double> amountTrack;
     amountTrack.setKeyframe(0, 0.7);
-    amountTrack.setKeyframe(drift::secondsToUs(0.18), 0.0);
-    amountTrack.setKeyframe(drift::secondsToUs(1.0), 0.65);
-    amountTrack.setKeyframe(drift::secondsToUs(1.09), 0.0);
+    amountTrack.setKeyframe(TonDron::secondsToUs(0.18), 0.0);
+    amountTrack.setKeyframe(TonDron::secondsToUs(1.0), 0.65);
+    amountTrack.setKeyframe(TonDron::secondsToUs(1.09), 0.0);
     shake.paramKeyframes.insert(QStringLiteral("amount"), amountTrack);
     clip.effects.append(shake);
 
-    drift::Effect strobe;
+    TonDron::Effect strobe;
     strobe.catalogId = QStringLiteral("strobe_flash");
     strobe.parameters.insert(QStringLiteral("flash"), 0.0);
-    drift::KeyframeTrack<double> flashTrack;
+    TonDron::KeyframeTrack<double> flashTrack;
     flashTrack.setKeyframe(0, 0.5);
-    flashTrack.setKeyframe(drift::secondsToUs(0.09), 0.0);
+    flashTrack.setKeyframe(TonDron::secondsToUs(0.09), 0.0);
     strobe.paramKeyframes.insert(QStringLiteral("flash"), flashTrack);
     clip.effects.append(strobe);
 
@@ -1333,21 +1333,21 @@ void CoreTest::effectTemplateStackSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.effects.size(), 2);
     QCOMPARE(loadedClip.effects[0].catalogId, QStringLiteral("beat_shake"));
     QCOMPARE(loadedClip.effects[1].catalogId, QStringLiteral("strobe_flash"));
 
-    const drift::KeyframeTrack<double> &loadedAmount =
+    const TonDron::KeyframeTrack<double> &loadedAmount =
         loadedClip.effects[0].paramKeyframes.value(QStringLiteral("amount"));
     QCOMPARE(loadedAmount.keyframes().size(), 4);
     QCOMPARE(loadedAmount.keyframes().value(0).value, 0.7);
-    QCOMPARE(loadedAmount.keyframes().value(drift::secondsToUs(1.0)).value, 0.65);
+    QCOMPARE(loadedAmount.keyframes().value(TonDron::secondsToUs(1.0)).value, 0.65);
 
-    const drift::KeyframeTrack<double> &loadedFlash =
+    const TonDron::KeyframeTrack<double> &loadedFlash =
         loadedClip.effects[1].paramKeyframes.value(QStringLiteral("flash"));
     QCOMPARE(loadedFlash.keyframes().size(), 2);
     QCOMPARE(loadedFlash.keyframes().value(0).value, 0.5);
@@ -1358,20 +1358,20 @@ void CoreTest::effectTemplateStackSerialization()
 // round-trip independently — a regression here silently drops a clip's sound design on reload.
 void CoreTest::audioEffectSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-audio-fx");
-    clip.type = drift::ClipType::Audio;
+    clip.type = TonDron::ClipType::Audio;
     clip.name = QStringLiteral("Audio");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Effect telephone;
+    TonDron::Effect telephone;
     telephone.name = QStringLiteral("Telephone");
     telephone.catalogId = QStringLiteral("transmission.telephone");
     clip.audioEffects.append(telephone);
 
-    drift::Effect bitcrush;
+    TonDron::Effect bitcrush;
     bitcrush.name = QStringLiteral("Bitcrush");
     bitcrush.catalogId = QStringLiteral("texture.bitcrush");
     bitcrush.parameters.insert(QStringLiteral("bits"), 6.0);
@@ -1379,7 +1379,7 @@ void CoreTest::audioEffectSerialization()
     clip.audioEffects.append(bitcrush);
 
     // A video effect on the same clip must not bleed into the audio list and vice versa.
-    drift::Effect contrast;
+    TonDron::Effect contrast;
     contrast.catalogId = QStringLiteral("adjust.contrast");
     clip.effects.append(contrast);
 
@@ -1387,10 +1387,10 @@ void CoreTest::audioEffectSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.audioEffects.size(), 2);
     QCOMPARE(loadedClip.audioEffects[0].catalogId, QStringLiteral("transmission.telephone"));
     QCOMPARE(loadedClip.audioEffects[1].catalogId, QStringLiteral("texture.bitcrush"));
@@ -1402,15 +1402,15 @@ void CoreTest::audioEffectSerialization()
 
 void CoreTest::rgbSplitEffectParametersSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-rgb-split");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.name = QStringLiteral("Video");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.name = QStringLiteral("rgb_split");
     effect.catalogId = QStringLiteral("rgb_split");
     effect.parameters.insert(QStringLiteral("amount"), 12.0);
@@ -1422,10 +1422,10 @@ void CoreTest::rgbSplitEffectParametersSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.effects.size(), 1);
     QCOMPARE(loadedClip.effects[0].catalogId, QStringLiteral("rgb_split"));
     const QMap<QString, QVariant> &params = loadedClip.effects[0].parameters;
@@ -1437,15 +1437,15 @@ void CoreTest::rgbSplitEffectParametersSerialization()
 
 void CoreTest::blockGlitchEffectParametersSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-block-glitch");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.name = QStringLiteral("Video");
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.name = QStringLiteral("block_glitch");
     effect.catalogId = QStringLiteral("block_glitch");
     effect.parameters.insert(QStringLiteral("intensity"), 0.5);
@@ -1458,10 +1458,10 @@ void CoreTest::blockGlitchEffectParametersSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &loadedClip = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &loadedClip = loaded.tracks()[0].clips[0];
     QCOMPARE(loadedClip.effects.size(), 1);
     QCOMPARE(loadedClip.effects[0].catalogId, QStringLiteral("block_glitch"));
     const QMap<QString, QVariant> &params = loadedClip.effects[0].parameters;
@@ -1474,51 +1474,51 @@ void CoreTest::blockGlitchEffectParametersSerialization()
 
 void CoreTest::clipSpeedSourceMapping()
 {
-    drift::Clip clip;
-    clip.timelineStart = drift::secondsToUs(1.0);
-    clip.timelineDuration = drift::secondsToUs(4.0);
-    clip.srcIn = drift::secondsToUs(2.0);
+    TonDron::Clip clip;
+    clip.timelineStart = TonDron::secondsToUs(1.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
+    clip.srcIn = TonDron::secondsToUs(2.0);
     clip.speed = 2.0;
     clip.srcOut = clip.srcIn + clip.sourceSpanUs();
 
-    QCOMPARE(clip.sourceSpanUs(), drift::secondsToUs(8.0));
-    QCOMPARE(clip.timelineToSourceUs(drift::secondsToUs(3.0)), drift::secondsToUs(6.0));
+    QCOMPARE(clip.sourceSpanUs(), TonDron::secondsToUs(8.0));
+    QCOMPARE(clip.timelineToSourceUs(TonDron::secondsToUs(3.0)), TonDron::secondsToUs(6.0));
 
-    clip.syncSrcOutFromSpeed(drift::secondsToUs(20.0));
-    QCOMPARE(clip.srcOut, clip.srcIn + drift::secondsToUs(8.0));
+    clip.syncSrcOutFromSpeed(TonDron::secondsToUs(20.0));
+    QCOMPARE(clip.srcOut, clip.srcIn + TonDron::secondsToUs(8.0));
 
     clip.reverse = true;
     // At timeline start → near srcOut; at +1s timeline with speed 2 → srcOut - 2s
-    QCOMPARE(clip.timelineToSourceUs(drift::secondsToUs(1.0)), clip.srcOut);
-    QCOMPARE(clip.timelineToSourceUs(drift::secondsToUs(2.0)), clip.srcOut - drift::secondsToUs(2.0));
+    QCOMPARE(clip.timelineToSourceUs(TonDron::secondsToUs(1.0)), clip.srcOut);
+    QCOMPARE(clip.timelineToSourceUs(TonDron::secondsToUs(2.0)), clip.srcOut - TonDron::secondsToUs(2.0));
 }
 
 namespace {
 
 // A ramp with no handles is linear in speed across pos, which keeps the expected values above
 // closed-form rather than something only the implementation can produce.
-drift::SpeedCurve linearRamp(double from, double to)
+TonDron::SpeedCurve linearRamp(double from, double to)
 {
-    drift::SpeedPoint start;
+    TonDron::SpeedPoint start;
     start.pos = 0.0;
     start.speed = from;
     start.corner = true;
-    drift::SpeedPoint end;
+    TonDron::SpeedPoint end;
     end.pos = 1.0;
     end.speed = to;
     end.corner = true;
 
-    drift::SpeedCurve curve;
+    TonDron::SpeedCurve curve;
     curve.setPoints({start, end});
     return curve;
 }
 
-drift::Clip curvedClip(const drift::SpeedCurve &curve, double srcInSec, double srcOutSec)
+TonDron::Clip curvedClip(const TonDron::SpeedCurve &curve, double srcInSec, double srcOutSec)
 {
-    drift::Clip clip;
-    clip.timelineStart = drift::secondsToUs(1.0);
-    clip.srcIn = drift::secondsToUs(srcInSec);
-    clip.srcOut = drift::secondsToUs(srcOutSec);
+    TonDron::Clip clip;
+    clip.timelineStart = TonDron::secondsToUs(1.0);
+    clip.srcIn = TonDron::secondsToUs(srcInSec);
+    clip.srcOut = TonDron::secondsToUs(srcOutSec);
     clip.speedCurve = curve;
     clip.syncDurationFromSpeedCurve();
     return clip;
@@ -1528,18 +1528,18 @@ drift::Clip curvedClip(const drift::SpeedCurve &curve, double srcInSec, double s
 
 void CoreTest::speedCurveMatchesConstantSpeed()
 {
-    drift::Clip scalar;
-    scalar.timelineStart = drift::secondsToUs(1.0);
-    scalar.srcIn = drift::secondsToUs(2.0);
-    scalar.srcOut = scalar.srcIn + drift::secondsToUs(8.0);
+    TonDron::Clip scalar;
+    scalar.timelineStart = TonDron::secondsToUs(1.0);
+    scalar.srcIn = TonDron::secondsToUs(2.0);
+    scalar.srcOut = scalar.srcIn + TonDron::secondsToUs(8.0);
     scalar.speed = 2.0;
-    scalar.timelineDuration = drift::secondsToUs(4.0);
+    scalar.timelineDuration = TonDron::secondsToUs(4.0);
 
-    const drift::Clip curved = curvedClip(drift::SpeedCurve::flat(2.0), 2.0, 10.0);
+    const TonDron::Clip curved = curvedClip(TonDron::SpeedCurve::flat(2.0), 2.0, 10.0);
 
     QCOMPARE(curved.timelineDuration, scalar.timelineDuration);
     for (int i = 0; i <= 20; ++i) {
-        const drift::TimeUs at = scalar.timelineStart + (scalar.timelineDuration * i) / 20;
+        const TonDron::TimeUs at = scalar.timelineStart + (scalar.timelineDuration * i) / 20;
         QVERIFY(qAbs(curved.timelineToSourceUs(at) - scalar.timelineToSourceUs(at)) <= 2);
     }
 }
@@ -1547,45 +1547,45 @@ void CoreTest::speedCurveMatchesConstantSpeed()
 void CoreTest::speedCurveRampRetimesDuration()
 {
     // 1× ramping to 4× over a 10s source: ∫dp/(1+3p) = ln(4)/3.
-    const drift::Clip clip = curvedClip(linearRamp(1.0, 4.0), 0.0, 10.0);
+    const TonDron::Clip clip = curvedClip(linearRamp(1.0, 4.0), 0.0, 10.0);
 
     const double expectedSeconds = 10.0 * std::log(4.0) / 3.0;
-    QVERIFY(qAbs(drift::usToSeconds(clip.timelineDuration) - expectedSeconds) < 0.001);
+    QVERIFY(qAbs(TonDron::usToSeconds(clip.timelineDuration) - expectedSeconds) < 0.001);
 
     // And the inverse: p = (exp(3t/span) - 1) / 3.
     for (int i = 1; i < 10; ++i) {
         const double t = expectedSeconds * i / 10.0;
         const double expectedPos = (std::exp(3.0 * t / 10.0) - 1.0) / 3.0;
-        const drift::TimeUs at = clip.timelineStart + drift::secondsToUs(t);
-        const double actual = drift::usToSeconds(clip.timelineToSourceUs(at) - clip.srcIn) / 10.0;
+        const TonDron::TimeUs at = clip.timelineStart + TonDron::secondsToUs(t);
+        const double actual = TonDron::usToSeconds(clip.timelineToSourceUs(at) - clip.srcIn) / 10.0;
         QVERIFY(qAbs(actual - expectedPos) < 0.002);
     }
 }
 
 void CoreTest::speedCurveMappingIsMonotonic()
 {
-    drift::SpeedPoint a;
+    TonDron::SpeedPoint a;
     a.pos = 0.0;
     a.speed = 4.0;
-    drift::SpeedPoint b;
+    TonDron::SpeedPoint b;
     b.pos = 0.4;
     b.speed = 0.2;
-    drift::SpeedPoint c;
+    TonDron::SpeedPoint c;
     c.pos = 1.0;
     c.speed = 8.0;
     // Give the dip real tangents, so the flattening and not just the corner case is exercised.
     b.inDx = -0.1;
     b.outDx = 0.15;
 
-    drift::SpeedCurve curve;
+    TonDron::SpeedCurve curve;
     curve.setPoints({a, b, c});
-    const drift::Clip clip = curvedClip(curve, 0.0, 12.0);
+    const TonDron::Clip clip = curvedClip(curve, 0.0, 12.0);
 
     QVERIFY(clip.timelineDuration > 0);
-    drift::TimeUs previous = -1;
+    TonDron::TimeUs previous = -1;
     for (int i = 0; i <= 500; ++i) {
-        const drift::TimeUs at = clip.timelineStart + (clip.timelineDuration * i) / 500;
-        const drift::TimeUs source = clip.timelineToSourceUs(at);
+        const TonDron::TimeUs at = clip.timelineStart + (clip.timelineDuration * i) / 500;
+        const TonDron::TimeUs source = clip.timelineToSourceUs(at);
         QVERIFY(source >= previous);
         QVERIFY(source >= clip.srcIn && source <= clip.srcOut);
         previous = source;
@@ -1594,9 +1594,9 @@ void CoreTest::speedCurveMappingIsMonotonic()
 
 void CoreTest::speedCurveSubRangePreservesShape()
 {
-    const drift::SpeedCurve curve = linearRamp(1.0, 4.0);
-    const drift::SpeedCurve head = curve.subRange(0.0, 0.5);
-    const drift::SpeedCurve tail = curve.subRange(0.5, 1.0);
+    const TonDron::SpeedCurve curve = linearRamp(1.0, 4.0);
+    const TonDron::SpeedCurve head = curve.subRange(0.0, 0.5);
+    const TonDron::SpeedCurve tail = curve.subRange(0.5, 1.0);
 
     for (int i = 0; i <= 10; ++i) {
         const double f = i / 10.0;
@@ -1607,7 +1607,7 @@ void CoreTest::speedCurveSubRangePreservesShape()
 
 void CoreTest::speedCurveSerialization()
 {
-    drift::SpeedPoint mid;
+    TonDron::SpeedPoint mid;
     mid.pos = 0.5;
     mid.speed = 0.25;
     mid.inDx = -0.2;
@@ -1616,34 +1616,34 @@ void CoreTest::speedCurveSerialization()
     mid.outDy = -0.05;
     mid.corner = true;
 
-    drift::SpeedPoint start;
+    TonDron::SpeedPoint start;
     start.pos = 0.0;
     start.speed = 1.0;
-    drift::SpeedPoint end;
+    TonDron::SpeedPoint end;
     end.pos = 1.0;
     end.speed = 2.0;
 
-    drift::SpeedCurve curve;
+    TonDron::SpeedCurve curve;
     curve.setPoints({start, mid, end});
 
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-curve");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.srcIn = 0;
-    clip.srcOut = drift::secondsToUs(6.0);
+    clip.srcOut = TonDron::secondsToUs(6.0);
     clip.speedCurve = curve;
     clip.syncDurationFromSpeedCurve();
     project.tracks()[0].clips.append(clip);
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY(error.isEmpty());
 
-    const drift::Clip &out = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &out = loaded.tracks()[0].clips[0];
     QVERIFY(out.hasSpeedCurve());
     QCOMPARE(out.speedCurve.points().size(), 3);
-    const drift::SpeedPoint &loadedMid = out.speedCurve.points().at(1);
+    const TonDron::SpeedPoint &loadedMid = out.speedCurve.points().at(1);
     QCOMPARE(loadedMid.pos, 0.5);
     QCOMPARE(loadedMid.speed, 0.25);
     QCOMPARE(loadedMid.inDx, -0.2);
@@ -1654,14 +1654,14 @@ void CoreTest::speedCurveSerialization()
 
 void CoreTest::clipReverseAndFlipSerialization()
 {
-    drift::Project project;
-    drift::Clip clip;
+    TonDron::Project project;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-flip");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
-    clip.srcIn = drift::secondsToUs(1.0);
-    clip.srcOut = drift::secondsToUs(3.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
+    clip.srcIn = TonDron::secondsToUs(1.0);
+    clip.srcOut = TonDron::secondsToUs(3.0);
     clip.reverse = true;
     clip.flipH = true;
     clip.flipV = true;
@@ -1670,9 +1670,9 @@ void CoreTest::clipReverseAndFlipSerialization()
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
     QVERIFY(error.isEmpty());
-    const drift::Clip &out = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &out = loaded.tracks()[0].clips[0];
     QCOMPARE(out.reverse, true);
     QCOMPARE(out.flipH, true);
     QCOMPARE(out.flipV, true);
@@ -1681,116 +1681,116 @@ void CoreTest::clipReverseAndFlipSerialization()
 
 void CoreTest::clipSplitMergeRoundTrip()
 {
-    drift::Clip head;
+    TonDron::Clip head;
     head.id = QStringLiteral("head");
-    head.type = drift::ClipType::Video;
+    head.type = TonDron::ClipType::Video;
     head.assetId = QStringLiteral("asset-a");
     head.path = QStringLiteral("/tmp/a.mp4");
     head.timelineStart = 0;
-    head.timelineDuration = drift::secondsToUs(4.0);
-    head.srcIn = drift::secondsToUs(1.0);
-    head.srcOut = drift::secondsToUs(5.0);
+    head.timelineDuration = TonDron::secondsToUs(4.0);
+    head.srcIn = TonDron::secondsToUs(1.0);
+    head.srcOut = TonDron::secondsToUs(5.0);
     head.speed = 1.0;
 
-    drift::Clip tail;
-    QVERIFY(drift::splitClipAtOffset(head, tail, drift::secondsToUs(2.0)));
+    TonDron::Clip tail;
+    QVERIFY(TonDron::splitClipAtOffset(head, tail, TonDron::secondsToUs(2.0)));
     tail.id = QStringLiteral("tail");
-    QCOMPARE(head.timelineDuration, drift::secondsToUs(2.0));
-    QCOMPARE(tail.timelineStart, drift::secondsToUs(2.0));
-    QCOMPARE(head.srcOut, drift::secondsToUs(3.0));
-    QCOMPARE(tail.srcIn, drift::secondsToUs(3.0));
-    QVERIFY(drift::clipsCanMerge(head, tail));
+    QCOMPARE(head.timelineDuration, TonDron::secondsToUs(2.0));
+    QCOMPARE(tail.timelineStart, TonDron::secondsToUs(2.0));
+    QCOMPARE(head.srcOut, TonDron::secondsToUs(3.0));
+    QCOMPARE(tail.srcIn, TonDron::secondsToUs(3.0));
+    QVERIFY(TonDron::clipsCanMerge(head, tail));
 
-    const drift::Clip merged = drift::mergeClips(head, tail);
-    QCOMPARE(merged.timelineDuration, drift::secondsToUs(4.0));
-    QCOMPARE(merged.srcIn, drift::secondsToUs(1.0));
-    QCOMPARE(merged.srcOut, drift::secondsToUs(5.0));
+    const TonDron::Clip merged = TonDron::mergeClips(head, tail);
+    QCOMPARE(merged.timelineDuration, TonDron::secondsToUs(4.0));
+    QCOMPARE(merged.srcIn, TonDron::secondsToUs(1.0));
+    QCOMPARE(merged.srcOut, TonDron::secondsToUs(5.0));
 
     // Reverse split: earlier half maps to higher source.
-    drift::Clip rev;
+    TonDron::Clip rev;
     rev.id = QStringLiteral("rev");
-    rev.type = drift::ClipType::Video;
+    rev.type = TonDron::ClipType::Video;
     rev.assetId = QStringLiteral("asset-a");
     rev.path = QStringLiteral("/tmp/a.mp4");
     rev.timelineStart = 0;
-    rev.timelineDuration = drift::secondsToUs(4.0);
-    rev.srcIn = drift::secondsToUs(1.0);
-    rev.srcOut = drift::secondsToUs(5.0);
+    rev.timelineDuration = TonDron::secondsToUs(4.0);
+    rev.srcIn = TonDron::secondsToUs(1.0);
+    rev.srcOut = TonDron::secondsToUs(5.0);
     rev.reverse = true;
-    drift::Clip revTail;
-    QVERIFY(drift::splitClipAtOffset(rev, revTail, drift::secondsToUs(2.0)));
+    TonDron::Clip revTail;
+    QVERIFY(TonDron::splitClipAtOffset(rev, revTail, TonDron::secondsToUs(2.0)));
     revTail.id = QStringLiteral("rev-tail");
-    QCOMPARE(rev.srcIn, drift::secondsToUs(3.0));
-    QCOMPARE(rev.srcOut, drift::secondsToUs(5.0));
-    QCOMPARE(revTail.srcIn, drift::secondsToUs(1.0));
-    QCOMPARE(revTail.srcOut, drift::secondsToUs(3.0));
-    QVERIFY(drift::clipsCanMerge(rev, revTail));
+    QCOMPARE(rev.srcIn, TonDron::secondsToUs(3.0));
+    QCOMPARE(rev.srcOut, TonDron::secondsToUs(5.0));
+    QCOMPARE(revTail.srcIn, TonDron::secondsToUs(1.0));
+    QCOMPARE(revTail.srcOut, TonDron::secondsToUs(3.0));
+    QVERIFY(TonDron::clipsCanMerge(rev, revTail));
 }
 
 void CoreTest::clipLinkFieldsSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-v");
     clip.linkId = QStringLiteral("link-abc");
     clip.suppressEmbeddedAudio = true;
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
     QVERIFY(error.isEmpty());
-    const drift::Clip &out = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &out = loaded.tracks()[0].clips[0];
     QCOMPARE(out.linkId, QStringLiteral("link-abc"));
     QCOMPARE(out.suppressEmbeddedAudio, true);
 }
 
 void CoreTest::maskAndTransitionSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clipA;
+    TonDron::Clip clipA;
     clipA.id = QStringLiteral("clip-a");
-    clipA.type = drift::ClipType::Video;
+    clipA.type = TonDron::ClipType::Video;
     clipA.timelineStart = 0;
-    clipA.timelineDuration = drift::secondsToUs(2.0);
+    clipA.timelineDuration = TonDron::secondsToUs(2.0);
     clipA.speed = 2.0;
-    clipA.mask.shape = drift::MaskShape::Ellipse;
+    clipA.mask.shape = TonDron::MaskShape::Ellipse;
     clipA.mask.w = 0.5;
     clipA.mask.feather = 4.0;
 
-    drift::Clip clipB;
+    TonDron::Clip clipB;
     clipB.id = QStringLiteral("clip-b");
-    clipB.type = drift::ClipType::Video;
-    clipB.timelineStart = drift::secondsToUs(2.0);
-    clipB.timelineDuration = drift::secondsToUs(2.0);
+    clipB.type = TonDron::ClipType::Video;
+    clipB.timelineStart = TonDron::secondsToUs(2.0);
+    clipB.timelineDuration = TonDron::secondsToUs(2.0);
 
     project.tracks()[0].clips.append(clipA);
     project.tracks()[0].clips.append(clipB);
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.id = QStringLiteral("tr-1");
     transition.fromClipId = clipA.id;
     transition.toClipId = clipB.id;
     transition.kindId = QStringLiteral("dip");
-    transition.durationUs = drift::secondsToUs(0.5);
+    transition.durationUs = TonDron::secondsToUs(0.5);
     project.tracks()[0].transitions.append(transition);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
     QCOMPARE(loaded.tracks()[0].clips[0].speed, 2.0);
-    QCOMPARE(loaded.tracks()[0].clips[0].mask.shape, drift::MaskShape::Ellipse);
+    QCOMPARE(loaded.tracks()[0].clips[0].mask.shape, TonDron::MaskShape::Ellipse);
     QCOMPARE(loaded.tracks()[0].transitions.size(), 1);
     QCOMPARE(loaded.tracks()[0].transitions[0].kindId, QStringLiteral("dip"));
     QCOMPARE(loaded.tracks()[0].transitions[0].fromClipId, QStringLiteral("clip-a"));
@@ -1800,56 +1800,56 @@ void CoreTest::maskAndTransitionSerialization()
 // offset on reload would silently slide the mask off the subject.
 void CoreTest::matteMaskSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-matte");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
-    clip.mask.shape = drift::MaskShape::Matte;
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
+    clip.mask.shape = TonDron::MaskShape::Matte;
     clip.mask.mattePath = QStringLiteral("/tmp/mattes/abc.mkv");
-    clip.mask.matteSrcOffsetUs = drift::secondsToUs(1.5);
+    clip.mask.matteSrcOffsetUs = TonDron::secondsToUs(1.5);
     clip.mask.invert = true;
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Mask &mask = loaded.tracks()[0].clips[0].mask;
-    QCOMPARE(mask.shape, drift::MaskShape::Matte);
+    const TonDron::Mask &mask = loaded.tracks()[0].clips[0].mask;
+    QCOMPARE(mask.shape, TonDron::MaskShape::Matte);
     QCOMPARE(mask.mattePath, QStringLiteral("/tmp/mattes/abc.mkv"));
-    QCOMPARE(mask.matteSrcOffsetUs, drift::secondsToUs(1.5));
+    QCOMPARE(mask.matteSrcOffsetUs, TonDron::secondsToUs(1.5));
     QCOMPARE(mask.invert, true);
 }
 
 void CoreTest::faceTrackSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-face");
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     clip.faceTrackPath = QStringLiteral("/tmp/facetracks/abc.json");
-    clip.faceTrackSrcOffsetUs = drift::secondsToUs(2.25);
+    clip.faceTrackSrcOffsetUs = TonDron::secondsToUs(2.25);
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
-    const drift::Clip &out = loaded.tracks()[0].clips[0];
+    const TonDron::Clip &out = loaded.tracks()[0].clips[0];
     QCOMPARE(out.faceTrackPath, QStringLiteral("/tmp/facetracks/abc.json"));
-    QCOMPARE(out.faceTrackSrcOffsetUs, drift::secondsToUs(2.25));
+    QCOMPARE(out.faceTrackSrcOffsetUs, TonDron::secondsToUs(2.25));
 
     // A project written before face tracking existed carries neither key, and must still load with
     // the clip simply having no track rather than failing.
@@ -1865,30 +1865,30 @@ void CoreTest::faceTrackSerialization()
     legacyTracks.replace(0, legacyTrack);
     legacy.insert(QStringLiteral("tracks"), legacyTracks);
 
-    const drift::Project old = drift::Project::fromJson(legacy, &error);
+    const TonDron::Project old = TonDron::Project::fromJson(legacy, &error);
     QVERIFY(error.isEmpty());
     QVERIFY(old.tracks()[0].clips[0].faceTrackPath.isEmpty());
-    QCOMPARE(old.tracks()[0].clips[0].faceTrackSrcOffsetUs, drift::TimeUs(0));
+    QCOMPARE(old.tracks()[0].clips[0].faceTrackSrcOffsetUs, TonDron::TimeUs(0));
 }
 
 void CoreTest::emojiClipSerialization()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("clip-emoji");
-    clip.type = drift::ClipType::Image;
+    clip.type = TonDron::ClipType::Image;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(3.0);
+    clip.timelineDuration = TonDron::secondsToUs(3.0);
     clip.path = QStringLiteral("/tmp/emoji/1f600.png");
     clip.emoji = QStringLiteral("\U0001F600");
     project.tracks()[0].clips.append(clip);
 
     const QJsonObject json = project.toJson();
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(json, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(json, &error);
 
     QVERIFY(error.isEmpty());
     // The sequence is what survives a move between machines; the cached raster path does not.
@@ -1906,36 +1906,36 @@ void CoreTest::emojiClipSerialization()
     legacyTracks.replace(0, legacyTrack);
     legacy.insert(QStringLiteral("tracks"), legacyTracks);
 
-    const drift::Project old = drift::Project::fromJson(legacy, &error);
+    const TonDron::Project old = TonDron::Project::fromJson(legacy, &error);
     QVERIFY(error.isEmpty());
     QVERIFY(old.tracks()[0].clips[0].emoji.isEmpty());
 }
 
 // The pre-shader enum serialized exactly these strings, so a project written by an older build
 // must still resolve to the right transition package.
-static drift::Project projectWithTransition(const QString &kindId,
+static TonDron::Project projectWithTransition(const QString &kindId,
                                             const QMap<QString, QVariant> &params = {})
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clipA;
+    TonDron::Clip clipA;
     clipA.id = QStringLiteral("a");
-    clipA.type = drift::ClipType::Video;
+    clipA.type = TonDron::ClipType::Video;
     clipA.timelineStart = 0;
-    clipA.timelineDuration = drift::secondsToUs(1.0);
+    clipA.timelineDuration = TonDron::secondsToUs(1.0);
 
-    drift::Clip clipB;
+    TonDron::Clip clipB;
     clipB.id = QStringLiteral("b");
-    clipB.type = drift::ClipType::Video;
-    clipB.timelineStart = drift::secondsToUs(1.0);
-    clipB.timelineDuration = drift::secondsToUs(1.0);
+    clipB.type = TonDron::ClipType::Video;
+    clipB.timelineStart = TonDron::secondsToUs(1.0);
+    clipB.timelineDuration = TonDron::secondsToUs(1.0);
 
     project.tracks()[0].clips.append(clipA);
     project.tracks()[0].clips.append(clipB);
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.id = QStringLiteral("tr");
     transition.fromClipId = clipA.id;
     transition.toClipId = clipB.id;
@@ -1954,9 +1954,9 @@ void CoreTest::allTransitionKindsRoundTrip()
     };
 
     for (const QString &kind : kinds) {
-        const drift::Project project = projectWithTransition(kind);
+        const TonDron::Project project = projectWithTransition(kind);
         QString error;
-        const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+        const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
         QVERIFY2(error.isEmpty(), qPrintable(error));
         QCOMPARE(loaded.tracks()[0].transitions[0].kindId, kind);
     }
@@ -1968,12 +1968,12 @@ void CoreTest::transitionParametersRoundTrip()
     params.insert(QStringLiteral("softness"), 0.25);
     params.insert(QStringLiteral("invert"), true);
 
-    const drift::Project project = projectWithTransition(QStringLiteral("luma_fade"), params);
+    const TonDron::Project project = projectWithTransition(QStringLiteral("luma_fade"), params);
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY2(error.isEmpty(), qPrintable(error));
 
-    const drift::Transition &t = loaded.tracks()[0].transitions[0];
+    const TonDron::Transition &t = loaded.tracks()[0].transitions[0];
     QCOMPARE(t.kindId, QStringLiteral("luma_fade"));
     QCOMPARE(t.parameters.value(QStringLiteral("softness")).toDouble(), 0.25);
     QCOMPARE(t.parameters.value(QStringLiteral("invert")).toBool(), true);
@@ -1994,7 +1994,7 @@ void CoreTest::legacyTransitionJsonStillLoads()
     legacy.insert(QStringLiteral("tracks"), tracks);
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(legacy, &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(legacy, &error);
     QVERIFY2(error.isEmpty(), qPrintable(error));
     QCOMPARE(loaded.tracks()[0].transitions[0].kindId, QStringLiteral("wipe_up"));
     QVERIFY(loaded.tracks()[0].transitions[0].parameters.isEmpty());
@@ -2003,103 +2003,103 @@ void CoreTest::legacyTransitionJsonStillLoads()
 void CoreTest::transitionAudioCurves()
 {
     // crossfade: linear, sums to 1 at every point.
-    const auto mid = drift::transitionAudioGains(QStringLiteral("crossfade"), 0.5);
+    const auto mid = TonDron::transitionAudioGains(QStringLiteral("crossfade"), 0.5);
     QCOMPARE(mid.outgoing, 0.5);
     QCOMPARE(mid.incoming, 0.5);
 
     // dip: silent at the midpoint, matching the visual dip through black.
-    const auto dip = drift::transitionAudioGains(QStringLiteral("dip"), 0.5);
+    const auto dip = TonDron::transitionAudioGains(QStringLiteral("dip"), 0.5);
     QCOMPARE(dip.outgoing, 0.0);
     QCOMPARE(dip.incoming, 0.0);
-    QCOMPARE(drift::transitionAudioGains(QStringLiteral("dip"), 0.0).outgoing, 1.0);
-    QCOMPARE(drift::transitionAudioGains(QStringLiteral("dip"), 1.0).incoming, 1.0);
+    QCOMPARE(TonDron::transitionAudioGains(QStringLiteral("dip"), 0.0).outgoing, 1.0);
+    QCOMPARE(TonDron::transitionAudioGains(QStringLiteral("dip"), 1.0).incoming, 1.0);
 
     // hold: no ducking at all.
-    const auto hold = drift::transitionAudioGains(QStringLiteral("hold"), 0.5);
+    const auto hold = TonDron::transitionAudioGains(QStringLiteral("hold"), 0.5);
     QCOMPARE(hold.outgoing, 1.0);
     QCOMPARE(hold.incoming, 1.0);
 }
 
 void CoreTest::physicalOverlapTransitionWindow()
 {
-    drift::Track track;
-    track.type = drift::TrackType::Video;
+    TonDron::Track track;
+    track.type = TonDron::TrackType::Video;
 
-    drift::Clip clipA;
+    TonDron::Clip clipA;
     clipA.id = QStringLiteral("a");
     clipA.timelineStart = 0;
-    clipA.timelineDuration = drift::secondsToUs(2.0);
+    clipA.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Clip clipB;
+    TonDron::Clip clipB;
     clipB.id = QStringLiteral("b");
-    clipB.timelineStart = drift::secondsToUs(1.5);
-    clipB.timelineDuration = drift::secondsToUs(2.0);
+    clipB.timelineStart = TonDron::secondsToUs(1.5);
+    clipB.timelineDuration = TonDron::secondsToUs(2.0);
 
     track.clips.append(clipA);
     track.clips.append(clipB);
 
-    QVERIFY(drift::clipsPhysicallyOverlap(clipA, clipB));
-    QCOMPARE(drift::physicalOverlapDurationUs(clipA, clipB), drift::secondsToUs(0.5));
+    QVERIFY(TonDron::clipsPhysicallyOverlap(clipA, clipB));
+    QCOMPARE(TonDron::physicalOverlapDurationUs(clipA, clipB), TonDron::secondsToUs(0.5));
 
-    drift::Transition transition;
+    TonDron::Transition transition;
     transition.fromClipId = clipA.id;
     transition.toClipId = clipB.id;
-    transition.durationUs = drift::secondsToUs(1.0); // ignored when overlapping
+    transition.durationUs = TonDron::secondsToUs(1.0); // ignored when overlapping
 
-    drift::TimeUs startUs = 0;
-    drift::TimeUs endUs = 0;
-    QVERIFY(drift::transitionWindow(track, transition, startUs, endUs));
-    QCOMPARE(startUs, drift::secondsToUs(1.5));
-    QCOMPARE(endUs, drift::secondsToUs(2.0));
+    TonDron::TimeUs startUs = 0;
+    TonDron::TimeUs endUs = 0;
+    QVERIFY(TonDron::transitionWindow(track, transition, startUs, endUs));
+    QCOMPARE(startUs, TonDron::secondsToUs(1.5));
+    QCOMPARE(endUs, TonDron::secondsToUs(2.0));
 }
 
 void CoreTest::clampClipStartNoOverlapPushesPastBlockers()
 {
-    drift::Track track;
-    track.type = drift::TrackType::Video;
+    TonDron::Track track;
+    track.type = TonDron::TrackType::Video;
 
-    drift::Clip blocker;
+    TonDron::Clip blocker;
     blocker.id = QStringLiteral("blocker");
-    blocker.timelineStart = drift::secondsToUs(1.0);
-    blocker.timelineDuration = drift::secondsToUs(2.0);
+    blocker.timelineStart = TonDron::secondsToUs(1.0);
+    blocker.timelineDuration = TonDron::secondsToUs(2.0);
     track.clips.append(blocker);
 
-    drift::Clip moving;
+    TonDron::Clip moving;
     moving.id = QStringLiteral("moving");
-    moving.timelineDuration = drift::secondsToUs(1.0);
+    moving.timelineDuration = TonDron::secondsToUs(1.0);
 
     const QSet<QString> exclude{moving.id};
     // Dropping into the blocker should land just after it.
-    QCOMPARE(drift::clampClipStartNoOverlap(track, exclude, drift::secondsToUs(1.5),
+    QCOMPARE(TonDron::clampClipStartNoOverlap(track, exclude, TonDron::secondsToUs(1.5),
                                             moving.timelineDuration),
-             drift::secondsToUs(3.0));
+             TonDron::secondsToUs(3.0));
     // Abutting the blocker is allowed.
-    QCOMPARE(drift::clampClipStartNoOverlap(track, exclude, drift::secondsToUs(3.0),
+    QCOMPARE(TonDron::clampClipStartNoOverlap(track, exclude, TonDron::secondsToUs(3.0),
                                             moving.timelineDuration),
-             drift::secondsToUs(3.0));
+             TonDron::secondsToUs(3.0));
     // Clear space before the blocker stays put.
-    QCOMPARE(drift::clampClipStartNoOverlap(track, exclude, 0, moving.timelineDuration), 0);
+    QCOMPARE(TonDron::clampClipStartNoOverlap(track, exclude, 0, moving.timelineDuration), 0);
 }
 
 void CoreTest::clampTrimEdgesIgnoreExistingOverlaps()
 {
-    drift::Track track;
-    track.type = drift::TrackType::Video;
+    TonDron::Track track;
+    track.type = TonDron::TrackType::Video;
 
-    drift::Clip left;
+    TonDron::Clip left;
     left.id = QStringLiteral("left");
     left.timelineStart = 0;
-    left.timelineDuration = drift::secondsToUs(2.0);
+    left.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Clip mid;
+    TonDron::Clip mid;
     mid.id = QStringLiteral("mid");
-    mid.timelineStart = drift::secondsToUs(1.0); // already overlaps left
-    mid.timelineDuration = drift::secondsToUs(2.0);
+    mid.timelineStart = TonDron::secondsToUs(1.0); // already overlaps left
+    mid.timelineDuration = TonDron::secondsToUs(2.0);
 
-    drift::Clip right;
+    TonDron::Clip right;
     right.id = QStringLiteral("right");
-    right.timelineStart = drift::secondsToUs(4.0);
-    right.timelineDuration = drift::secondsToUs(1.0);
+    right.timelineStart = TonDron::secondsToUs(4.0);
+    right.timelineDuration = TonDron::secondsToUs(1.0);
 
     track.clips.append(left);
     track.clips.append(mid);
@@ -2107,38 +2107,38 @@ void CoreTest::clampTrimEdgesIgnoreExistingOverlaps()
 
     const QSet<QString> excludeMid{mid.id};
     // Extending mid left must not jump past the already-overlapping left clip.
-    QCOMPARE(drift::clampClipStartAgainstLeftNeighbors(track, excludeMid, mid.timelineStart,
-                                                       drift::secondsToUs(0.5)),
-             drift::secondsToUs(0.5));
+    QCOMPARE(TonDron::clampClipStartAgainstLeftNeighbors(track, excludeMid, mid.timelineStart,
+                                                       TonDron::secondsToUs(0.5)),
+             TonDron::secondsToUs(0.5));
     // Extending mid right stops at the abutting/gapped right neighbor.
-    QCOMPARE(drift::clampClipEndNoOverlap(track, excludeMid, mid.timelineEnd(),
-                                          drift::secondsToUs(4.5)),
-             drift::secondsToUs(4.0));
+    QCOMPARE(TonDron::clampClipEndNoOverlap(track, excludeMid, mid.timelineEnd(),
+                                          TonDron::secondsToUs(4.5)),
+             TonDron::secondsToUs(4.0));
 }
 
 void CoreTest::backgroundSerialization()
 {
     // Default background is opaque black / Color and must survive a round-trip.
     {
-        drift::Project project;
-        const drift::Project loaded = drift::Project::fromJson(project.toJson());
-        QCOMPARE(loaded.background().kind, drift::BackgroundKind::Color);
+        TonDron::Project project;
+        const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson());
+        QCOMPARE(loaded.background().kind, TonDron::BackgroundKind::Color);
         QCOMPARE(loaded.background().color, QColor(Qt::black));
     }
 
     // Non-default (blur + color + strength) round-trips.
     {
-        drift::Project project;
-        drift::Background bg;
-        bg.kind = drift::BackgroundKind::Blur;
+        TonDron::Project project;
+        TonDron::Background bg;
+        bg.kind = TonDron::BackgroundKind::Blur;
         bg.color = QColor(QStringLiteral("#ff2563eb"));
         bg.blurStrength = 42.0;
         project.setBackground(bg);
 
         QString error;
-        const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+        const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
         QVERIFY2(error.isEmpty(), qPrintable(error));
-        QCOMPARE(loaded.background().kind, drift::BackgroundKind::Blur);
+        QCOMPARE(loaded.background().kind, TonDron::BackgroundKind::Blur);
         QCOMPARE(loaded.background().color, QColor(QStringLiteral("#ff2563eb")));
         QCOMPARE(loaded.background().blurStrength, 42.0);
     }
@@ -2154,51 +2154,51 @@ void CoreTest::backgroundSerialization()
             {QStringLiteral("tracks"), QJsonArray{}},
         };
         QString error;
-        const drift::Project loaded = drift::Project::fromJson(root, &error);
+        const TonDron::Project loaded = TonDron::Project::fromJson(root, &error);
         QVERIFY2(error.isEmpty(), qPrintable(error));
-        QCOMPARE(loaded.background().kind, drift::BackgroundKind::Color);
+        QCOMPARE(loaded.background().kind, TonDron::BackgroundKind::Color);
         QCOMPARE(loaded.background().color, QColor(Qt::black));
     }
 }
 
 void CoreTest::fadeSerializationAndMultiplier()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("fade-clip");
-    clip.type = drift::ClipType::Video;
-    clip.timelineStart = drift::secondsToUs(1.0);
-    clip.timelineDuration = drift::secondsToUs(4.0);
-    clip.fadeInUs = drift::secondsToUs(1.0);
-    clip.fadeOutUs = drift::secondsToUs(2.0);
-    clip.fadeCurve = drift::FadeCurve::Linear;
+    clip.type = TonDron::ClipType::Video;
+    clip.timelineStart = TonDron::secondsToUs(1.0);
+    clip.timelineDuration = TonDron::secondsToUs(4.0);
+    clip.fadeInUs = TonDron::secondsToUs(1.0);
+    clip.fadeOutUs = TonDron::secondsToUs(2.0);
+    clip.fadeCurve = TonDron::FadeCurve::Linear;
     project.tracks()[0].clips.append(clip);
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY2(error.isEmpty(), qPrintable(error));
-    const drift::Clip &c = loaded.tracks()[0].clips[0];
-    QCOMPARE(c.fadeInUs, drift::secondsToUs(1.0));
-    QCOMPARE(c.fadeOutUs, drift::secondsToUs(2.0));
-    QCOMPARE(c.fadeCurve, drift::FadeCurve::Linear);
+    const TonDron::Clip &c = loaded.tracks()[0].clips[0];
+    QCOMPARE(c.fadeInUs, TonDron::secondsToUs(1.0));
+    QCOMPARE(c.fadeOutUs, TonDron::secondsToUs(2.0));
+    QCOMPARE(c.fadeCurve, TonDron::FadeCurve::Linear);
 
     // Linear ramp: at the very edges gain is 0, at the fade midpoints 0.5, and
     // fully present between the fades.
     QCOMPARE(c.fadeMultiplier(c.timelineStart), 0.0);
-    QVERIFY(qAbs(c.fadeMultiplier(c.timelineStart + drift::secondsToUs(0.5)) - 0.5) < 1e-6);
-    QVERIFY(qAbs(c.fadeMultiplier(c.timelineStart + drift::secondsToUs(1.5)) - 1.0) < 1e-6);
-    QVERIFY(qAbs(c.fadeMultiplier(c.timelineEnd() - drift::secondsToUs(1.0)) - 0.5) < 1e-6);
+    QVERIFY(qAbs(c.fadeMultiplier(c.timelineStart + TonDron::secondsToUs(0.5)) - 0.5) < 1e-6);
+    QVERIFY(qAbs(c.fadeMultiplier(c.timelineStart + TonDron::secondsToUs(1.5)) - 1.0) < 1e-6);
+    QVERIFY(qAbs(c.fadeMultiplier(c.timelineEnd() - TonDron::secondsToUs(1.0)) - 0.5) < 1e-6);
 
     // Presets must diverge early in the fade so Smooth / Natural are audible and visible.
     // (Smoothstep equals Linear at t=0.5, so sample at quarter-fade.)
-    drift::Clip smooth = c;
-    smooth.fadeCurve = drift::FadeCurve::Smooth;
-    drift::Clip natural = c;
-    natural.fadeCurve = drift::FadeCurve::EqualPower;
-    const drift::TimeUs earlyIn = c.timelineStart + drift::secondsToUs(0.25);
+    TonDron::Clip smooth = c;
+    smooth.fadeCurve = TonDron::FadeCurve::Smooth;
+    TonDron::Clip natural = c;
+    natural.fadeCurve = TonDron::FadeCurve::EqualPower;
+    const TonDron::TimeUs earlyIn = c.timelineStart + TonDron::secondsToUs(0.25);
     const double linearEarly = c.fadeMultiplier(earlyIn);
     const double smoothEarly = smooth.fadeMultiplier(earlyIn);
     const double naturalEarly = natural.fadeMultiplier(earlyIn);
@@ -2206,79 +2206,79 @@ void CoreTest::fadeSerializationAndMultiplier()
     QVERIFY(naturalEarly > linearEarly + 0.05);
 
     // Custom shape round-trips and drives the multiplier.
-    drift::Clip custom = c;
-    custom.fadeCurve = drift::FadeCurve::Custom;
+    TonDron::Clip custom = c;
+    custom.fadeCurve = TonDron::FadeCurve::Custom;
     custom.fadeShape.setPoints({QPointF(0.0, 0.0), QPointF(0.5, 0.25), QPointF(1.0, 1.0)});
     project.tracks()[0].clips[0] = custom;
-    const drift::Project customLoaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project customLoaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY2(error.isEmpty(), qPrintable(error));
-    const drift::Clip &cc = customLoaded.tracks()[0].clips[0];
-    QCOMPARE(cc.fadeCurve, drift::FadeCurve::Custom);
+    const TonDron::Clip &cc = customLoaded.tracks()[0].clips[0];
+    QCOMPARE(cc.fadeCurve, TonDron::FadeCurve::Custom);
     QVERIFY(!cc.fadeShape.isEmpty());
-    const drift::TimeUs midIn = c.timelineStart + drift::secondsToUs(0.5);
+    const TonDron::TimeUs midIn = c.timelineStart + TonDron::secondsToUs(0.5);
     QVERIFY(qAbs(cc.fadeMultiplier(midIn) - 0.25) < 1e-6);
 
     // A clip with no fades is always fully present.
-    drift::Clip plain;
+    TonDron::Clip plain;
     plain.timelineStart = 0;
-    plain.timelineDuration = drift::secondsToUs(2.0);
-    QCOMPARE(plain.fadeMultiplier(drift::secondsToUs(1.0)), 1.0);
+    plain.timelineDuration = TonDron::secondsToUs(2.0);
+    QCOMPARE(plain.fadeMultiplier(TonDron::secondsToUs(1.0)), 1.0);
 }
 
 void CoreTest::clipAnimationSerializationAndSample()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.tracks().clear();
-    project.tracks().append(drift::Track{.type = drift::TrackType::Video});
+    project.tracks().append(TonDron::Track{.type = TonDron::TrackType::Video});
 
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = QStringLiteral("anim-clip");
-    clip.type = drift::ClipType::Shape;
+    clip.type = TonDron::ClipType::Shape;
     clip.timelineStart = 0;
-    clip.timelineDuration = drift::secondsToUs(2.0);
-    clip.animIn = {drift::ClipAnimKind::Fade, drift::secondsToUs(1.0), drift::ClipAnimEase::Linear,
-                   drift::FadeCurve::Linear};
-    clip.animOut = {drift::ClipAnimKind::ZoomIn, drift::secondsToUs(0.5), drift::ClipAnimEase::EaseOut,
-                    drift::FadeCurve::EqualPower};
+    clip.timelineDuration = TonDron::secondsToUs(2.0);
+    clip.animIn = {TonDron::ClipAnimKind::Fade, TonDron::secondsToUs(1.0), TonDron::ClipAnimEase::Linear,
+                   TonDron::FadeCurve::Linear};
+    clip.animOut = {TonDron::ClipAnimKind::ZoomIn, TonDron::secondsToUs(0.5), TonDron::ClipAnimEase::EaseOut,
+                    TonDron::FadeCurve::EqualPower};
     project.tracks()[0].clips.append(clip);
 
     QString error;
-    const drift::Project loaded = drift::Project::fromJson(project.toJson(), &error);
+    const TonDron::Project loaded = TonDron::Project::fromJson(project.toJson(), &error);
     QVERIFY2(error.isEmpty(), qPrintable(error));
-    const drift::Clip &c = loaded.tracks()[0].clips[0];
-    QCOMPARE(c.animIn.kind, drift::ClipAnimKind::Fade);
-    QCOMPARE(c.animIn.durationUs, drift::secondsToUs(1.0));
-    QCOMPARE(c.animIn.curve, drift::FadeCurve::Linear);
-    QCOMPARE(c.animOut.kind, drift::ClipAnimKind::ZoomIn);
-    QCOMPARE(c.animOut.curve, drift::FadeCurve::EqualPower);
+    const TonDron::Clip &c = loaded.tracks()[0].clips[0];
+    QCOMPARE(c.animIn.kind, TonDron::ClipAnimKind::Fade);
+    QCOMPARE(c.animIn.durationUs, TonDron::secondsToUs(1.0));
+    QCOMPARE(c.animIn.curve, TonDron::FadeCurve::Linear);
+    QCOMPARE(c.animOut.kind, TonDron::ClipAnimKind::ZoomIn);
+    QCOMPARE(c.animOut.curve, TonDron::FadeCurve::EqualPower);
 
     // Fade kind owns opacity via fadeMultiplier (not body-anim sample).
-    QVERIFY(qAbs(c.fadeMultiplier(drift::secondsToUs(0.5)) - 0.5) < 1e-6);
-    const drift::ClipAnimSample midIn =
-        drift::evaluateClipAnimation(c.timelineStart, c.timelineDuration, c.animIn, {},
-                                     drift::secondsToUs(0.5), 100.0, 100.0);
+    QVERIFY(qAbs(c.fadeMultiplier(TonDron::secondsToUs(0.5)) - 0.5) < 1e-6);
+    const TonDron::ClipAnimSample midIn =
+        TonDron::evaluateClipAnimation(c.timelineStart, c.timelineDuration, c.animIn, {},
+                                     TonDron::secondsToUs(0.5), 100.0, 100.0);
     QVERIFY(qAbs(midIn.opacity - 1.0) < 1e-6);
 
-    drift::Clip zoom;
+    TonDron::Clip zoom;
     zoom.timelineStart = 0;
-    zoom.timelineDuration = drift::secondsToUs(2.0);
-    zoom.animIn = {drift::ClipAnimKind::ZoomIn, drift::secondsToUs(1.0), drift::ClipAnimEase::Linear,
-                   drift::FadeCurve::Linear};
-    const drift::ClipAnimSample zoomMid =
-        drift::evaluateClipAnimation(zoom.timelineStart, zoom.timelineDuration, zoom.animIn, {},
-                                     drift::secondsToUs(0.5), 100.0, 100.0);
+    zoom.timelineDuration = TonDron::secondsToUs(2.0);
+    zoom.animIn = {TonDron::ClipAnimKind::ZoomIn, TonDron::secondsToUs(1.0), TonDron::ClipAnimEase::Linear,
+                   TonDron::FadeCurve::Linear};
+    const TonDron::ClipAnimSample zoomMid =
+        TonDron::evaluateClipAnimation(zoom.timelineStart, zoom.timelineDuration, zoom.animIn, {},
+                                     TonDron::secondsToUs(0.5), 100.0, 100.0);
     QVERIFY(qAbs(zoomMid.scale - 0.8) < 1e-6); // 0.6 + 0.4 * 0.5
     QVERIFY(zoomMid.scale < 1.0);
 
     // Smooth style bends motion progress vs linear at quarter-time.
-    drift::Clip smoothZoom = zoom;
-    smoothZoom.animIn.curve = drift::FadeCurve::Smooth;
-    const drift::ClipAnimSample smoothMid =
-        drift::evaluateClipAnimation(smoothZoom.timelineStart, smoothZoom.timelineDuration,
-                                     smoothZoom.animIn, {}, drift::secondsToUs(0.25), 100.0, 100.0);
-    const drift::ClipAnimSample linearQuarter =
-        drift::evaluateClipAnimation(zoom.timelineStart, zoom.timelineDuration, zoom.animIn, {},
-                                     drift::secondsToUs(0.25), 100.0, 100.0);
+    TonDron::Clip smoothZoom = zoom;
+    smoothZoom.animIn.curve = TonDron::FadeCurve::Smooth;
+    const TonDron::ClipAnimSample smoothMid =
+        TonDron::evaluateClipAnimation(smoothZoom.timelineStart, smoothZoom.timelineDuration,
+                                     smoothZoom.animIn, {}, TonDron::secondsToUs(0.25), 100.0, 100.0);
+    const TonDron::ClipAnimSample linearQuarter =
+        TonDron::evaluateClipAnimation(zoom.timelineStart, zoom.timelineDuration, zoom.animIn, {},
+                                     TonDron::secondsToUs(0.25), 100.0, 100.0);
     QVERIFY(smoothMid.scale < linearQuarter.scale - 0.01);
 }
 
@@ -2287,36 +2287,36 @@ void CoreTest::clipAnimationSerializationAndSample()
 // frame instead of shrinking with it.
 void CoreTest::rebaseClipLayoutFreezesImplicitSize()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(1920, 1080);
 
-    drift::Track track;
-    track.type = drift::TrackType::Video;
+    TonDron::Track track;
+    track.type = TonDron::TrackType::Video;
 
-    drift::Clip implicitSize; // no transform keyframes at all
-    implicitSize.type = drift::ClipType::Video;
+    TonDron::Clip implicitSize; // no transform keyframes at all
+    implicitSize.type = TonDron::ClipType::Video;
     track.clips.append(implicitSize);
 
-    drift::Clip explicitSize;
-    explicitSize.type = drift::ClipType::Image;
+    TonDron::Clip explicitSize;
+    explicitSize.type = TonDron::ClipType::Image;
     explicitSize.transformW.setKeyframe(0, 640.0);
     explicitSize.transformH.setKeyframe(0, 360.0);
     explicitSize.transformX.setKeyframe(0, 100.0);
     explicitSize.transformY.setKeyframe(0, 50.0);
     track.clips.append(explicitSize);
 
-    drift::Clip audio; // audio carries no layout; must be left alone
-    audio.type = drift::ClipType::Audio;
+    TonDron::Clip audio; // audio carries no layout; must be left alone
+    audio.type = TonDron::ClipType::Audio;
     track.clips.append(audio);
 
     project.tracks().clear(); // drop the default timeline; this test owns the document
     project.tracks().append(track);
 
     // Crop to a 1520x1080 window starting 400px in from the left.
-    drift::rebaseClipLayout(project, 1920, 1080, 400.0, 0.0);
+    TonDron::rebaseClipLayout(project, 1920, 1080, 400.0, 0.0);
     project.setResolution(1520, 1080);
 
-    const drift::Track &out = project.tracks().at(0);
+    const TonDron::Track &out = project.tracks().at(0);
 
     // The implicit clip keeps its original 1920x1080 footprint and is pushed
     // left by the crop origin, so it now overflows both sides of the frame.
@@ -2339,28 +2339,28 @@ void CoreTest::rebaseClipLayoutFreezesImplicitSize()
 // relative to the content rather than being flattened to one value.
 void CoreTest::rebaseClipLayoutShiftsKeyframedPosition()
 {
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(1920, 1080);
 
-    drift::Track track;
-    track.type = drift::TrackType::Video;
+    TonDron::Track track;
+    track.type = TonDron::TrackType::Video;
 
-    drift::Clip clip;
-    clip.type = drift::ClipType::Video;
+    TonDron::Clip clip;
+    clip.type = TonDron::ClipType::Video;
     clip.transformX.setKeyframe(0, 0.0);
-    clip.transformX.setKeyframe(drift::secondsToUs(2.0), 800.0);
+    clip.transformX.setKeyframe(TonDron::secondsToUs(2.0), 800.0);
     clip.transformY.setKeyframe(0, 200.0);
     track.clips.append(clip);
 
     project.tracks().clear(); // drop the default timeline; this test owns the document
     project.tracks().append(track);
 
-    drift::rebaseClipLayout(project, 1920, 1080, 120.0, 60.0);
+    TonDron::rebaseClipLayout(project, 1920, 1080, 120.0, 60.0);
 
-    const drift::Clip &out = project.tracks().at(0).clips.at(0);
+    const TonDron::Clip &out = project.tracks().at(0).clips.at(0);
     QCOMPARE(out.transformX.keyframes().size(), 2);
     QCOMPARE(out.transformX.evaluateAt(0), -120.0);
-    QCOMPARE(out.transformX.evaluateAt(drift::secondsToUs(2.0)), 680.0);
+    QCOMPARE(out.transformX.evaluateAt(TonDron::secondsToUs(2.0)), 680.0);
     QCOMPARE(out.transformY.evaluateAt(0), 140.0);
 }
 

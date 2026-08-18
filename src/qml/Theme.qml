@@ -313,7 +313,7 @@ QtObject {
     // sliver. Sized for two trim handles plus a move strip between them.
     readonly property real clipMinInteractiveWidth: 28
     readonly property real clipMinWidth: clipMinInteractiveWidth * 2
-    // Matches drift::kMinClipDurationUs (0.1s). Effective min duration is the
+    // Matches TonDron::kMinClipDurationUs (0.1s). Effective min duration is the
     // larger of this and clipMinWidth / pxPerSecond at the current zoom.
     readonly property real clipMinDurationSeconds: 0.1
 

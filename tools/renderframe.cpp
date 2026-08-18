@@ -36,14 +36,14 @@ int main(int argc, char *argv[])
     }
 
     QString error;
-    drift::Project project = drift::Project::fromJson(doc.object(), &error);
+    TonDron::Project project = TonDron::Project::fromJson(doc.object(), &error);
     if (!error.isEmpty()) {
         err << "project load failed: " << error << "\n";
         return 1;
     }
 
     bool ok = false;
-    const drift::TimeUs timeUs = args.at(2).toLongLong(&ok);
+    const TonDron::TimeUs timeUs = args.at(2).toLongLong(&ok);
     if (!ok || timeUs < 0) {
         err << "invalid time_us: " << args.at(2) << "\n";
         return 1;

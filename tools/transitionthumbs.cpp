@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        drift::Transition instance;
+        TonDron::Transition instance;
         instance.kindId = def.meta.id;
         const QMap<QString, QVariant> params = resolvedTransitionParameters(instance, def);
 

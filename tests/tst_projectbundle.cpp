@@ -11,7 +11,7 @@
 
 #include <zstd.h>
 
-using namespace drift::bundle;
+using namespace TonDron::bundle;
 
 // The bundle is written from scratch here rather than from a fixture: the writer is the only thing
 // that produces the format, so a fixture would only ever prove the reader agrees with itself.

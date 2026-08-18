@@ -20,19 +20,19 @@
 
 namespace {
 
-drift::Effect makeEffect(const QString &catalogId)
+TonDron::Effect makeEffect(const QString &catalogId)
 {
-    drift::Effect effect;
+    TonDron::Effect effect;
     effect.catalogId = catalogId;
     return effect;
 }
 
-drift::Clip makeVideoClip(const QString &id, const QString &path, drift::TimeUs start,
-                          drift::TimeUs duration)
+TonDron::Clip makeVideoClip(const QString &id, const QString &path, TonDron::TimeUs start,
+                          TonDron::TimeUs duration)
 {
-    drift::Clip clip;
+    TonDron::Clip clip;
     clip.id = id;
-    clip.type = drift::ClipType::Video;
+    clip.type = TonDron::ClipType::Video;
     clip.path = path;
     clip.timelineStart = start;
     clip.timelineDuration = duration;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     const QString pathB = args.at(2);
     const double previewScale = args.size() > 3 ? args.at(3).toDouble() : 1.0;
 
-    drift::Project project;
+    TonDron::Project project;
     project.setResolution(1920, 1080);
     project.setFps(30);
     project.tracks().clear();
@@ -67,10 +67,10 @@ int main(int argc, char *argv[])
     // Top track: two clips with a crossfade between them. The first carries a
     // scale animation (the case that thrashes the decoder's size-keyed cache)
     // plus a three-effect chain (the case that stacks GPU round trips).
-    drift::Track top;
-    top.type = drift::TrackType::Video;
+    TonDron::Track top;
+    top.type = TonDron::TrackType::Video;
 
-    drift::Clip a = makeVideoClip(QStringLiteral("clipA"), pathA, 0, 5'000'000);
+    TonDron::Clip a = makeVideoClip(QStringLiteral("clipA"), pathA, 0, 5'000'000);
     a.transformW.setKeyframe(0, 1920.0);
     a.transformW.setKeyframe(5'000'000, 2400.0);
     a.transformH.setKeyframe(0, 1080.0);
@@ -79,12 +79,12 @@ int main(int argc, char *argv[])
     a.effects.append(makeEffect(QStringLiteral("stylize.vignette")));
     a.effects.append(makeEffect(QStringLiteral("rgb_split")));
 
-    drift::Clip b = makeVideoClip(QStringLiteral("clipB"), pathB, 4'500'000, 5'500'000);
+    TonDron::Clip b = makeVideoClip(QStringLiteral("clipB"), pathB, 4'500'000, 5'500'000);
     b.effects.append(makeEffect(QStringLiteral("adjust.saturation")));
 
     top.clips << a << b;
 
-    drift::Transition t;
+    TonDron::Transition t;
     t.id = QStringLiteral("t0");
     t.fromClipId = a.id;
     t.toClipId = b.id;
@@ -94,9 +94,9 @@ int main(int argc, char *argv[])
 
     // Bottom track: a full-canvas layer under everything, so every frame
     // composites at least two decoded sources.
-    drift::Track bottom;
-    bottom.type = drift::TrackType::Video;
-    drift::Clip base = makeVideoClip(QStringLiteral("clipBase"), pathB, 0, 10'000'000);
+    TonDron::Track bottom;
+    bottom.type = TonDron::TrackType::Video;
+    TonDron::Clip base = makeVideoClip(QStringLiteral("clipBase"), pathB, 0, 10'000'000);
     bottom.clips << base;
 
     project.tracks() << top << bottom;
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 
     const int fps = project.fps();
     const int frames = 150; // 5 s of a playback-like forward sweep
-    const drift::TimeUs step = 1'000'000 / fps;
+    const TonDron::TimeUs step = 1'000'000 / fps;
 
     // Warm up decoders, GL context and shader compilation.
     for (int i = 0; i < 5; ++i)
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 
     QElapsedTimer timer;
     for (int i = 0; i < frames; ++i) {
-        const drift::TimeUs t = static_cast<drift::TimeUs>(i) * step;
+        const TonDron::TimeUs t = static_cast<TonDron::TimeUs>(i) * step;
         timer.start();
         if (texturePath) {
             const GpuFrameTexture frame = compositor.compositeToTextureAt(t, options);
@@ -158,8 +158,8 @@ int main(int argc, char *argv[])
     // Optional golden dump: benchcomposite <a> <b> <scale> <out_prefix>
     if (args.size() > 4) {
         const QString prefix = args.at(4);
-        for (const drift::TimeUs t : {drift::TimeUs(1'000'000), drift::TimeUs(4'800'000),
-                                      drift::TimeUs(7'000'000)}) {
+        for (const TonDron::TimeUs t : {TonDron::TimeUs(1'000'000), TonDron::TimeUs(4'800'000),
+                                      TonDron::TimeUs(7'000'000)}) {
             const QImage frame = compositor.compositeAt(t, options);
             frame.save(QStringLiteral("%1_%2.png").arg(prefix).arg(t));
         }
