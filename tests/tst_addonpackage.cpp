@@ -43,7 +43,7 @@ private:
 
 void TestAddonPackage::initTestCase()
 {
-    m_fixture = QStringLiteral(DRIFT_TEST_DATA_DIR "/test.fixture-1.2.3.driftpkg");
+    m_fixture = QStringLiteral(DRIFT_TEST_DATA_DIR "/test.fixture-1.2.3.TonDronpkg");
     QVERIFY2(QFile::exists(m_fixture), qPrintable(m_fixture));
     QVERIFY(m_tmp.isValid());
 }
