@@ -296,7 +296,7 @@ Item {
                 visible: Updates.supported
                 checked: Updates.enabled
                 text: qsTr("Check on startup")
-                tooltip: qsTr("Ask GitHub once a day whether a newer Drift has been released")
+                tooltip: qsTr("Ask GitHub once a day whether a nueva versión de TonDron ha sido lanzada")
                 onToggled: Updates.enabled = checked
             }
 
@@ -319,7 +319,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Updates.status.length > 0
                           ? Updates.status
-                          : qsTr("Drift %1").arg(Updates.currentVersion)
+                          : qsTr("TonDron %1").arg(Updates.currentVersion)
                 }
             }
 

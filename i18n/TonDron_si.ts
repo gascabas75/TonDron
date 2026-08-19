@@ -115,8 +115,8 @@
     </message>
     <message>
         <location line="+10"/>
-        <source>Restart Drift for this to take effect.</source>
-        <translation>මෙය බලපැවැත්වීමට Drift නැවත අරඹන්න.</translation>
+        <source>Restart TonDron for this to take effect.</source>
+        <translation>මෙය බලපැවැත්වීමට TonDron නැවත අරඹන්න.</translation>
     </message>
     <message>
         <location line="+55"/>
@@ -215,8 +215,8 @@
     </message>
     <message>
         <location line="+122"/>
-        <source>Install the essential packs for effects, transitions, and audio. You can keep using Drift without them — installing unlocks updates when they improve.</source>
-        <translation>ප්‍රයෝග, සංක්‍රාන්ති සහ ශ්‍රව්‍ය සඳහා අත්‍යවශ්‍ය පැකේජ ස්ථාපනය කරන්න. ඒවා නොමැතිව ද ඔබට Drift භාවිත කළ හැක — ස්ථාපනය කිරීමෙන් වැඩිදියුණු වන විට යාවත්කාලීන ලබාගත හැක.</translation>
+        <source>Install the essential packs for effects, transitions, and audio. You can keep using TonDron without them — installing unlocks updates when they improve.</source>
+        <translation>ප්‍රයෝග, සංක්‍රාන්ති සහ ශ්‍රව්‍ය සඳහා අත්‍යවශ්‍ය පැකේජ ස්ථාපනය කරන්න. ඒවා නොමැතිව ද ඔබට TonDron භාවිත කළ හැක — ස්ථාපනය කිරීමෙන් වැඩිදියුණු වන විට යාවත්කාලීන ලබාගත හැක.</translation>
     </message>
     <message>
         <location line="+43"/>
@@ -2684,8 +2684,8 @@
     <name>EditorHeader</name>
     <message>
         <location filename="../src/qml/EditorHeader.qml" line="+16"/>
-        <source>Drift project (*.drift)</source>
-        <translation>Drift ව්‍යාපෘතිය (*.drift)</translation>
+        <source>TonDron project (*.drift)</source>
+        <translation>TonDron ව්‍යාපෘතිය (*.drift)</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -2764,8 +2764,8 @@
     </message>
     <message>
         <location line="+17"/>
-        <source>Drift %1 is available</source>
-        <translation>Drift %1 ලබාගත හැක</translation>
+        <source>TonDron %1 is available</source>
+        <translation>TonDron %1 ලබාගත හැක</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -4393,13 +4393,13 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     <name>Project</name>
     <message>
         <location filename="../src/core/Project.cpp" line="+852"/>
-        <source>This project was saved by a newer version of Drift (project format %1; this build reads up to %2).</source>
-        <translation>මෙම ව්‍යාපෘතිය Drift හි නව අනුවාදයකින් සුරකින ලද්දකි (ව්‍යාපෘති ආකෘතිය %1; මෙම සංස්කරණය කියවන්නේ %2 දක්වා පමණි).</translation>
+        <source>This project was saved by a newer version of TonDron (project format %1; this build reads up to %2).</source>
+        <translation>මෙම ව්‍යාපෘතිය TonDron හි නව අනුවාදයකින් සුරකින ලද්දකි (ව්‍යාපෘති ආකෘතිය %1; මෙම සංස්කරණය කියවන්නේ %2 දක්වා පමණි).</translation>
     </message>
     <message>
         <location line="+11"/>
-        <source>This file isn’t a Drift project.</source>
-        <translation>මෙම ගොනුව Drift ව්‍යාපෘතියක් නොවේ.</translation>
+        <source>This file isn’t a TonDron project.</source>
+        <translation>මෙම ගොනුව TonDron ව්‍යාපෘතියක් නොවේ.</translation>
     </message>
 </context>
 <context>
@@ -4416,13 +4416,13 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+4"/>
-        <source>file is too short to be a Drift project</source>
-        <translation>ගොනුව Drift ව්‍යාපෘතියක් වීමට තරම් කෙටි වැඩිය</translation>
+        <source>file is too short to be a TonDron project</source>
+        <translation>ගොනුව TonDron ව්‍යාපෘතියක් වීමට තරම් කෙටි වැඩිය</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>not a Drift project (bad magic)</source>
-        <translation>Drift ව්‍යාපෘතියක් නොවේ (bad magic)</translation>
+        <source>not a TonDron project (bad magic)</source>
+        <translation>TonDron ව්‍යාපෘතියක් නොවේ (bad magic)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4461,8 +4461,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+2"/>
-        <source>this project was saved by a newer version of Drift (format %1) — update to open it</source>
-        <translation>මෙම ව්‍යාපෘතිය Drift හි නව අනුවාදයකින් සුරකින ලද්දකි (ආකෘතිය %1) — එය විවෘත කිරීමට යාවත්කාලීන කරන්න</translation>
+        <source>this project was saved by a newer version of TonDron (format %1) — update to open it</source>
+        <translation>මෙම ව්‍යාපෘතිය TonDron හි නව අනුවාදයකින් සුරකින ලද්දකි (ආකෘතිය %1) — එය විවෘත කිරීමට යාවත්කාලීන කරන්න</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -4879,8 +4879,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+1"/>
-        <source>Drift will render a reversed copy of this clip so it plays back smoothly. You can keep editing while it runs.</source>
-        <translation>සුමටව ධාවනය වන පරිදි Drift විසින් මෙම ක්ලිපයේ ප්‍රතිලෝම පිටපතක් රෙන්ඩර් කරනු ඇත. එය ක්‍රියාත්මක වන අතරතුර ඔබට දිගටම සංස්කරණය කළ හැක.</translation>
+        <source>TonDron will render a reversed copy of this clip so it plays back smoothly. You can keep editing while it runs.</source>
+        <translation>සුමටව ධාවනය වන පරිදි TonDron විසින් මෙම ක්ලිපයේ ප්‍රතිලෝම පිටපතක් රෙන්ඩර් කරනු ඇත. එය ක්‍රියාත්මක වන අතරතුර ඔබට දිගටම සංස්කරණය කළ හැක.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -5293,8 +5293,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+1"/>
-        <source>Ask GitHub once a day whether a newer Drift has been released</source>
-        <translation>දිනකට වරක් GitHub වෙතින් නව Drift අනුවාදයක් නිකුත් කර ඇත්දැයි විමසන්න</translation>
+        <source>Ask GitHub once a day whether a newer TonDron has been released</source>
+        <translation>දිනකට වරක් GitHub වෙතින් නව TonDron අනුවාදයක් නිකුත් කර ඇත්දැයි විමසන්න</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -5308,8 +5308,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+10"/>
-        <source>Drift %1</source>
-        <translation>Drift %1</translation>
+        <source>TonDron %1</source>
+        <translation>TonDron %1</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5378,8 +5378,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+1"/>
-        <source>Start a localhost MCP server. Not saved. Stops when Drift quits or you turn this off.</source>
-        <translation>Localhost MCP සේවාදායකයක් ආරම්භ කරන්න. සුරැකෙන්නේ නැත. Drift වැසූ විට හෝ ඔබ මෙය අක්‍රිය කළ විට නතර වේ.</translation>
+        <source>Start a localhost MCP server. Not saved. Stops when TonDron quits or you turn this off.</source>
+        <translation>Localhost MCP සේවාදායකයක් ආරම්භ කරන්න. සුරැකෙන්නේ නැත. TonDron වැසූ විට හෝ ඔබ මෙය අක්‍රිය කළ විට නතර වේ.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -5418,8 +5418,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+1"/>
-        <source>Add this once to mcp.json. drift --mcp-stdio talks to whichever session is running. Agent access still has to be turned on in Drift.</source>
-        <translation>මෙය mcp.json වෙත එක් වරක් එක් කරන්න. drift --mcp-stdio ධාවනය වන ඕනෑම සැසියක් සමඟ සන්නිවේදනය කරයි. Drift හි නියෝජිත ප්‍රවේශය තවමත් සක්‍රීය කර තිබිය යුතුය.</translation>
+        <source>Add this once to mcp.json. drift --mcp-stdio talks to whichever session is running. Agent access still has to be turned on in TonDron.</source>
+        <translation>මෙය mcp.json වෙත එක් වරක් එක් කරන්න. drift --mcp-stdio ධාවනය වන ඕනෑම සැසියක් සමඟ සන්නිවේදනය කරයි. TonDron හි නියෝජිත ප්‍රවේශය තවමත් සක්‍රීය කර තිබිය යුතුය.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -7737,13 +7737,13 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+12"/>
-        <source>Drift %1 is the latest version.</source>
-        <translation>Drift %1 යනු නවතම අනුවාදයයි.</translation>
+        <source>TonDron %1 is the latest version.</source>
+        <translation>TonDron %1 යනු නවතම අනුවාදයයි.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Drift %1 is available.</source>
-        <translation>Drift %1 ලබාගත හැක.</translation>
+        <source>TonDron %1 is available.</source>
+        <translation>TonDron %1 ලබාගත හැක.</translation>
     </message>
 </context>
 <context>
@@ -7755,8 +7755,8 @@ Quality: තථ්‍ය කාලයට වඩා සෙමින්, ශබ්
     </message>
     <message>
         <location line="+24"/>
-        <source>Drift %1 is available</source>
-        <translation>Drift %1 ලබාගත හැක</translation>
+        <source>TonDron %1 is available</source>
+        <translation>TonDron %1 ලබාගත හැක</translation>
     </message>
     <message>
         <location line="+5"/>

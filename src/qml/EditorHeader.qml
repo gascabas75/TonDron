@@ -13,7 +13,7 @@ Rectangle {
 
     property string projectName: EditorState.projectName
 
-    readonly property var projectFilter: [qsTr("Drift project (*.drift)")]
+    readonly property var projectFilter: [qsTr("Proyecto TonDron (*.drift)")]
 
     // Action to run after Save or Don't Save resolves. Null when idle.
     property var _pendingAfterUnsaved: null
@@ -404,7 +404,7 @@ Rectangle {
                     anchors.fill: parent
                     glyph: Theme.icons.download
                     variant: "ghost"
-                    tooltip: qsTr("Drift %1 is available").arg(Updates.latestVersion)
+                    tooltip: qsTr("TonDron %1 is available").arg(Updates.latestVersion)
                     onClicked: root.Window.window.openUpdateDialog()
                 }
 
