@@ -64,3 +64,4 @@ Watermark.py
 TonDron/
 _flatpak_build/
 .flatpak-builder/
+*.exe
