@@ -58,6 +58,7 @@ modules:
     buildsystem: cmake-ninja
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
       - -DBUILD_SHARED_LIBS=ON
       - -DSOUNDSTRETCH=OFF
       # Without this it lands in /app/lib64, where two things fail to look: pkg-config (so TonDron
