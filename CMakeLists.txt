@@ -652,13 +652,13 @@ else()
         install(DIRECTORY ${CMAKE_SOURCE_DIR}/${_assetdir}
                 DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT tondron-videoedit)
     endforeach()
-    install(FILES Flatpak/com.tondron.TonDron.desktop
+    install(FILES flatpak/com.tondron.TonDron.desktop
             DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT tondron-videoedit)
-    install(FILES Flatpak/com.tondron.TonDron.metainfo.xml
+    install(FILES flatpak/com.tondron.TonDron.metainfo.xml
             DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo COMPONENT tondron-videoedit)
     foreach(_size 64 128 256 512)
         install(FILES
-            Flatpak/share/icons/hicolor/${_size}x${_size}/apps/com.tondron.TonDron.png
+            flatpak/share/icons/hicolor/${_size}x${_size}/apps/com.tondron.TonDron.png
             DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_size}x${_size}/apps COMPONENT tondron-videoedit)
     endforeach()
 endif()
