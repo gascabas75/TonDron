@@ -350,6 +350,7 @@ qt_add_executable(tondron-videoedit
     src/models/AssetLibrary.cpp
     src/models/TimelineModel.cpp
     src/models/ClipListModel.cpp
+    src/models/EditorState.h
     src/mcp/McpSession.cpp
     src/mcp/McpCatalog.cpp
     src/mcp/McpProtocol.cpp
@@ -393,9 +394,6 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
 endif()
 
-set_source_files_properties(${CMAKE_SOURCE_DIR}/resources/TonDron.png PROPERTIES
-  QT_RESOURCE_ALIAS "TonDron.png"
-)
 qt_add_resources(tondron-videoedit "TonDron_app_icon"
   PREFIX "/app"
   FILES
